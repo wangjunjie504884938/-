@@ -1,0 +1,21 @@
+[Unit]
+Description=Arpg Game Server (Unity Headless + Mirror)
+After=network.target mysql.service redis-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/arpg-gameserver
+ExecStart=/opt/arpg-gameserver/ArpgGameServer.x86_64 -batchmode -nographics -port 7777 -webApiUrl http://localhost:5132
+Restart=always
+RestartSec=10
+
+Environment=GAME_SERVER_PORT=7777
+Environment=WEB_API_URL=http://localhost:5132
+Environment=MAX_ROOMS=50
+Environment=CONNECTION_TIMEOUT=30
+
+StandardOutput=append:/var/log/arpg-gameserver.log
+StandardError=append:/var/log/arpg-gameserver-error.log
+
+[Install]
+WantedBy=multi-user.target

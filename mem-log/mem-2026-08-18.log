@@ -1,0 +1,54 @@
+[2026-08-18T03:11:17.007Z] MemoryForge: attached 5 listener(s)
+[2026-08-18T03:11:17.008Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-18T03:11:17.008Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T03:11:20.254Z] MemoryForge: attached 5 listener(s)
+[2026-08-18T03:11:20.254Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-18T03:11:20.255Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T03:11:42.068Z] MemoryForge: attached 5 listener(s)
+[2026-08-18T03:11:42.069Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-18T03:11:42.071Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T03:22:49.447Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T03:22:53.043Z] ResumeDiffForge: running checkResumeConsistency
+[2026-08-18T03:22:54.500Z] checkResumeConsistency: forgedTimestamps=[["project","1970-01-01T00:00:00.000Z"]]
+[2026-08-18T03:23:02.120Z] checkResumeConsistency: injecting 1 diff notification(s)
+[2026-08-18T03:23:02.193Z] injectForgedHistory: role=user preview="[agent-auto] [memory-update 2026-08-17 15:22:59] project memory file has been mo"
+[2026-08-18T03:23:02.356Z] injectForgedHistory: recordMessage persisted
+[2026-08-18T03:23:02.357Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T03:23:02.358Z] NudgeForge: ResumeComplete — restoring count from history
+[2026-08-18T03:23:02.359Z] restoreNudgeCountFromHistory: found nudge message at idx=1510 count=12
+[2026-08-18T03:53:12.437Z] MemoryForge: attached 5 listener(s)
+[2026-08-18T03:53:12.438Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-18T03:53:12.438Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T03:59:25.471Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T03:59:30.461Z] ResumeDiffForge: running checkResumeConsistency
+[2026-08-18T03:59:30.603Z] checkResumeConsistency: forgedTimestamps=[["project","1970-01-01T00:00:00.000Z"]]
+[2026-08-18T03:59:36.155Z] checkResumeConsistency: injecting 1 diff notification(s)
+[2026-08-18T03:59:36.203Z] injectForgedHistory: role=user preview="[agent-auto] [memory-update 2026-08-17 15:22:59] project memory file has been mo"
+[2026-08-18T03:59:36.204Z] injectForgedHistory: recordMessage persisted
+[2026-08-18T03:59:36.205Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T03:59:36.205Z] NudgeForge: ResumeComplete — restoring count from history
+[2026-08-18T03:59:36.369Z] restoreNudgeCountFromHistory: found nudge message at idx=1510 count=12
+[2026-08-18T07:27:48.612Z] MemoryForge: attached 5 listener(s)
+[2026-08-18T07:27:48.630Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-18T07:27:48.630Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T07:38:16.053Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T07:38:18.467Z] ResumeDiffForge: running checkResumeConsistency
+[2026-08-18T07:38:18.755Z] checkResumeConsistency: forgedTimestamps=[["project","1970-01-01T00:00:00.000Z"]]
+[2026-08-18T07:38:22.219Z] checkResumeConsistency: injecting 1 diff notification(s)
+[2026-08-18T07:38:22.300Z] injectForgedHistory: role=user preview="[agent-auto] [memory-update 2026-08-17 15:22:59] project memory file has been mo"
+[2026-08-18T07:38:22.357Z] injectForgedHistory: recordMessage persisted
+[2026-08-18T07:38:22.368Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T07:38:22.368Z] NudgeForge: ResumeComplete — restoring count from history
+[2026-08-18T07:38:22.405Z] restoreNudgeCountFromHistory: found nudge message at idx=1510 count=12
+[2026-08-18T07:53:02.261Z] MemoryForge: attached 5 listener(s)
+[2026-08-18T07:53:02.262Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-18T07:53:02.262Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T08:01:16.579Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T08:01:18.674Z] ResumeDiffForge: running checkResumeConsistency
+[2026-08-18T08:01:18.829Z] checkResumeConsistency: forgedTimestamps=[["project","1970-01-01T00:00:00.000Z"]]
+[2026-08-18T08:01:19.755Z] checkResumeConsistency: injecting 1 diff notification(s)
+[2026-08-18T08:01:19.756Z] injectForgedHistory: role=user preview="[agent-auto] [memory-update 2026-08-17 15:22:59] project memory file has been mo"
+[2026-08-18T08:01:19.756Z] injectForgedHistory: recordMessage persisted
+[2026-08-18T08:01:19.757Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-18T08:01:19.757Z] NudgeForge: ResumeComplete — restoring count from history
+[2026-08-18T08:01:19.759Z] restoreNudgeCountFromHistory: found nudge message at idx=1510 count=12

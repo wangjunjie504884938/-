@@ -1,0 +1,156 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Successfully connected to the License Client on channel: "LicenseClient-wjj" at "2026-06-03T07:19:15.7203207Z"
+[Licensing::Client] Error: Code 0 while verifying Licensing Client signature (process Id: 26088, path: "C:/Program Files/Tuanjie Hub/TuanjieLicensingClient_V1/Tuanjie.Licensing.Client.exe")
+[Licensing::Module] Error: LicensingClient has failed validation; ignoring
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Ewh7pSulAO2h+g==","messageType":"HandshakeRequest","protocolVersion":"1.12","userAgent":"TuanjieEditor/2022.3.62t8 (Windows; U; Windows NT 10.0; zh)","externalCorrelationId":"7251623142660141657"} at 1780471156
+[Licensing::Client] Successfully receive message: {"protocolVersion":"1.12","sessionId":"c0fb3de62ffd421ca81f585f72afa353","context":{"DeviceName":"WJJ","DeviceModel":"ASUS TUF Gaming A15 FA506IV (ASUSTeK COMPUTER INC.)","PhysicalMemoryMB":"15785","SystemLanguageISO":"zh","ProcessorCount":"16","ProcessorType":"AMD Ryzen 7 4800H with Radeon Graphics         ","OperatingSystem":"Windows 10  (10.0.22631) 64bit","OperatingSystemNumeric":"1000","Legacy.MachineBinding1":"00326-40000-00000-AAOEM","Legacy.MachineBinding2":"00000_00_000000_00_1000A7_25_0A2610_D0.0","Legacy.MachineBinding4":"TTFOUkNYMDBMOTc3MDI4","Legacy.MachineBinding5":"00:ff:9e:bf:52:ce","EnvironmentUser":"wjj","EnvironmentDomain":"WJJ","EnvironmentHostname":"WJJ"},"assemblyProductVersion":"1.14.0+249b3dc","machineId":"5l9COKFJ9ZdumgRXjq/8Qw56yxg=","correlationId":"bb1d35dfbcc1a16a855b70391ea6dc25","responseCode":200,"responseStatus":"Handshake successful","messageType":"HandshakeResponse"} at 1780471156
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.14.0+249b3dc
+  Session Id:              c0fb3de62ffd421ca81f585f72afa353
+  Correlation Id:          bb1d35dfbcc1a16a855b70391ea6dc25
+  External correlation Id: 7251623142660141657
+  Machine Id:              5l9COKFJ9ZdumgRXjq/8Qw56yxg=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-wjj" (connect: 0.00s, validation: 0.05s, handshake: 0.48s)
+[Licensing::IpcConnector] Successfully connected to the License Notification on channel: "LicenseClient-wjj-notifications" at "2026-06-03T07:19:16.2571628Z"
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"1Divm/lZC2i8Tw==","messageType":"UpdateLicenseRequest","AccessToken":"","OrgId":"","ProjectId":"","forceUpdateLicense":true} at 1780471156
+[Licensing::Client] Successfully receive message: {"responseCode":200,"responseStatus":"Licenses updated.","messageType":"UpdateLicenseResponse","authorizationCheck":"1Divm/lZC2i8T2OvkebL2aidFof5"} at 1780471160
+[Licensing::Client] Attempt to check time stamp (startTime: 1780471156, endTime: 1780471160)
+[Licensing::Client] Successfully updated license
+Built from 'tuanjie/1.9/staging' branch; Version is '2022.3.62t8 (eaa6929bf4e5) revision 15378066'; Using compiler version '192829333'; Build Type 'Release'
+OS: 'Windows 11  (10.0.22631) 64bit CoreCountrySpecific' Language: 'zh' Physical Memory: 15785 MB
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4yMVRZQ1SiSw==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.legacy.pro","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1780471160
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-QSBH-9WCS-PPV8-TA5K-XTM7","entitlementGroupIdHash":"969b64d67792222729bc8891724f6819c3c283f3","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":2095898057000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4yMVRZQ1SiSye7Uh/FgT7cfxum"} at 1780471161
+[Licensing::Client] Attempt to check time stamp (startTime: 1780471160, endTime: 1780471161)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Serial number assigned to: "F4-QSBH-9WCS-PPV8-TA5K-XXXX"
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1, IsPro: 0
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4yMVRZQ1SiSg==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.headless","com.unity.editor.ui"],"packageEntitlementIds":[],"includeCustomData":false} at 1780471161
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-QSBH-9WCS-PPV8-TA5K-XTM7","entitlementGroupIdHash":"969b64d67792222729bc8891724f6819c3c283f3","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":2095898057000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.ui","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4yMVRZQ1SiSie7Uh/FgR7shswe"} at 1780471161
+[Licensing::Client] Attempt to check time stamp (startTime: 1780471161, endTime: 1780471161)
+[Licensing::Client] Successfully resolved entitlement details
+
+COMMAND LINE ARGUMENTS:
+D:\Unity\2022.3.62t8\Editor\Tuanjie.exe
+-batchmode
+-nographics
+-quit
+-projectPath
+D:\unity\demo
+-buildTarget
+StandaloneWindows64
+-executeMethod
+UnityEditor.BuildPipeline.BuildPlayer
+Assets/Scenes/SampleScene.scene
+D:\unity\demo\Build_Windows/DefenseWar.exe
+StandaloneWindows64
+-logFile
+D:\unity\demo\Build_Windows/build.log
+Successfully changed project path to: D:\unity\demo
+D:/unity/demo
+It looks like another Tuanjie instance is running with this project open.
+
+Multiple Tuanjie instances cannot open the same project.
+
+Project: D:/unity/demo
+Fatal Error! It looks like another Tuanjie instance is running with this project open.
+
+Multiple Tuanjie instances cannot open the same project.
+
+Project: D:/unity/demo
+Crash!!!
+SymInit: Symbol-SearchPath: 'D:/Unity/2022.3.62t8/Editor/Data/Mono;.;D:\unity\demo;D:\unity\demo\Library\BurstCache\JIT;D:\unity\2022.3.62t8\Editor;C:\WINDOWS;C:\WINDOWS\system32;', symOptions: 534, UserName: 'wjj'
+OS-Version: 10.0.0
+D:\Unity\2022.3.62t8\Editor\Tuanjie.exe:Tuanjie.exe (00007FF76CD30000), size: 117772288 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 2022.3.62.42642
+C:\WINDOWS\SYSTEM32\ntdll.dll:ntdll.dll (00007FFA9D690000), size: 2191360 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\System32\KERNEL32.DLL:KERNEL32.DLL (00007FFA9C1B0000), size: 802816 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\System32\KERNELBASE.dll:KERNELBASE.dll (00007FFA9AE10000), size: 3903488 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\System32\CRYPT32.dll:CRYPT32.dll (00007FFA9AB50000), size: 1466368 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\System32\ucrtbase.dll:ucrtbase.dll (00007FFA9ACF0000), size: 1118208 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3593
+C:\WINDOWS\System32\USER32.dll:USER32.dll (00007FFA9B460000), size: 1761280 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\System32\win32u.dll:win32u.dll (00007FFA9ACC0000), size: 155648 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4460
+C:\WINDOWS\System32\GDI32.dll:GDI32.dll (00007FFA9BBE0000), size: 167936 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4036
+C:\WINDOWS\System32\gdi32full.dll:gdi32full.dll (00007FFA9A990000), size: 1159168 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\System32\msvcp_win.dll:msvcp_win.dll (00007FFA9AAB0000), size: 630784 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3374
+C:\WINDOWS\System32\ADVAPI32.dll:ADVAPI32.dll (00007FFA9B790000), size: 729088 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\System32\msvcrt.dll:msvcrt.dll (00007FFA9B610000), size: 684032 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 7.0.22621.2506
+C:\WINDOWS\System32\sechost.dll:sechost.dll (00007FFA9D340000), size: 684032 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\System32\bcrypt.dll:bcrypt.dll (00007FFA9B1D0000), size: 163840 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.2506
+C:\WINDOWS\System32\RPCRT4.dll:RPCRT4.dll (00007FFA9CD50000), size: 1130496 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4249
+C:\WINDOWS\System32\SHELL32.dll:SHELL32.dll (00007FFA9C280000), size: 8871936 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4460
+C:\WINDOWS\System32\SHLWAPI.dll:SHLWAPI.dll (00007FFA9CCF0000), size: 385024 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\System32\ole32.dll:ole32.dll (00007FFA9CB20000), size: 1724416 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3958
+C:\WINDOWS\System32\combase.dll:combase.dll (00007FFA9B850000), size: 3731456 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\System32\IMM32.dll:IMM32.dll (00007FFA9D200000), size: 200704 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3374
+C:\WINDOWS\System32\SETUPAPI.dll:SETUPAPI.dll (00007FFA9BC10000), size: 4669440 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.2506
+C:\WINDOWS\System32\WS2_32.dll:WS2_32.dll (00007FFA9B710000), size: 462848 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\System32\OLEAUT32.dll:OLEAUT32.dll (00007FFA9CE70000), size: 880640 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3672
+C:\WINDOWS\System32\WINTRUST.dll:WINTRUST.dll (00007FFA9B2C0000), size: 442368 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+D:\Unity\2022.3.62t8\Editor\CMP_Compressonator.dll:CMP_Compressonator.dll (00007FFA56120000), size: 757760 (result: 0), SymType: '-deferred-', PDB: ''
+D:\Unity\2022.3.62t8\Editor\ispc_texcomp.dll:ispc_texcomp.dll (00007FFA40F70000), size: 1826816 (result: 0), SymType: '-deferred-', PDB: ''
+D:\Unity\2022.3.62t8\Editor\compress_bc7e.dll:compress_bc7e.dll (00007FFA3FC00000), size: 1433600 (result: 0), SymType: '-deferred-', PDB: ''
+D:\Unity\2022.3.62t8\Editor\etccompress.dll:etccompress.dll (00007FFA115D0000), size: 5070848 (result: 0), SymType: '-deferred-', PDB: ''
+C:\WINDOWS\SYSTEM32\OPENGL32.dll:OPENGL32.dll (00007FFA5CD60000), size: 1048576 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\SYSTEM32\GLU32.dll:GLU32.dll (00007FFA5E190000), size: 184320 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.2506
+C:\WINDOWS\SYSTEM32\IPHLPAPI.DLL:IPHLPAPI.DLL (00007FFA993F0000), size: 184320 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\SYSTEM32\WINHTTP.dll:WINHTTP.dll (00007FFA95950000), size: 1269760 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\SYSTEM32\WINMM.dll:WINMM.dll (00007FFA95A90000), size: 212992 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\SYSTEM32\HID.DLL:HID.DLL (00007FFA99190000), size: 57344 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\SYSTEM32\dwmapi.dll:dwmapi.dll (00007FFA97100000), size: 176128 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+D:\Unity\2022.3.62t8\Editor\WinPixEventRuntime.dll:WinPixEventRuntime.dll (00007FFA879E0000), size: 45056 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 1.0.1812.6001
+D:\Unity\2022.3.62t8\Editor\FreeImage.dll:FreeImage.dll (0000000180000000), size: 5783552 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 3.18.0.0
+C:\WINDOWS\SYSTEM32\VERSION.dll:VERSION.dll (00007FFA95250000), size: 40960 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\SYSTEM32\WSOCK32.dll:WSOCK32.dll (00007FFA83EB0000), size: 36864 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\SYSTEM32\MSVCP140.dll:MSVCP140.dll (00007FFA86040000), size: 561152 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 14.44.35211.0
+C:\WINDOWS\SYSTEM32\VCRUNTIME140.dll:VCRUNTIME140.dll (00007FFA860D0000), size: 122880 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 14.44.35211.0
+C:\WINDOWS\SYSTEM32\VCRUNTIME140_1.dll:VCRUNTIME140_1.dll (00007FFA85400000), size: 49152 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 14.44.35211.0
+C:\WINDOWS\SYSTEM32\dxcore.dll:dxcore.dll (00007FFA975C0000), size: 225280 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+D:\Unity\2022.3.62t8\Editor\SketchUpAPI.dll:SketchUpAPI.dll (00007FF9EF180000), size: 9306112 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 20.2.172.0
+D:\Unity\2022.3.62t8\Editor\NativeProxyHelper.dll:NativeProxyHelper.dll (00007FFA3F4E0000), size: 1789952 (result: 0), SymType: '-deferred-', PDB: ''
+C:\WINDOWS\SYSTEM32\Secur32.dll:Secur32.dll (00007FFA99760000), size: 49152 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+D:\Unity\2022.3.62t8\Editor\SketchUpCommonPreferences.dll:SketchUpCommonPreferences.dll (00007FFA560A0000), size: 479232 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 20.2.172.37
+C:\WINDOWS\SYSTEM32\SSPICLI.DLL:SSPICLI.DLL (00007FFA99C00000), size: 274432 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3810
+D:\Unity\2022.3.62t8\Editor\libfbxsdk.dll:libfbxsdk.dll (00007FF9FBAA0000), size: 10215424 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 2020.2.0.0
+C:\WINDOWS\SYSTEM32\MSWSOCK.DLL:MSWSOCK.DLL (00007FFA99E30000), size: 430080 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.2506
+C:\WINDOWS\SYSTEM32\MSASN1.dll:MSASN1.dll (00007FFA9A200000), size: 73728 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.2506
+C:\WINDOWS\SYSTEM32\CRYPTBASE.DLL:CRYPTBASE.DLL (00007FFA9A0C0000), size: 49152 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\System32\bcryptPrimitives.dll:bcryptPrimitives.dll (00007FFA9B330000), size: 503808 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4317
+C:\WINDOWS\SYSTEM32\cfgmgr32.DLL:cfgmgr32.DLL (00007FFA9A600000), size: 319488 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.2506
+C:\WINDOWS\SYSTEM32\kernel.appcore.dll:kernel.appcore.dll (00007FFA999A0000), size: 98304 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3958
+C:\WINDOWS\system32\uxtheme.dll:uxtheme.dll (00007FFA96EA0000), size: 724992 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\SYSTEM32\windows.storage.dll:windows.storage.dll (00007FFA98880000), size: 9449472 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\SYSTEM32\wintypes.dll:wintypes.dll (00007FFA98740000), size: 1306624 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3810
+C:\WINDOWS\System32\SHCORE.dll:SHCORE.dll (00007FFA9D3F0000), size: 1019904 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\SYSTEM32\profapi.dll:profapi.dll (00007FFA9A8C0000), size: 176128 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4391
+C:\WINDOWS\SYSTEM32\CRYPTSP.dll:CRYPTSP.dll (00007FFA9A0A0000), size: 110592 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3672
+C:\WINDOWS\system32\rsaenh.dll:rsaenh.dll (00007FFA99900000), size: 217088 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4249
+C:\WINDOWS\System32\imagehlp.dll:imagehlp.dll (00007FFA9D010000), size: 126976 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\SYSTEM32\gpapi.dll:gpapi.dll (00007FFA99EC0000), size: 155648 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3810
+C:\Windows\System32\cryptnet.dll:cryptnet.dll (00007FFA952E0000), size: 204800 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\SYSTEM32\WINNSI.DLL:WINNSI.DLL (00007FFA97080000), size: 53248 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\System32\NSI.dll:NSI.dll (00007FFA9CCE0000), size: 36864 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\system32\IconCodecService.dll:IconCodecService.dll (00007FFA594F0000), size: 36864 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.1
+C:\WINDOWS\SYSTEM32\WindowsCodecs.dll:WindowsCodecs.dll (00007FFA96CF0000), size: 1769472 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.4455
+C:\WINDOWS\System32\clbcatq.dll:clbcatq.dll (00007FFA9B3B0000), size: 720896 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 2001.12.10941.16384
+C:\WINDOWS\System32\netprofm.dll:netprofm.dll (00007FFA96B90000), size: 491520 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3527
+C:\WINDOWS\System32\npmproxy.dll:npmproxy.dll (00007FFA93190000), size: 98304 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3527
+C:\WINDOWS\SYSTEM32\dbghelp.dll:dbghelp.dll (00007FFA97FC0000), size: 2301952 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.22621.3593
+
+========== OUTPUTTING STACK TRACE ==================
+
+0x00007FFA9AE6FA4C (KERNELBASE) RaiseException
+0x00007FF76F96F7C0 (Tuanjie) EditorMonoConsole::LogToConsoleImplementation
+0x00007FF76F9701AC (Tuanjie) EditorMonoConsole::LogToConsoleImplementation
+0x00007FF77072DE9F (Tuanjie) DebugStringToFilePostprocessedStacktrace
+0x00007FF77072D5FA (Tuanjie) DebugStringToFile
+0x00007FF76FB03707 (Tuanjie) HandleProjectAlreadyOpenInAnotherInstance
+0x00007FF76FB05C9C (Tuanjie) Application::InitializeProject
+0x00007FF76FFCE80A (Tuanjie) WinMain
+0x00007FF77159854E (Tuanjie) __scrt_common_main_seh
+0x00007FFA9C1C259D (KERNEL32) BaseThreadInitThunk
+0x00007FFA9D6EAF38 (ntdll) RtlUserThreadStart
+
+========== END OF STACKTRACE ===========
+
+A crash has been intercepted by the crash handler. For call stack and other details, see the latest crash report generated in:
+ * C:/Users/wjj/AppData/Local/Temp/Tuanjie/Editor/Crashes

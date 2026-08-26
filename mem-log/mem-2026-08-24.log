@@ -1,0 +1,54 @@
+[2026-08-24T02:31:31.984Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T02:31:32.006Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T02:31:32.007Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T02:31:35.014Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T02:31:35.014Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T02:31:35.014Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T02:34:28.308Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T02:34:28.309Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T02:34:28.311Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T02:46:41.588Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T02:46:44.791Z] ResumeDiffForge: running checkResumeConsistency
+[2026-08-24T02:46:44.977Z] checkResumeConsistency: forgedTimestamps=[["project","1970-01-01T00:00:00.000Z"]]
+[2026-08-24T02:46:51.372Z] checkResumeConsistency: injecting 1 diff notification(s)
+[2026-08-24T02:46:51.584Z] injectForgedHistory: role=user preview="[agent-auto] [memory-update 2026-08-17 15:22:59] project memory file has been mo"
+[2026-08-24T02:46:51.585Z] injectForgedHistory: recordMessage persisted
+[2026-08-24T02:46:51.626Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T02:46:51.627Z] NudgeForge: ResumeComplete — restoring count from history
+[2026-08-24T02:46:51.628Z] restoreNudgeCountFromHistory: found nudge message at idx=1510 count=19
+[2026-08-24T03:28:20.217Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T03:28:20.228Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T03:28:20.228Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T03:45:56.893Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T03:46:08.819Z] ResumeDiffForge: running checkResumeConsistency
+[2026-08-24T03:46:12.320Z] checkResumeConsistency: forgedTimestamps=[["project","1970-01-01T00:00:00.000Z"]]
+[2026-08-24T03:47:34.652Z] checkResumeConsistency: injecting 1 diff notification(s)
+[2026-08-24T03:47:38.947Z] injectForgedHistory: role=user preview="[agent-auto] [memory-update 2026-08-17 15:22:59] project memory file has been mo"
+[2026-08-24T03:47:40.923Z] injectForgedHistory: recordMessage persisted
+[2026-08-24T03:47:42.531Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T03:47:42.930Z] NudgeForge: ResumeComplete — restoring count from history
+[2026-08-24T03:47:43.883Z] restoreNudgeCountFromHistory: found nudge message at idx=1510 count=19
+[2026-08-24T04:00:59.023Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T04:00:59.045Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T04:00:59.045Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T04:01:04.313Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T04:01:04.314Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T04:01:04.314Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T04:01:29.249Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T04:01:29.250Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T04:01:29.250Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T04:01:47.926Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T04:01:47.927Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T04:01:47.928Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T04:01:57.542Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T04:01:57.543Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T04:01:57.544Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T09:53:15.785Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T09:53:15.799Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T09:53:15.799Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T09:53:18.849Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T09:53:18.850Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T09:53:18.850Z] LiveUpdateForge: session reset, allowLiveUpdate = false
+[2026-08-24T09:55:32.102Z] MemoryForge: attached 5 listener(s)
+[2026-08-24T09:55:32.103Z] InitialReadForge: armed one-shot BeforeSend after NewSessionStart
+[2026-08-24T09:55:32.103Z] LiveUpdateForge: session reset, allowLiveUpdate = false

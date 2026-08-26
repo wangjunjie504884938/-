@@ -1,0 +1,27 @@
+从 D:\unity\demo\Server\ArpgServer\Properties\launchSettings.json 使用启动设置...
+warn: Microsoft.EntityFrameworkCore.Query[10103]
+      The query uses the 'First'/'FirstOrDefault' operator without 'OrderBy' and filter operators. This may lead to unpredictable results.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (38ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT `g`.`Id`, `g`.`AttackPerLevel`, `g`.`AutoAttackRange`, `g`.`BaseAttack`, `g`.`BaseAttackCooldown`, `g`.`BaseAttackRange`, `g`.`BaseCritChance`, `g`.`BaseDefense`, `g`.`BaseHp`, `g`.`BaseHpRegen`, `g`.`BaseMoveSpeed`, `g`.`ClassId`, `g`.`ClassName`, `g`.`DefensePerLevel`, `g`.`Description`, `g`.`HpPerLevel`, `g`.`IsRanged`, `g`.`PrimaryA`, `g`.`PrimaryB`, `g`.`PrimaryG`, `g`.`PrimaryR`, `g`.`SecondaryA`, `g`.`SecondaryB`, `g`.`SecondaryG`, `g`.`SecondaryR`, `g`.`Skill1A`, `g`.`Skill1B`, `g`.`Skill1G`, `g`.`Skill1Name`, `g`.`Skill1R`, `g`.`Skill2A`, `g`.`Skill2B`, `g`.`Skill2G`, `g`.`Skill2Name`, `g`.`Skill2R`, `g`.`Skill3A`, `g`.`Skill3B`, `g`.`Skill3G`, `g`.`Skill3Name`, `g`.`Skill3R`
+      FROM `GameClassStats` AS `g`
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (26ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT `p`.`Id`, `p`.`ClassType`, `p`.`HighestStageCleared`, `p`.`Level`, `p`.`SaveJson`, `p`.`Slot`, `p`.`UpdatedAt`, `p`.`UserId`
+      FROM `PlayerSaves` AS `p`
+      WHERE `p`.`Slot` = 0
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (27ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT CASE WHEN COUNT(*) = 0 THEN FALSE ELSE TRUE END
+FROM information_schema.tables
+WHERE table_type = 'BASE TABLE' AND table_schema = 'weimian'
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5132
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: D:\unity\demo\Server\ArpgServer
