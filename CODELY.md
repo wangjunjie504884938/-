@@ -97,7 +97,8 @@
 
 
 
-- [2026-08-26 12:29:43] Git仓库初始化(2026-08-17)：项目首次上传GitHub。git init + .gitignore(排除Library/Temp/obj/csproj/sln/publish等)。远程仓库：https://github.com/wangjunjie504884938/-.git，主分支main。git add --all因Library目录文件多需要较长时间，可能需要手动在终端执行。
+- [2026-09-10 09:55:22] Git仓库初始化(2026-08-17)：项目首次上传GitHub。git init + .gitignore(排除Library/Temp/obj/csproj/sln/publish等)。远程仓库：https://github.com/wangjunjie504884938/-.git，主分支main。git add --all因Library目录文件多需要较长时间，可能需要手动在终端执行。优化提交(2026-09-10)：commit"代码优化: 大文件拆分+数据层提取+资源压缩"已成功(本地保存✅)，push失败因github.com:443被阻断(Test-NetConnection TcpTestSucceeded=False)——需用户开代理后重试git push origin main，或改SSH方式。
+
 - [2026-09-08 11:14:56] 服务器部署验证(2026-09-08)：39.107.141.107:5132最新版已部署并在线。验证通过：/api/health✅、/api/auth/login✅(testbot/123456返回JWT,注意JSON字段为PascalCase:Username/Password)、/api/friend/list✅(testbot无好友返回空列表)、/api/save/ping✅。发布包：publish-linux-sc.zip 45.1MB(linux-x64 self-contained单文件)。curl测试注意：PowerShell中JSON体用临时文件+--data-binary "@file"传递，-d直接传会转义失败；用curl.exe而非curl别名(避免Invoke-WebRequest参数冲突)。待验证：客户端FriendData/GuildData等5个数据层重构后Unity编译(FriendUI嵌套类重命名FriendInfo可能遗留引用问题)。 
 
 ### Reference
