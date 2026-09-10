@@ -143,8 +143,8 @@ public class DialogueSystem : MonoBehaviour
     {
         if (stageIndex < 0 || stageIndex >= StageDialogueStart.Length) return;
         // 跳过已读对话
-        if (PlayerPrefs.GetInt($"ARPG_DialogueStart_{stageIndex}", 0) == 1) return;
-        PlayerPrefs.SetInt($"ARPG_DialogueStart_{stageIndex}", 1);
+        if (DialogueData.IsStartDialogueRead(stageIndex)) return;
+        DialogueData.MarkStartDialogueRead(stageIndex);
 
         string[] lines = StageDialogueStart[stageIndex];
         string speaker = stageIndex == 0 ? "神秘指引者" : stageIndex == 7 ? "卫冕之王" : "神秘指引者";
@@ -155,8 +155,8 @@ public class DialogueSystem : MonoBehaviour
     public void ShowStageEndDialogue(int stageIndex)
     {
         if (stageIndex < 0 || stageIndex >= StageDialogueEnd.Length) return;
-        if (PlayerPrefs.GetInt($"ARPG_DialogueEnd_{stageIndex}", 0) == 1) return;
-        PlayerPrefs.SetInt($"ARPG_DialogueEnd_{stageIndex}", 1);
+        if (DialogueData.IsEndDialogueRead(stageIndex)) return;
+        DialogueData.MarkEndDialogueRead(stageIndex);
 
         string[] lines = StageDialogueEnd[stageIndex];
         string speaker = stageIndex == 7 ? "卫冕之王" : "神秘指引者";

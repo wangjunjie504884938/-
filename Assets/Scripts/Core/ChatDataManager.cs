@@ -156,7 +156,7 @@ public class ChatDataManager : MonoBehaviour
     }
 
     [System.Serializable]
-    private class FriendArray { public FriendUI.FriendData[] friends; }
+    private class FriendArray { public FriendUI.FriendInfo[] friends; }
     [System.Serializable]
     private class ChatMessage { public int toUserId; public string content; public string timestamp; }
     [System.Serializable]

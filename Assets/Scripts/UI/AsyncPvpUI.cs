@@ -152,7 +152,7 @@ public class AsyncPvpUI : MonoBehaviour
     }
 
     [System.Serializable]
-    private class FriendArray { public FriendUI.FriendData[] friends; }
+    private class FriendArray { public FriendUI.FriendInfo[] friends; }
 
     [System.Serializable]
     private class LeaderboardResp { public LeaderboardEntry[] leaderboard; }
@@ -171,9 +171,9 @@ public class AsyncPvpUI : MonoBehaviour
 
         var player = GameManager.Instance?.Player;
         int myGS = player?.Stats.GearScore ?? 0;
-        int myW = PlayerPrefs.GetInt("ARPG_PvpWins", 0);
-        int myL = PlayerPrefs.GetInt("ARPG_PvpLosses", 0);
-        int myD = PlayerPrefs.GetInt("ARPG_PvpDefRating", 50);
+        int myW = PvpStatsData.Wins;
+        int myL = PvpStatsData.Losses;
+        int myD = PvpStatsData.DefRating;
         string myName = GetPlayerDisplayName();
 
         var statsObj = new GameObject("PlayerStats"); statsObj.transform.SetParent(panel.transform, false);
@@ -192,8 +192,7 @@ public class AsyncPvpUI : MonoBehaviour
         upB.onClick.AddListener(() =>
         {
             int defRating = Mathf.Max(50, myGS / 100);
-            PlayerPrefs.SetInt("ARPG_PvpDefRating", defRating);
-            PlayerPrefs.Save();
+            PvpStatsData.SetDefRating(defRating);
             LeaderboardUI.SubmitArenaScore(true, (int)(player?.HeroClass ?? HeroClass.Warrior), myGS, defRating);
             if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast("防守阵容已更新", $"防守分:{defRating}");
             Show();
@@ -316,7 +315,7 @@ public class AsyncPvpUI : MonoBehaviour
         yield return SubmitArenaResult(ghost, won, myGS, myClass);
 
         // 提交竞技场成绩
-        int defenseRating = PlayerPrefs.GetInt("ARPG_PvpDefRating", 50);
+        int defenseRating = PvpStatsData.DefRating;
         LeaderboardUI.SubmitArenaScore(won, myClass, player.Stats.GearScore, defenseRating);
 
         // 重建面板（重新获取对手）
@@ -331,12 +330,7 @@ public class AsyncPvpUI : MonoBehaviour
         if (string.IsNullOrEmpty(token)) yield break;
 
         // 本地先更新胜负记录
-        int myW = PlayerPrefs.GetInt("ARPG_PvpWins", 0);
-        int myL = PlayerPrefs.GetInt("ARPG_PvpLosses", 0);
-        if (won) myW++; else myL++;
-        PlayerPrefs.SetInt("ARPG_PvpWins", myW);
-        PlayerPrefs.SetInt("ARPG_PvpLosses", myL);
-        PlayerPrefs.Save();
+        PvpStatsData.RecordResult(won);
 
         // 服务器提交
         string json = JsonUtility.ToJson(new ArenaResultBody

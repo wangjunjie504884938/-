@@ -105,7 +105,7 @@ public class ForgeUI : MonoBehaviour
         var histObj = new GameObject("History"); histObj.transform.SetParent(panel.transform, false);
         var histR = histObj.AddComponent<RectTransform>(); histR.anchorMin = new Vector2(0.05f, 0.03f); histR.anchorMax = new Vector2(0.95f, 0.06f); histR.offsetMin = Vector2.zero; histR.offsetMax = Vector2.zero;
         var histTxt = histObj.AddComponent<Text>();
-        string history = PlayerPrefs.GetString("ARPG_ForgeHistory", "");
+        string history = string.Join("  |  ", ForgeData.GetHistory());
         histTxt.text = string.IsNullOrEmpty(history) ? "熔铸记录: 暂无" : history.Replace("\n", "  |  ");
         histTxt.alignment = TextAnchor.MiddleCenter; histTxt.fontSize = 12; histTxt.color = UIHelper.TextDim; histTxt.font = font; histTxt.raycastTarget = false;
         _forgeBtn.onClick.AddListener(TryForge);
@@ -298,18 +298,7 @@ public class ForgeUI : MonoBehaviour
     private static void AddHistoryLog(EquipmentItem newItem, ItemRarity resultRarity)
     {
         string log = $"{System.DateTime.Now:HH:mm} | {RarityNames[(int)resultRarity]} {newItem.Name}";
-        string history = PlayerPrefs.GetString("ARPG_ForgeHistory", "");
-        // 保留最近5条记录
-        string[] lines = history.Split('\n');
-        var newLines = new System.Collections.Generic.List<string>();
-        newLines.Add(log);
-        for (int i = 0; i < lines.Length && newLines.Count < 5; i++)
-        {
-            if (!string.IsNullOrEmpty(lines[i]) && lines[i] != log)
-                newLines.Add(lines[i]);
-        }
-        PlayerPrefs.SetString("ARPG_ForgeHistory", string.Join("\n", newLines.ToArray()));
-        PlayerPrefs.Save();
+        ForgeData.AppendHistory(log);
     }
 
     private GameObject AddPanel(Transform parent, string name, float x1, float y1, float x2, float y2, Color c)
