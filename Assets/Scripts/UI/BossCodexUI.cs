@@ -61,6 +61,8 @@ public class BossCodexUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("BossCodexPanel", canvas);
+        if (panel == null)
         panel = new GameObject("BossCodexPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

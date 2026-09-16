@@ -67,6 +67,8 @@ public class SkillTreeUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("SkillTreePanel", canvas);
+        if (panel == null)
         panel = new GameObject("SkillTreePanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform panelRect = panel.AddComponent<RectTransform>();

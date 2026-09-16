@@ -92,6 +92,8 @@ public class GachaUI : MonoBehaviour
         Font font = _font;
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("GachaPanel", canvas);
+        if (panel == null)
         panel = new GameObject("GachaPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

@@ -106,6 +106,8 @@ public class StageSelectUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("StageSelectPanel", canvas);
+        if (panel == null)
         panel = new GameObject("StageSelectPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform panelRect = panel.AddComponent<RectTransform>();

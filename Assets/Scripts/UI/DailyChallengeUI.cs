@@ -42,6 +42,8 @@ public class DailyChallengeUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("DailyChallengePanel", canvas);
+        if (panel == null)
         panel = new GameObject("DailyChallengePanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

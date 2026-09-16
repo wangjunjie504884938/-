@@ -43,6 +43,8 @@ public class AchievementUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("AchievementPanel", canvas);
+        if (panel == null)
         panel = new GameObject("AchievementPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

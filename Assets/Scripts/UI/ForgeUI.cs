@@ -45,6 +45,8 @@ public class ForgeUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("ForgePanel", canvas);
+        if (panel == null)
         panel = new GameObject("ForgePanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

@@ -125,6 +125,8 @@ public partial class GuildUI : MonoBehaviour
         _font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("GuildPanel", canvas);
+        if (panel == null)
         panel = new GameObject("GuildPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

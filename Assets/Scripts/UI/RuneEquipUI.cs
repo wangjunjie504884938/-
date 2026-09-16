@@ -86,6 +86,8 @@ public class RuneEquipUI : MonoBehaviour
     {
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("RuneEquipPanel", canvas);
+        if (panel == null)
         panel = new GameObject("RuneEquipPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

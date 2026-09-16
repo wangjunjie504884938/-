@@ -66,6 +66,8 @@ public partial class EquipUI : MonoBehaviour
         Canvas canvas = GameManager.EnsureCanvas();
 
         // === Root Panel ===
+        panel = UiPrefabLoader.TryLoad("EquipPanel", canvas);
+        if (panel == null)
         panel = new GameObject("EquipPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform panelRect = panel.AddComponent<RectTransform>();

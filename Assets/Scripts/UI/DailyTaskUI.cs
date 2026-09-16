@@ -136,6 +136,8 @@ public partial class DailyTaskUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("DailyTaskPanel", canvas);
+        if (panel == null)
         panel = new GameObject("DailyTaskPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

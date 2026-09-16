@@ -3,6 +3,18 @@
   "WorkspaceRootPath": "D:\\unity\\demo\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{C132594A-928C-86DF-54BB-28617E4DB357}|Assembly-CSharp.csproj|d:\\unity\\demo\\assets\\scripts\\cloud\\cloudsavemanager.gold.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C132594A-928C-86DF-54BB-28617E4DB357}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\cloud\\cloudsavemanager.gold.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8885B5F4-38B4-2FD1-4555-222EB8D19738}|Assembly-CSharp-Editor.csproj|d:\\unity\\demo\\assets\\editor\\uiprefabframeworkgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8885B5F4-38B4-2FD1-4555-222EB8D19738}|Assembly-CSharp-Editor.csproj|solutionrelative:assets\\editor\\uiprefabframeworkgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8885B5F4-38B4-2FD1-4555-222EB8D19738}|Assembly-CSharp-Editor.csproj|D:\\unity\\demo\\assets\\editor\\uiprefabgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8885B5F4-38B4-2FD1-4555-222EB8D19738}|Assembly-CSharp-Editor.csproj|solutionrelative:assets\\editor\\uiprefabgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{C132594A-928C-86DF-54BB-28617E4DB357}|Assembly-CSharp.csproj|D:\\unity\\demo\\assets\\scripts\\dungeon\\dungeonmapdata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{C132594A-928C-86DF-54BB-28617E4DB357}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\dungeon\\dungeonmapdata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -47,11 +59,11 @@
       "RelativeMoniker": "D:0:0:{C132594A-928C-86DF-54BB-28617E4DB357}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\ui\\guilddata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{13C82055-3617-56B8-200F-89D5B01257D2}|Mirror.Components.csproj|d:\\unity\\demo\\assets\\import\\mirror-master\\mirror-master\\assets\\mirror\\components\\networkroommanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{13C82055-3617-56B8-200F-89D5B01257D2}|Mirror.Components.csproj|D:\\unity\\demo\\assets\\import\\mirror-master\\mirror-master\\assets\\mirror\\components\\networkroommanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{13C82055-3617-56B8-200F-89D5B01257D2}|Mirror.Components.csproj|solutionrelative:assets\\import\\mirror-master\\mirror-master\\assets\\mirror\\components\\networkroommanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C132594A-928C-86DF-54BB-28617E4DB357}|Assembly-CSharp.csproj|d:\\unity\\demo\\assets\\scripttemplates\\50-mirror__network manager-newnetworkmanager.cs.txt||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "AbsoluteMoniker": "D:0:0:{C132594A-928C-86DF-54BB-28617E4DB357}|Assembly-CSharp.csproj|D:\\unity\\demo\\assets\\scripttemplates\\50-mirror__network manager-newnetworkmanager.cs.txt||{8B382828-6202-11D1-8870-0000F87579D2}",
       "RelativeMoniker": "D:0:0:{C132594A-928C-86DF-54BB-28617E4DB357}|Assembly-CSharp.csproj|solutionrelative:assets\\scripttemplates\\50-mirror__network manager-newnetworkmanager.cs.txt||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
     {
@@ -106,11 +118,49 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 21,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 0,
+              "Title": "CloudSaveManager.Gold.cs",
+              "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Cloud\\CloudSaveManager.Gold.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Cloud\\CloudSaveManager.Gold.cs",
+              "ToolTip": "D:\\unity\\demo\\Assets\\Scripts\\Cloud\\CloudSaveManager.Gold.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Cloud\\CloudSaveManager.Gold.cs",
+              "ViewState": "AgIAAGYBAAAAAAAAAAAAAMoAAAA+AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-15T09:30:34.64Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "UiPrefabFrameworkGenerator.cs",
+              "DocumentMoniker": "D:\\unity\\demo\\Assets\\Editor\\UiPrefabFrameworkGenerator.cs",
+              "RelativeDocumentMoniker": "Assets\\Editor\\UiPrefabFrameworkGenerator.cs",
+              "ToolTip": "D:\\unity\\demo\\Assets\\Editor\\UiPrefabFrameworkGenerator.cs",
+              "RelativeToolTip": "Assets\\Editor\\UiPrefabFrameworkGenerator.cs",
+              "ViewState": "AgIAAA8AAAAAAAAAAAASwDcAAAAjAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T03:28:22.596Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "UiPrefabGenerator.cs",
+              "DocumentMoniker": "D:\\unity\\demo\\Assets\\Editor\\UiPrefabGenerator.cs",
+              "RelativeDocumentMoniker": "Assets\\Editor\\UiPrefabGenerator.cs",
+              "ToolTip": "D:\\unity\\demo\\Assets\\Editor\\UiPrefabGenerator.cs",
+              "RelativeToolTip": "Assets\\Editor\\UiPrefabGenerator.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-10T03:25:41.371Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
               "Title": "50-Mirror__Network Manager-NewNetworkManager.cs.txt",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\ScriptTemplates\\50-Mirror__Network Manager-NewNetworkManager.cs.txt",
               "RelativeDocumentMoniker": "Assets\\ScriptTemplates\\50-Mirror__Network Manager-NewNetworkManager.cs.txt",
@@ -118,12 +168,11 @@
               "RelativeToolTip": "Assets\\ScriptTemplates\\50-Mirror__Network Manager-NewNetworkManager.cs.txt",
               "ViewState": "AgIAAK4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003109|",
-              "WhenOpened": "2026-09-09T05:35:18.335Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-09-09T05:35:18.335Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 14,
               "Title": "NetworkRoomManager.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Import\\Mirror-master\\Mirror-master\\Assets\\Mirror\\Components\\NetworkRoomManager.cs",
               "RelativeDocumentMoniker": "Assets\\Import\\Mirror-master\\Mirror-master\\Assets\\Mirror\\Components\\NetworkRoomManager.cs",
@@ -131,12 +180,11 @@
               "RelativeToolTip": "Assets\\Import\\Mirror-master\\Mirror-master\\Assets\\Mirror\\Components\\NetworkRoomManager.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-09T05:30:55.788Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-09-09T05:30:55.788Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 13,
               "Title": "GuildData.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\UI\\GuildData.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\GuildData.cs",
@@ -144,12 +192,11 @@
               "RelativeToolTip": "Assets\\Scripts\\UI\\GuildData.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-01T02:29:35.22Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-09-01T02:29:35.22Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 12,
               "Title": "AchievementUI.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\UI\\AchievementUI.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\AchievementUI.cs",
@@ -157,12 +204,11 @@
               "RelativeToolTip": "Assets\\Scripts\\UI\\AchievementUI.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-01T02:28:53.801Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-09-01T02:28:53.801Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 11,
               "Title": "CloudSaveManager.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Cloud\\CloudSaveManager.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\Cloud\\CloudSaveManager.cs",
@@ -170,12 +216,11 @@
               "RelativeToolTip": "Assets\\Scripts\\Cloud\\CloudSaveManager.cs",
               "ViewState": "AgIAANcBAAAAAAAAAAAowA0AAAAOAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-01T02:26:48.083Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-09-01T02:26:48.083Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 10,
               "Title": "GameServerBuilder.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Editor\\GameServerBuilder.cs",
               "RelativeDocumentMoniker": "Assets\\Editor\\GameServerBuilder.cs",
@@ -183,12 +228,11 @@
               "RelativeToolTip": "Assets\\Editor\\GameServerBuilder.cs",
               "ViewState": "AgIAAEYAAAAAAAAAAAAAABAAAAAFAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-31T06:24:39.979Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-31T06:24:39.979Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 9,
               "Title": "EnemyController.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Enemy\\EnemyController.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\Enemy\\EnemyController.cs",
@@ -196,12 +240,11 @@
               "RelativeToolTip": "Assets\\Scripts\\Enemy\\EnemyController.cs",
               "ViewState": "AgIAAMEAAAAAAAAAAAAowA4AAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-05T05:21:16.223Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-05T05:21:16.223Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 8,
               "Title": "PlayerCombatController.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Player\\PlayerCombatController.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\Player\\PlayerCombatController.cs",
@@ -209,12 +252,11 @@
               "RelativeToolTip": "Assets\\Scripts\\Player\\PlayerCombatController.cs",
               "ViewState": "AgIAANADAAAAAAAAAAAAAEsAAABPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-05T05:18:28.24Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-05T05:18:28.24Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 7,
               "Title": "ChatPopupUI.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\UI\\ChatPopupUI.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\ChatPopupUI.cs",
@@ -222,12 +264,11 @@
               "RelativeToolTip": "Assets\\Scripts\\UI\\ChatPopupUI.cs",
               "ViewState": "AgIAAL8AAAAAAAAAAAAAADIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-05T02:05:03.974Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-05T02:05:03.974Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 6,
               "Title": "EnemyCombatController.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Enemy\\EnemyCombatController.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\Enemy\\EnemyCombatController.cs",
@@ -235,12 +276,11 @@
               "RelativeToolTip": "Assets\\Scripts\\Enemy\\EnemyCombatController.cs",
               "ViewState": "AgIAAJsCAAAAAAAAAAAowAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-07-30T06:04:25.688Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-07-30T06:04:25.688Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 5,
               "Title": "56-Mirror__Network Discovery-NewNetworkDiscovery.cs.txt",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\ScriptTemplates\\56-Mirror__Network Discovery-NewNetworkDiscovery.cs.txt",
               "RelativeDocumentMoniker": "Assets\\ScriptTemplates\\56-Mirror__Network Discovery-NewNetworkDiscovery.cs.txt",
@@ -248,12 +288,11 @@
               "RelativeToolTip": "Assets\\ScriptTemplates\\56-Mirror__Network Discovery-NewNetworkDiscovery.cs.txt",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAABRAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003109|",
-              "WhenOpened": "2026-07-29T09:34:11.782Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-07-29T09:34:11.782Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 18,
+              "DocumentIndex": 21,
               "Title": "VFXHelper.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Combat\\VFXHelper.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\Combat\\VFXHelper.cs",
@@ -265,7 +304,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 16,
               "Title": "GuildUI.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\UI\\GuildUI.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\GuildUI.cs",
@@ -277,7 +316,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 17,
+              "DocumentIndex": 20,
               "Title": "TitleScreen.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\UI\\TitleScreen.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\TitleScreen.cs",
@@ -289,7 +328,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 19,
               "Title": "GameManager.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Core\\GameManager.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\Core\\GameManager.cs",
@@ -301,7 +340,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 22,
+              "DocumentIndex": 25,
               "Title": "ArenaBattleUI.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\UI\\ArenaBattleUI.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\ArenaBattleUI.cs",
@@ -313,7 +352,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 21,
+              "DocumentIndex": 24,
               "Title": "SettingsUI.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\UI\\SettingsUI.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\SettingsUI.cs",
@@ -325,7 +364,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 20,
+              "DocumentIndex": 23,
               "Title": "SeasonPassUI.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\UI\\SeasonPassUI.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\SeasonPassUI.cs",
@@ -337,7 +376,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 19,
+              "DocumentIndex": 22,
               "Title": "Stats.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Core\\Stats.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\Core\\Stats.cs",
@@ -349,7 +388,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 23,
+              "DocumentIndex": 26,
               "Title": "CharacterSprite.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Player\\CharacterSprite.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\Player\\CharacterSprite.cs",
@@ -361,7 +400,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 4,
               "Title": "VirtualJoystick.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\UI\\VirtualJoystick.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\VirtualJoystick.cs",
@@ -369,12 +408,11 @@
               "RelativeToolTip": "Assets\\Scripts\\UI\\VirtualJoystick.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-06-01T09:51:36.584Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-01T09:51:36.584Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 3,
               "Title": "DungeonMapData.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Dungeon\\DungeonMapData.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\Dungeon\\DungeonMapData.cs",
@@ -382,12 +420,11 @@
               "RelativeToolTip": "Assets\\Scripts\\Dungeon\\DungeonMapData.cs",
               "ViewState": "AgIAADEAAAAAAAAAAAAkwBcAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-06-01T03:09:58.377Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-01T03:09:58.377Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 17,
               "Title": "AttackButton.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\UI\\AttackButton.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\AttackButton.cs",
@@ -399,7 +436,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 18,
               "Title": "DungeonVisuals.cs",
               "DocumentMoniker": "D:\\unity\\demo\\Assets\\Scripts\\Dungeon\\DungeonVisuals.cs",
               "RelativeDocumentMoniker": "Assets\\Scripts\\Dungeon\\DungeonVisuals.cs",

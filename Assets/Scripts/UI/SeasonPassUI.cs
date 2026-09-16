@@ -47,6 +47,8 @@ public class SeasonPassUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("SeasonPassPanel", canvas);
+        if (panel == null)
         panel = new GameObject("SeasonPassPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

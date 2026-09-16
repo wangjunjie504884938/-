@@ -64,6 +64,8 @@ public class ShopUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("ShopPanel", canvas);
+        if (panel == null)
         panel = new GameObject("ShopPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

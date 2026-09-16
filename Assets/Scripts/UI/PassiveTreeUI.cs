@@ -50,6 +50,8 @@ public class PassiveTreeUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("PassiveTreePanel", canvas);
+        if (panel == null)
         panel = new GameObject("PassiveTreePanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

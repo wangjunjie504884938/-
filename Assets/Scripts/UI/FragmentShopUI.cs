@@ -74,6 +74,8 @@ public class FragmentShopUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("FragmentShopPanel", canvas);
+        if (panel == null)
         panel = new GameObject("FragmentShopPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

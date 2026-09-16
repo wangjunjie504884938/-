@@ -14,6 +14,7 @@ public partial class HubUI : MonoBehaviour
     private GameObject panel;
     private Coroutine _friendRefreshRoutine;
     private const float FriendRefreshInterval = 15f;
+    private CanvasGroup _canvasGroup;
     private Text classText;
     private Text hpText;
     private Text atkText;
@@ -104,6 +105,16 @@ public partial class HubUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        // 优先从prefab加载（P1-C优化）
+        panel = UiPrefabLoader.TryLoad("HubPanel", canvas);
+        if (panel != null)
+        {
+            _canvasGroup = panel.GetComponent<CanvasGroup>();
+            if (_canvasGroup == null) _canvasGroup = panel.AddComponent<CanvasGroup>();
+            return;
+        }
+
+        // prefab不存在时回退到代码生成
         panel = new GameObject("HubPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

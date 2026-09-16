@@ -48,6 +48,8 @@ public class SettingsUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
+        panel = UiPrefabLoader.TryLoad("SettingsPanel", canvas);
+        if (panel == null)
         panel = new GameObject("SettingsPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();

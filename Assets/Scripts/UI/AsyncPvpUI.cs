@@ -163,6 +163,8 @@ public class AsyncPvpUI : MonoBehaviour
     {
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
+        panel = UiPrefabLoader.TryLoad("AsyncPvpPanel", canvas);
+        if (panel == null)
         panel = new GameObject("AsyncPvpPanel"); panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>(); pr.anchorMin = Vector2.zero; pr.anchorMax = Vector2.one; pr.offsetMin = Vector2.zero; pr.offsetMax = Vector2.zero; panel.AddComponent<CanvasGroup>();
         var bg = new GameObject("BG"); bg.transform.SetParent(panel.transform, false); var bgr = bg.AddComponent<RectTransform>(); bgr.anchorMin = Vector2.zero; bgr.anchorMax = Vector2.one; bgr.offsetMin = Vector2.zero; bgr.offsetMax = Vector2.zero; bg.AddComponent<Image>().color = UIHelper.BgDark; bg.GetComponent<Image>().raycastTarget = true;
