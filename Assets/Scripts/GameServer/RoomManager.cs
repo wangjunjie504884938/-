@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Mirror;
 using ArpgShared;
@@ -20,6 +21,41 @@ namespace ArpgGameServer
         {
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
+
+            // 启动房间超时检查循环
+            StartCoroutine(RoomTimeoutLoop());
+        }
+
+        /// <summary>房间超时检查 — 每5秒检查一次</summary>
+        private System.Collections.IEnumerator RoomTimeoutLoop()
+        {
+            while (true)
+            {
+                yield return new WaitForSeconds(5f);
+
+                foreach (var kvp in _rooms)
+                {
+                    var room = kvp.Value;
+                    if (room.IsClosed) continue;
+
+                    if (room.CheckTimeout())
+                    {
+                        Debug.LogWarning($"[Room:{room.RoomId}] 超时，当前状态: {room.State}");
+                        if (room.State == GameRoom.RoomState.Waiting)
+                        {
+                            // 等待超时 — 关闭房间
+                            room.TransitionTo(GameRoom.RoomState.Closed);
+                            DestroyRoom(room.RoomId);
+                        }
+                        else if (room.State == GameRoom.RoomState.Fighting)
+                        {
+                            // 战斗超时 — 强制结算
+                            room.TransitionTo(GameRoom.RoomState.Settled);
+                            StartCoroutine(SettlementGenerator.Instance.GenerateAndPush(room));
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>创建房间</summary>
@@ -37,7 +73,7 @@ namespace ArpgGameServer
             };
 
             _rooms[roomId] = room;
-            Debug.Log($"[Room] 创建房间 {roomId}, 副本={dungeonId}, 人数={memberIds.Length}");
+            Debug.Log($"[Room] 创建房间 {roomId}, 副本={dungeonId}, 人数={memberIds.Length}, 状态={room.State}");
 
             // 初始化副本怪物
             SpawnDungeonMonsters(room);
@@ -171,6 +207,9 @@ namespace ArpgGameServer
     /// <summary>游戏房间</summary>
     public class GameRoom
     {
+        // ====== 房间状态机 ======
+        public enum RoomState { Waiting, Loading, Fighting, Settled, Closed }
+
         public string RoomId;
         public int DungeonId;
         public int Difficulty;
@@ -179,5 +218,64 @@ namespace ArpgGameServer
         public List<NetworkedPlayer> Players = new();
         public List<NetworkedMonster> Monsters = new();
         public bool IsSettled = false;
+
+        public RoomState State { get; private set; } = RoomState.Waiting;
+        public System.DateTime StateChangedAt { get; private set; } = System.DateTime.UtcNow;
+
+        // 超时配置
+        public const float WaitingTimeoutSeconds = 120f;   // 等待超时2分钟
+        public const float FightingTimeoutSeconds = 600f;  // 战斗超时10分钟
+
+        // 合法状态流转表
+        private static readonly Dictionary<RoomState, RoomState[]> _validTransitions = new()
+        {
+            [RoomState.Waiting]  = new[] { RoomState.Loading, RoomState.Closed },
+            [RoomState.Loading]  = new[] { RoomState.Fighting, RoomState.Closed },
+            [RoomState.Fighting] = new[] { RoomState.Settled, RoomState.Closed },
+            [RoomState.Settled]  = new[] { RoomState.Closed },
+            [RoomState.Closed]   = System.Array.Empty<RoomState>(),
+        };
+
+        /// <summary>流转到新状态（校验合法性，非法流转返回false）</summary>
+        public bool TransitionTo(RoomState newState)
+        {
+            if (!_validTransitions.TryGetValue(State, out var valid))
+            {
+                Debug.LogWarning($"[Room:{RoomId}] 非法状态流转: {State} → {newState}");
+                return false;
+            }
+            if (!System.Array.Exists(valid, s => s == newState))
+            {
+                Debug.LogWarning($"[Room:{RoomId}] 不允许的状态流转: {State} → {newState}");
+                return false;
+            }
+
+            Debug.Log($"[Room:{RoomId}] 状态: {State} → {newState}");
+            State = newState;
+            StateChangedAt = System.DateTime.UtcNow;
+
+            if (newState == RoomState.Settled)
+                IsSettled = true;
+
+            return true;
+        }
+
+        /// <summary>检查是否超时（由RoomManager定时调用）</summary>
+        public bool CheckTimeout()
+        {
+            var elapsed = (System.DateTime.UtcNow - StateChangedAt).TotalSeconds;
+            return State switch
+            {
+                RoomState.Waiting  => elapsed > WaitingTimeoutSeconds,
+                RoomState.Fighting => elapsed > FightingTimeoutSeconds,
+                _ => false,
+            };
+        }
+
+        /// <summary>所有玩家是否就绪</summary>
+        public bool AllPlayersReady => Players.Count > 0 && Players.All(p => p != null);
+
+        /// <summary>房间是否已关闭</summary>
+        public bool IsClosed => State == RoomState.Closed;
     }
 }

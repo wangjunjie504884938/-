@@ -429,6 +429,12 @@ public partial class CloudSaveManager : MonoBehaviour
         catch { return plainToken; }
     }
 
+    /// <summary>静态解密方法 — 供CustomAuthenticator等外部调用</summary>
+    public static string DecryptTokenStatic(string storedToken)
+    {
+        return DecryptToken(storedToken);
+    }
+
     private static string DecryptToken(string storedToken)
     {
         if (string.IsNullOrEmpty(storedToken)) return "";

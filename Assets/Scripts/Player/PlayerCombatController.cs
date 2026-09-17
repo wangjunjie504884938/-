@@ -930,10 +930,11 @@ public partial class PlayerCombatController : MonoBehaviour
 
     private int CalculateDamageWithCrit(out bool isCrit)
     {
-        isCrit = Random.Range(0f, 1f) < player.Stats.TotalCritChance;
-        int dmg = player.Stats.BuffedAttack;
-        if (isCrit) dmg = Mathf.RoundToInt(dmg * critMult);
-        return dmg;
+        // 使用Shared/CombatCalculator统一公式（客户端预测+服务器权威共用）
+        var (damage, crit) = ArpgShared.CombatCalculator.CalculateCritDamage(
+            player.Stats.BuffedAttack, player.Stats.TotalCritChance, critMult);
+        isCrit = crit;
+        return damage;
     }
 
     private void ApplyLifeSteal(int totalDamage)

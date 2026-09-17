@@ -59,4 +59,17 @@ namespace ArpgShared
         public int port;
         public string errorMessage;
     }
+
+    /// <summary>认证请求消息 — 客户端→服务器</summary>
+    public struct AuthRequestMessage : Mirror.NetworkMessage
+    {
+        public string token;
+    }
+
+    /// <summary>认证响应消息 — 服务器→客户端</summary>
+    public struct AuthResponseMessage : Mirror.NetworkMessage
+    {
+        public bool success;
+        public string error;
+    }
 }

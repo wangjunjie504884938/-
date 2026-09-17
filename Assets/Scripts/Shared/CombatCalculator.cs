@@ -9,7 +9,7 @@ namespace ArpgShared
     {
         private static readonly Random _rng = new();
 
-        /// <summary>计算物理伤害</summary>
+        /// <summary>计算物理伤害（含防御减伤）</summary>
         public static int CalculateDamage(int attackerAttack, int defenderDefense, float damageMultiplier, float critChance)
         {
             int baseDamage = (int)Math.Round(attackerAttack * damageMultiplier);
@@ -20,6 +20,16 @@ namespace ArpgShared
             if (isCrit) finalDamage = (int)Math.Round(finalDamage * 2f);
 
             return finalDamage;
+        }
+
+        /// <summary>计算暴击伤害（无防御减伤 — 客户端本地攻击用）</summary>
+        /// <returns>finalDamage: 基础伤害(含暴击), isCrit: 是否暴击</returns>
+        public static (int finalDamage, bool isCrit) CalculateCritDamage(int attackerAttack, float critChance, float critMultiplier = 2f)
+        {
+            bool isCrit = _rng.NextDouble() < critChance;
+            int damage = attackerAttack;
+            if (isCrit) damage = (int)Math.Round(damage * critMultiplier);
+            return (damage, isCrit);
         }
 
         /// <summary>计算经验奖励</summary>
