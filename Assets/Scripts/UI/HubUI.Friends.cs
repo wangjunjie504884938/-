@@ -85,7 +85,7 @@ public partial class HubUI
     {
         if (_friendListContainer == null) yield break;
 
-        string token = UnityEngine.PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
 
         // 有token时从服务器获取
         if (!string.IsNullOrEmpty(token))

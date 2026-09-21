@@ -478,7 +478,7 @@ public partial class GuildUI
             // ========================================================
             //  公会邀请弹窗 — 选择好友/最近玩家邀请加入公会
             // ========================================================
-            private IEnumerator ShowGuildInvitePopup(List<GuildData.GuildMember> members)
+    private IEnumerator ShowGuildInvitePopup(List<GuildData.GuildMember> members)
     {
         Canvas canvas = GameManager.EnsureCanvas();
         var overlay = new GameObject("GuildInvitePopup");

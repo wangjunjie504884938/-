@@ -272,8 +272,11 @@ public partial class ClientNetworkManager : MonoBehaviour
         }
         foreach (var id in staleIds)
         {
-            if (_remotePlayers.Remove(id) && _remotePlayers.TryGetValue(id, out var renderer) && renderer != null)
-                Destroy(renderer.gameObject);
+            if (_remotePlayers.TryGetValue(id, out var renderer))
+            {
+                _remotePlayers.Remove(id);
+                if (renderer != null) Destroy(renderer.gameObject);
+            }
         }
     }
 

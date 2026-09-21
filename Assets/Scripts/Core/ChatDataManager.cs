@@ -59,7 +59,7 @@ public class ChatDataManager : MonoBehaviour
         PlayerPrefs.Save();
 
         // 异步上传到服务器（如果已登录）
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         if (!string.IsNullOrEmpty(token))
             StartCoroutine(UploadMessageToServer(friendName, message, time));
     }
@@ -75,7 +75,7 @@ public class ChatDataManager : MonoBehaviour
     /// <summary>上传消息到服务器（联机版）</summary>
     private IEnumerator UploadMessageToServer(string friendName, string message, string time)
     {
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         if (string.IsNullOrEmpty(token)) yield break;
 
         // 查找好友ID（从本地缓存）
@@ -120,7 +120,7 @@ public class ChatDataManager : MonoBehaviour
     /// <summary>从服务器拉取新消息</summary>
     public IEnumerator FetchNewMessages(string friendName)
     {
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         if (string.IsNullOrEmpty(token)) yield break;
 
         using (var req = UnityEngine.Networking.UnityWebRequest.Get($"{ServerUrl}/api/chat/history?friendName={friendName}"))

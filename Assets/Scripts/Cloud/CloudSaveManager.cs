@@ -407,32 +407,25 @@ public partial class CloudSaveManager : MonoBehaviour
     //  内部工具
     // ========================================================
 
-    // AES加密密钥 (与服务器端共享)
-    private static readonly byte[] AesKey = System.Text.Encoding.UTF8.GetBytes("ArpgGuardian2026!!"); // 16字节
-    private static readonly byte[] AesIv = System.Text.Encoding.UTF8.GetBytes("InitVector16Bytes");
+    // AES加解密实现已下沉到 ArpgShared.AuthTokenCrypto（供GameServer共用）
 
     private static string EncryptToken(string plainToken)
     {
-        if (string.IsNullOrEmpty(plainToken)) return "";
-        try
-        {
-            using (var aes = System.Security.Cryptography.Aes.Create())
-            {
-                aes.Key = AesKey;
-                aes.IV = AesIv;
-                var encryptor = aes.CreateEncryptor();
-                var bytes = System.Text.Encoding.UTF8.GetBytes(plainToken);
-                var encrypted = encryptor.TransformFinalBlock(bytes, 0, bytes.Length);
-                return System.Convert.ToBase64String(encrypted);
-            }
-        }
-        catch { return plainToken; }
+        return ArpgShared.AuthTokenCrypto.Encrypt(plainToken);
     }
 
-    /// <summary>静态解密方法 — 供CustomAuthenticator等外部调用</summary>
+    /// <summary>静态解密方法 — 供外部调用</summary>
     public static string DecryptTokenStatic(string storedToken)
     {
         return DecryptToken(storedToken);
+    }
+
+    /// <summary>获取当前登录Token — 全项目统一的Token读取入口（内存优先，回退解密PlayerPrefs）</summary>
+    public static string GetAuthToken()
+    {
+        if (Instance != null && !string.IsNullOrEmpty(Instance._token))
+            return Instance._token;
+        return DecryptTokenStatic(PlayerPrefs.GetString(TokenKey, ""));
     }
 
     private static string DecryptToken(string storedToken)
@@ -448,19 +441,7 @@ public partial class CloudSaveManager : MonoBehaviour
             return storedToken;
         }
 
-        try
-        {
-            using (var aes = System.Security.Cryptography.Aes.Create())
-            {
-                aes.Key = AesKey;
-                aes.IV = AesIv;
-                var decryptor = aes.CreateDecryptor();
-                var bytes = System.Convert.FromBase64String(storedToken);
-                var decrypted = decryptor.TransformFinalBlock(bytes, 0, bytes.Length);
-                return System.Text.Encoding.UTF8.GetString(decrypted);
-            }
-        }
-        catch { return ""; }
+        return ArpgShared.AuthTokenCrypto.Decrypt(storedToken);
     }
 
     private void SaveToken(string token, string username)

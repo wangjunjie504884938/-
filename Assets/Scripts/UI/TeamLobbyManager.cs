@@ -375,7 +375,7 @@ public class TeamLobbyManager : MonoBehaviour
         // 收集好友列表：先尝试服务器API，再尝试本地PlayerPrefs
         List<(string name, int cls, int lv)> friends = new List<(string, int, int)>();
 
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         if (!string.IsNullOrEmpty(token))
         {
             // 从服务器获取

@@ -60,7 +60,7 @@ public class AsyncPvpUI : MonoBehaviour
     /// <summary>从服务器排行榜获取真实对手，无token时用本地好友数据fallback</summary>
     private IEnumerator FetchOpponents()
     {
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
 
         if (!string.IsNullOrEmpty(token))
         {
@@ -328,7 +328,7 @@ public class AsyncPvpUI : MonoBehaviour
     /// <summary>提交竞技场战斗结果到服务器，服务器验证+发放奖励</summary>
     private IEnumerator SubmitArenaResult(GhostData ghost, bool won, int myGS, int myClass)
     {
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         if (string.IsNullOrEmpty(token)) yield break;
 
         // 本地先更新胜负记录

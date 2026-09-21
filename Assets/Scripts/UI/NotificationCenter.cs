@@ -80,7 +80,7 @@ public class NotificationCenter : MonoBehaviour
     /// <summary>轮询服务器获取待处理通知数量</summary>
     private IEnumerator PollNotifications()
     {
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         if (string.IsNullOrEmpty(token)) { SetPendingCount(0); yield break; }
 
         int totalPending = 0;

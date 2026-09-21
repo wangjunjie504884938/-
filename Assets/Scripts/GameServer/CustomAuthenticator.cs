@@ -32,41 +32,10 @@ namespace ArpgGameServer
 
         public override void OnClientAuthenticate()
         {
-            var token = PlayerPrefs.GetString("ARPG_CloudToken", "");
-            if (string.IsNullOrEmpty(token))
-            {
-                // 尝试从CloudSaveManager获取
-                token = GetCloudToken();
-            }
+            // Token在PlayerPrefs中以AES加密存储，必须解密后再发送（Crypto实现在ArpgShared，与CloudSaveManager共用）
+            var token = ArpgShared.AuthTokenCrypto.GetStoredToken();
 
             NetworkClient.Send(new AuthRequestMessage { token = token });
-        }
-
-        private string GetCloudToken()
-        {
-            // 从加密存储中获取（直接解密，不依赖CloudSaveManager）
-            try
-            {
-                string encrypted = PlayerPrefs.GetString("ARPG_EncryptedToken", "");
-                if (!string.IsNullOrEmpty(encrypted))
-                {
-                    // AES解密（与CloudSaveManager使用相同密钥）
-                    byte[] aesKey = System.Text.Encoding.UTF8.GetBytes("ArpgGuardian2026!!");
-                    byte[] aesIv = System.Text.Encoding.UTF8.GetBytes("InitVector16Bytes");
-
-                    using (var aes = System.Security.Cryptography.Aes.Create())
-                    {
-                        aes.Key = aesKey;
-                        aes.IV = aesIv;
-                        var decryptor = aes.CreateDecryptor();
-                        byte[] bytes = System.Convert.FromBase64String(encrypted);
-                        byte[] decrypted = decryptor.TransformFinalBlock(bytes, 0, bytes.Length);
-                        return System.Text.Encoding.UTF8.GetString(decrypted);
-                    }
-                }
-            }
-            catch { }
-            return "";
         }
 
         /// <summary>处理客户端认证请求 — 通过Web API验证JWT</summary>
@@ -147,6 +116,7 @@ namespace ArpgGameServer
 
         private void AcceptConnection(NetworkConnectionToClient conn)
         {
+            _pendingAuth.TryRemove(conn.connectionId, out _);
             conn.Send(new AuthResponseMessage { success = true });
             conn.isAuthenticated = true;
             ServerAccept(conn);
@@ -154,6 +124,7 @@ namespace ArpgGameServer
 
         private void RejectConnection(NetworkConnectionToClient conn, string reason)
         {
+            _pendingAuth.TryRemove(conn.connectionId, out _);
             conn.Send(new AuthResponseMessage { success = false, error = reason });
             conn.isAuthenticated = false;
             conn.Disconnect();

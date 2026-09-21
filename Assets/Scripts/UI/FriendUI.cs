@@ -104,7 +104,7 @@ public partial class FriendUI : MonoBehaviour
     /// <summary>从服务器获取好友列表并缓存到PlayerPrefs</summary>
     private IEnumerator FetchFriendsFromServer()
     {
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         if (string.IsNullOrEmpty(token)) yield break;
 
         using (var req = UnityEngine.Networking.UnityWebRequest.Get($"{ServerUrl}/api/friend/list"))
@@ -466,7 +466,7 @@ public partial class FriendUI : MonoBehaviour
     {
         string url = "http://39.107.141.107:5132/api/friend/request";
         string json = $"{{\"toUserId\":0,\"targetName\":\"{targetName}\",\"message\":\"我想和你成为好友\"}}";
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         if (string.IsNullOrEmpty(token))
         {
             if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast("请先登录", "");

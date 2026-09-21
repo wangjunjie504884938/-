@@ -42,7 +42,7 @@ public class GuildInviteBanner : MonoBehaviour
     private IEnumerator FetchInviteCount(System.Action<int> callback)
     {
         string url = "http://39.107.141.107:5132/api/guild/invite/count";
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         if (string.IsNullOrEmpty(token)) { callback?.Invoke(0); yield break; }
 
         using (var req = UnityEngine.Networking.UnityWebRequest.Get(url))
@@ -171,7 +171,7 @@ public class GuildInviteBanner : MonoBehaviour
         if (_banner != null) _banner.SetActive(false);
 
         string url = "http://39.107.141.107:5132/api/guild/invites";
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
 
         using (var req = UnityEngine.Networking.UnityWebRequest.Get(url))
         {
@@ -283,7 +283,7 @@ public class GuildInviteBanner : MonoBehaviour
     {
         string url = $"http://39.107.141.107:5132/api/guild/respond/{requestId}";
         string body = $"{{\"accept\":{(accept ? "true" : "false")}}}";
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
 
         using (var req = new UnityEngine.Networking.UnityWebRequest(url, "POST"))
         {

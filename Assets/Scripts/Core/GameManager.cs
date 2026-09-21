@@ -1029,6 +1029,12 @@ public void TogglePause()
         SaveAll();
     }
 
+    private void OnDestroy()
+    {
+        if (CloudSaveManager.Instance != null)
+            CloudSaveManager.Instance.OnSessionExpired -= OnSessionExpired;
+    }
+
     private void OnApplicationPause(bool paused)
     {
         if (paused)

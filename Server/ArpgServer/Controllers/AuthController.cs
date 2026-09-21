@@ -1,14 +1,16 @@
 using ArpgServer.Data;
 using ArpgServer.Models;
 using ArpgServer.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ArpgServer.Controllers;
 
 /// <summary>
-/// 认证控制器 — 注册 & 登录
-/// 路由: POST /api/auth/register, POST /api/auth/login
+/// 认证控制器 — 注册 & 登录 & Token验证
+/// 路由: POST /api/auth/register, POST /api/auth/login, GET /api/auth/validate
 /// </summary>
 [ApiController]
 [Route("api/auth")]
@@ -103,5 +105,24 @@ public class AuthController : ControllerBase
             Token = _jwt.GenerateToken(user.Id, user.Username),
             Username = user.Username
         });
+    }
+
+    /// <summary>
+    /// 验证Token有效性 (Game Server的CustomAuthenticator调用)
+    /// GET /api/auth/validate
+    /// Header: Authorization: Bearer {token}
+    /// 有效返回200: { "valid": true, "userId": 1, "username": "xxx" }
+    /// 无效/缺失由JWT中间件自动返回401
+    /// </summary>
+    [Authorize]
+    [HttpGet("validate")]
+    public IActionResult Validate()
+    {
+        var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(claim) || !int.TryParse(claim, out var userId))
+            return Unauthorized(new { error = "Token无效" });
+
+        var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
+        return Ok(new { valid = true, userId, username });
     }
 }

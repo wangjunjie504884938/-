@@ -13,7 +13,7 @@ public partial class GuildUI
     private IEnumerator GetGuildAPI(string path, System.Action<bool, string> callback)
     {
         string url = $"{ServerUrl}{path}";
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         using (var req = UnityEngine.Networking.UnityWebRequest.Get(url))
         {
             req.SetRequestHeader("Content-Type", "application/json");
@@ -26,7 +26,7 @@ public partial class GuildUI
     private IEnumerator PostGuildAPI(string path, string jsonBody, System.Action<bool, string> callback)
     {
         string url = $"{ServerUrl}{path}";
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         using (var req = new UnityEngine.Networking.UnityWebRequest(url, "POST"))
         {
             req.uploadHandler = new UnityEngine.Networking.UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(jsonBody ?? "{}"));

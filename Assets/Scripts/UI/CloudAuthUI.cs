@@ -384,7 +384,7 @@ public class CloudAuthUI : MonoBehaviour
 
     private static IEnumerator FetchFriendsAfterLogin()
     {
-        string token = PlayerPrefs.GetString("ARPG_AuthToken", "");
+        string token = CloudSaveManager.GetAuthToken();
         if (string.IsNullOrEmpty(token)) yield break;
         string url = "http://39.107.141.107:5132/api/friend/list";
         using (var req = UnityEngine.Networking.UnityWebRequest.Get(url))
