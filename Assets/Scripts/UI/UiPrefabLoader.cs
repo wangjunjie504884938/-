@@ -9,11 +9,20 @@ public static class UiPrefabLoader
     private const string PrefabDir = "UI/";
 
     /// <summary>
+    /// prefab加载总开关 — 当前prefab全部为占位框架(仅BG/Title/Content，无内容)。
+    /// 实例化后Legacy构建代码会对其重复AddComponent&lt;RectTransform&gt;失败，
+    /// 空引用中断构建导致面板永不激活(页面空白)。prefab完成美术填充后再改回true。
+    /// </summary>
+    public static bool EnablePrefabs = false;
+
+    /// <summary>
     /// 尝试从Resources/UI加载prefab并实例化到canvas下
-    /// 返回null表示prefab不存在（调用方应回退到LegacyBuildUI）
+    /// 返回null表示prefab不可用（调用方应回退到LegacyBuildUI）
     /// </summary>
     public static GameObject TryLoad(string panelName, Canvas canvas)
     {
+        if (!EnablePrefabs) return null;
+
         var prefab = Resources.Load<GameObject>(PrefabDir + panelName);
         if (prefab == null) return null;
 

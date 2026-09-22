@@ -105,16 +105,8 @@ public partial class HubUI : MonoBehaviour
         Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
-        // 优先从prefab加载（P1-C优化）
-        panel = UiPrefabLoader.TryLoad("HubPanel", canvas);
-        if (panel != null)
-        {
-            _canvasGroup = panel.GetComponent<CanvasGroup>();
-            if (_canvasGroup == null) _canvasGroup = panel.AddComponent<CanvasGroup>();
-            return;
-        }
-
-        // prefab不存在时回退到代码生成
+        // HubPanel prefab仅为占位框架(BG/Title/Content)，无动态内容槽位 —
+        // 不能像其他面板那样作为根节点复用，否则左侧菜单/右侧信息面板全部缺失，直接代码生成
         panel = new GameObject("HubPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform pr = panel.AddComponent<RectTransform>();
