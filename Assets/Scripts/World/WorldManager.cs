@@ -166,6 +166,7 @@ public class WorldManager : MonoBehaviour
             HidePrompt();
         }
         WaypointUI.Hide();
+        WorldQuestUI.ShutdownWorld();
         WorldVisuals.DestroyInstance();
     }
 
@@ -289,6 +290,7 @@ public class WorldManager : MonoBehaviour
                 _zoneKills.TryGetValue(zone.Index, out int kills);
                 _zoneKills[zone.Index] = kills + removed;
                 CheckZoneCompletion(zone);
+                WorldQuests.OnZoneKills(zone.Index, removed); // 讨伐任务进度
             }
 
             float dist = Vector2.Distance(playerPos, zone.Center);
@@ -348,6 +350,7 @@ public class WorldManager : MonoBehaviour
 
         var ec = enemyObj.AddComponent<EnemyController>();
         ec.Type = RollEnemyType();
+        ec.WorldZoneIndex = zone.Index; // 区域绑定 + 被动仇恨(被打才反击)
 
         if (ec.Type == EnemyType.Elite)
             ec.Affixes = EliteAffix.RollAffixes(zone.Tier + 1);
@@ -357,6 +360,7 @@ public class WorldManager : MonoBehaviour
             EnemySprite.ApplyAffixAuras(enemyObj, ec.Affixes);
 
         ec.Initialize(zone.Tier + 1);
+        ec.Brain.SetWorldZone(zone.Index);
         into.Add(ec);
         return ec;
     }
@@ -452,6 +456,7 @@ public class WorldManager : MonoBehaviour
     private GameObject _promptBtn;
     private Text _promptText;
     private WorldData.HomeNpcDef _nearNpc;
+    private int _nearQuestZone = -1;
 
     private void Update()
     {
@@ -459,17 +464,26 @@ public class WorldManager : MonoBehaviour
         var p = GameManager.Instance?.Player;
         if (p == null) return;
         TickHomeInteraction(p.transform.position);
+        WorldQuestUI.UpdateTracker();
     }
 
     private void TickHomeInteraction(Vector3 playerPos)
     {
         var homePos = WorldData.Get(0).WaypointPos;
         _nearNpc = null;
+        _nearQuestZone = -1;
         float best = 3.2f;
         foreach (var npc in WorldData.HomeNpcs)
         {
             float d = Vector2.Distance(playerPos, homePos + npc.Offset);
             if (d < best) { best = d; _nearNpc = npc; }
+        }
+        // 野外任务发布人 (每区一名)
+        foreach (var zone in WorldData.Zones)
+        {
+            if (!WorldQuests.HasNpc(zone.Index)) continue;
+            float d = Vector2.Distance(playerPos, WorldQuests.NpcPos(zone.Index));
+            if (d < best) { best = d; _nearNpc = null; _nearQuestZone = zone.Index; }
         }
 
         if (_nearNpc != null)
@@ -477,6 +491,12 @@ public class WorldManager : MonoBehaviour
             if (_promptBtn == null) CreatePrompt();
             if (!_promptBtn.activeSelf) _promptBtn.SetActive(true);
             if (_promptText != null) _promptText.text = $"与 {_nearNpc.Name} 交互";
+        }
+        else if (_nearQuestZone >= 0)
+        {
+            if (_promptBtn == null) CreatePrompt();
+            if (!_promptBtn.activeSelf) _promptBtn.SetActive(true);
+            if (_promptText != null) _promptText.text = "与 任务发布人 交互";
         }
         else if (_promptBtn != null && _promptBtn.activeSelf)
         {
@@ -505,6 +525,11 @@ public class WorldManager : MonoBehaviour
             {
                 HidePrompt();
                 open();
+            }
+            else if (_nearQuestZone >= 0)
+            {
+                HidePrompt();
+                WorldQuestUI.Show(_nearQuestZone);
             }
         });
         var lbl = new GameObject("Lbl"); lbl.transform.SetParent(_promptBtn.transform, false);

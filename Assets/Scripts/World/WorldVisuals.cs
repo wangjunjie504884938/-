@@ -46,6 +46,7 @@ public class WorldVisuals : MonoBehaviour
         BuildBoundaryWalls();
         BuildWaypoints();
         BuildHome();
+        BuildQuestNpcs();
     }
 
     // ===== "家"区域: 标志牌 + NPC/家具立柱 (原大本营功能入口) =====
@@ -60,6 +61,18 @@ public class WorldVisuals : MonoBehaviour
         {
             var pos = spawn + npc.Offset;
             MakeMarker(home.transform, $"Npc_{npc.Name}", npc.Icon, pos, new Color(npc.R, npc.G, npc.B), 1.7f);
+        }
+    }
+
+    // ===== 任务发布人 (每个野外区一名, "!"标记) =====
+    private void BuildQuestNpcs()
+    {
+        var parent = new GameObject("QuestNpcs");
+        parent.transform.SetParent(transform, false);
+        foreach (var zone in WorldData.Zones)
+        {
+            if (!WorldQuests.HasNpc(zone.Index)) continue;
+            MakeMarker(parent.transform, $"任务·{zone.Name}", "!", WorldQuests.NpcPos(zone.Index), new Color(1f, 0.8f, 0.25f), 1.7f);
         }
     }
 

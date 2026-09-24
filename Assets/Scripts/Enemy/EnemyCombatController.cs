@@ -494,6 +494,9 @@ public class EnemyCombatController : MonoBehaviour
     {
         if (IsDead) return;
 
+        // 开放世界被动怪：受击才建立仇恨（护盾吸收/碎裂路径之前）
+        if (enemy.WorldZoneIndex >= 0) enemy.Brain?.NotifyDamaged();
+
         // 每帧重置批量计数
         if (_frameResetTimer < Time.time)
         {

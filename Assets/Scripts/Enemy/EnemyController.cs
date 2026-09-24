@@ -38,6 +38,10 @@ public class EnemyController : MonoBehaviour
     [Header("Affixes")]
     public List<EliteAffix> Affixes = new List<EliteAffix>();
 
+    [Header("World")]
+    [Tooltip(">=0 时为开放世界怪：绑定该区域(拴怪)、被动仇恨(被打才反击)")]
+    public int WorldZoneIndex = -1;
+
     public bool HasAffix(EliteAffixType type)
     {
         if (Affixes == null) return false;
@@ -183,33 +187,51 @@ public class EnemyController : MonoBehaviour
         Combat.TakeDamage(rawDamage, attacker);
     }
 
-    private float _clampX, _clampY;
-    private bool _clampCached;
+    private Vector2 _clampCenter;
+    private float _clampHalfX, _clampHalfY;
+    private int _clampZone = int.MinValue; // 缓存key: 世界区index / -1=副本
 
     private void ClampToMapBounds()
     {
         if (GameManager.Instance == null) return;
 
-        // 开放世界：clamp到世界边界（代替单张副本地图，边界由外墙Collider兜底）
         if (GameManager.Instance.InWorld && WorldManager.Active)
         {
-            _clampX = WorldManager.WorldHalfWidth - 1.5f - 0.5f;
-            _clampY = WorldManager.WorldHalfHeight - 1.5f - 0.5f;
-            _clampCached = true;
+            // 开放世界：怪绑定所在区域（区域拴怪）；无归属的clamp到全图（边界由外墙Collider兜底）
+            if (_clampZone != WorldZoneIndex)
+            {
+                if (WorldZoneIndex >= 0)
+                {
+                    var zone = WorldData.Get(WorldZoneIndex);
+                    float zoneHalf = WorldData.ZoneSize / 2f - 2f;
+                    _clampCenter = zone.Center;
+                    _clampHalfX = zoneHalf; _clampHalfY = zoneHalf;
+                }
+                else
+                {
+                    _clampCenter = Vector2.zero;
+                    _clampHalfX = WorldManager.WorldHalfWidth - 2f;
+                    _clampHalfY = WorldManager.WorldHalfHeight - 2f;
+                }
+                _clampZone = WorldZoneIndex;
+            }
         }
-        else if (!_clampCached)
+        else if (_clampZone != -1)
         {
             var mapData = DungeonMapData.GetStageMap(GameManager.Instance.CurrentStageIndex);
-            _clampX = mapData.mapHalfWidth - 1.5f - 0.5f;
-            _clampY = mapData.mapHalfHeight - 1.5f - 0.5f;
-            _clampCached = true;
+            _clampCenter = Vector2.zero;
+            _clampHalfX = mapData.mapHalfWidth - 2f;
+            _clampHalfY = mapData.mapHalfHeight - 2f;
+            _clampZone = -1;
         }
+
         Vector3 pos = transform.position;
-        bool wasOutside = pos.x < -_clampX || pos.x > _clampX || pos.y < -_clampY || pos.y > _clampY;
+        bool wasOutside = pos.x < _clampCenter.x - _clampHalfX || pos.x > _clampCenter.x + _clampHalfX
+                       || pos.y < _clampCenter.y - _clampHalfY || pos.y > _clampCenter.y + _clampHalfY;
         if (wasOutside)
         {
-            pos.x = Mathf.Clamp(pos.x, -_clampX, _clampX);
-            pos.y = Mathf.Clamp(pos.y, -_clampY, _clampY);
+            pos.x = Mathf.Clamp(pos.x, _clampCenter.x - _clampHalfX, _clampCenter.x + _clampHalfX);
+            pos.y = Mathf.Clamp(pos.y, _clampCenter.y - _clampHalfY, _clampCenter.y + _clampHalfY);
             transform.position = pos;
             rb.velocity = Vector2.zero;
         }

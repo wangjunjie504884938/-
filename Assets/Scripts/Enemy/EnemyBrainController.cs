@@ -59,6 +59,17 @@ public class EnemyBrainController : MonoBehaviour
     // Teleport affix
     private float teleportCooldown;
 
+    // 开放世界: 区域绑定 + 被动仇恨 (被打才反击; 玩家离开区域则脱战归位)
+    private int worldZone = -1;
+    private bool aggroed;
+    private Vector2 zoneCenter;
+    private float zoneHalf;
+    private Vector2 wanderTarget;
+    private float nextWanderAt;
+    private float returnTimer;
+    private const float AllyAggroRadius = 7f;
+    private const float ReturnDeaggroTime = 4f; // 回归4秒后强制脱战，避免长距离慢速走位
+
     // Stuck avoidance
     private float stuckCheckTimer;
     private Vector3 lastStuckPos;
@@ -77,6 +88,36 @@ public class EnemyBrainController : MonoBehaviour
     }
 
     public void SetPlayerTransform(Transform t) => playerTransform = t;
+
+    public bool IsAggroed => aggroed;
+
+    /// <summary>开放世界怪：绑定区域并进入被动巡逻 (受击后才建立仇恨)</summary>
+    public void SetWorldZone(int zoneIndex)
+    {
+        worldZone = zoneIndex;
+        var zone = WorldData.Get(zoneIndex);
+        zoneCenter = zone.Center;
+        zoneHalf = WorldData.ZoneSize / 2f - 4f;
+        wanderTarget = zoneCenter;
+        nextWanderAt = 0f;
+        aggroed = false;
+    }
+
+    /// <summary>受击 → 自身与近距离同区同伴建立仇恨</summary>
+    public void NotifyDamaged()
+    {
+        if (worldZone < 0 || aggroed) return;
+        aggroed = true;
+        returnTimer = 0f;
+        foreach (var ally in SceneRegistry.GetEnemiesSnapshot())
+        {
+            if (ally == null || ally == enemy || ally.IsDead) continue;
+            var allyBrain = ally.Brain;
+            if (allyBrain == null || allyBrain.aggroed || allyBrain.worldZone != worldZone) continue;
+            if (Vector2.Distance(ally.transform.position, transform.position) <= AllyAggroRadius)
+                allyBrain.aggroed = true;
+        }
+    }
 
     public void InitStuckAvoidance()
     {
@@ -104,6 +145,32 @@ public class EnemyBrainController : MonoBehaviour
                 ? GameManager.Instance.Player.transform
                 : null;
             if (playerTransform == null) return;
+        }
+
+        // ===== 开放世界被动门禁：未仇恨只巡逻不索敌；玩家出区则脱战归位 =====
+        if (worldZone >= 0)
+        {
+            bool playerInZone = WorldData.GetAt(playerTransform.position.x, playerTransform.position.y).Index == worldZone;
+            if (!aggroed || !playerInZone)
+            {
+                if (aggroed)
+                {
+                    returnTimer += _aiDeltaTime;
+                    ReturnToPost();
+                    if (returnTimer >= ReturnDeaggroTime)
+                    {
+                        aggroed = false;
+                        rb.velocity = Vector2.zero;
+                        wanderTarget = transform.position;
+                        nextWanderAt = Time.time + Random.Range(1f, 3f);
+                    }
+                }
+                else WanderTick();
+                if (chargeCooldown > 0) chargeCooldown -= _aiDeltaTime;
+                if (slamCooldown > 0) slamCooldown -= _aiDeltaTime;
+                return;
+            }
+            returnTimer = 0f; // 玩家回区恢复追击，重置脱战计时
         }
 
         float distToPlayer = Vector2.Distance(transform.position, playerTransform.position);
@@ -379,6 +446,37 @@ public class EnemyBrainController : MonoBehaviour
     {
         Vector2 dir = (transform.position - playerTransform.position).normalized;
         rb.velocity = dir * enemy.MoveSpeed * 0.5f;
+    }
+
+    // === 开放世界: 被动巡逻 / 脱战归位 ===
+    private void WanderTick()
+    {
+        if (Time.time >= nextWanderAt)
+        {
+            nextWanderAt = Time.time + Random.Range(3f, 7f);
+            wanderTarget = zoneCenter + Random.insideUnitCircle * zoneHalf;
+        }
+        Vector2 dir = wanderTarget - (Vector2)transform.position;
+        if (dir.sqrMagnitude <= 0.5f) { rb.velocity = Vector2.zero; return; }
+        rb.velocity = dir.normalized * enemy.MoveSpeed * 0.35f;
+        if (dir.x < 0) spriteRenderer.flipX = true;
+        else if (dir.x > 0) spriteRenderer.flipX = false;
+    }
+
+    private void ReturnToPost()
+    {
+        Vector2 dir = zoneCenter - (Vector2)transform.position;
+        if (dir.magnitude <= 2f)
+        {
+            aggroed = false;
+            wanderTarget = zoneCenter;
+            nextWanderAt = Time.time + Random.Range(1f, 3f);
+            rb.velocity = Vector2.zero;
+            return;
+        }
+        rb.velocity = dir.normalized * enemy.MoveSpeed * 0.6f;
+        if (dir.x < 0) spriteRenderer.flipX = true;
+        else if (dir.x > 0) spriteRenderer.flipX = false;
     }
 
     private void PerformTeleport(EliteAffix teleport)

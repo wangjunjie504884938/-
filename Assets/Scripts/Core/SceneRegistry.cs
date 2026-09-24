@@ -38,6 +38,14 @@ public static class SceneRegistry
         return _petResultBuffer;
     }
 
+    /// <summary>敌人快照（受击联动仇恨等低频场景用；每次调用分配新列表，避免共享缓冲嵌套迭代问题）</summary>
+    public static List<EnemyController> GetEnemiesSnapshot()
+    {
+        var list = new List<EnemyController>(_enemies.Count);
+        list.AddRange(_enemies);
+        return list;
+    }
+
     /// <summary>清理所有临时对象 (通关/死亡/返回大厅时调用)</summary>
     public static void ClearAll()
     {
