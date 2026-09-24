@@ -50,7 +50,7 @@ public partial class HubUI : MonoBehaviour
         if (_petPanel != null) { Destroy(_petPanel); _petPanel = null; }
 
         if (panel == null) BuildUI();
-        UIHelper.SetupTopBar("大本营", () => { Hide(); GameManager.Instance.ShowCharacterSlots(); });
+        UIHelper.SetupTopBar("家", () => { Hide(); GameManager.Instance.ShowCharacterSlots(); });
         UpdateInfo();
         panel.SetActive(true);
         if (showRoutine != null) StopCoroutine(showRoutine);
@@ -137,32 +137,33 @@ public partial class HubUI : MonoBehaviour
 
         // 4个标签页，每页4项 (宠物移到右侧快捷按钮)
         string[][] tabLabels = {
-            new[] { "进入副本", "无尽模式", "竞技场", "排行榜" },
+            new[] { "进入世界", "进入副本", "无尽模式", "竞技场", "排行榜" },
             new[] { "技能升级", "符文装备", "背 包", "Boss图鉴" },
             new[] { "商 场", "碎片商店", "抽 卡", "熔 炉" },
             new[] { "每日任务", "每日挑战", "公 会", "好 友", "邮 件" }
         };
         string[][] tabSubs = {
-            new[] { "开始你的冒险", "通关后解锁", "挑战其他玩家", "无尽模式排行" },
+            new[] { "无缝大地图冒险", "开始你的冒险", "通关后解锁", "挑战其他玩家", "无尽模式排行" },
             new[] { "提升技能等级", "镶嵌技能符文", "查看你的物品", "查看Boss信息" },
             new[] { "装备·道具", "碎片兑换资源", "抽取稀有装备", "装备熔炼强化" },
             new[] { "每日签到奖励", "特殊修饰符", "创建·加入公会", "好友列表·组队", "查看系统邮件" }
         };
         string[][] tabIcons = {
-            new[] { "剑", "∞", "斗", "杯" },
+            new[] { "世", "剑", "∞", "斗", "杯" },
             new[] { "技", "符", "包", "书" },
             new[] { "店", "碎", "抽", "炉" },
             new[] { "任", "挑", "会", "友", "信" }
         };
         string[] tabNames = { "冒险", "养成", "商店", "社交" };
         Color[][] tabIconColors = {
-            new[] { new Color(0.3f, 0.7f, 0.3f), endlessUnlocked ? new Color(0.8f, 0.2f, 0.2f) : new Color(0.15f, 0.15f, 0.15f), new Color(0.8f, 0.3f, 0.5f), new Color(0.2f, 0.5f, 0.8f) },
+            new[] { new Color(0.2f, 0.8f, 0.6f), new Color(0.3f, 0.7f, 0.3f), endlessUnlocked ? new Color(0.8f, 0.2f, 0.2f) : new Color(0.15f, 0.15f, 0.15f), new Color(0.8f, 0.3f, 0.5f), new Color(0.2f, 0.5f, 0.8f) },
             new[] { new Color(0.3f, 0.5f, 0.9f), new Color(0.6f, 0.3f, 0.8f), new Color(0.7f, 0.5f, 0.8f), new Color(0.7f, 0.5f, 0.3f) },
             new[] { new Color(0.85f, 0.7f, 0.2f), new Color(0.4f, 0.8f, 1f), new Color(0.8f, 0.4f, 0.6f), new Color(0.9f, 0.5f, 0.3f) },
             new[] { new Color(0.3f, 0.8f, 0.3f), new Color(0.9f, 0.5f, 0.2f), new Color(0.6f, 0.5f, 0.9f), new Color(0.3f, 0.8f, 0.6f), new Color(0.8f, 0.65f, 0.2f) }
         };
         System.Action[][] tabActions = {
             new System.Action[] {
+                () => WorldManager.EnterWorld(0),
                 () => { EnsureUIManager(); UIManager.Instance.ShowStageSelect(); },
                 () => { if (endlessUnlocked) { ShowEndlessModePopup(); } },
                 () => { EnsureUIManager(); UIManager.Instance.ShowAsyncPvp(); },
@@ -279,7 +280,7 @@ public partial class HubUI : MonoBehaviour
                 btn.onClick.AddListener(() => acts2[idx]());
 
                 // 无尽模式未解锁时禁用
-                if (currentTab == 0 && idx == 1 && !endlessUnlocked)
+                if (currentTab == 0 && idx == 2 && !endlessUnlocked)
                     btn.interactable = false;
 
                 item.AddComponent<CardHoverEffect>();

@@ -78,6 +78,7 @@ public partial class GameUI : MonoBehaviour
     private int _lastHp, _lastMaxHp, _lastLevel, _lastXp, _lastXpToNext, _lastGold, _lastAlive, _lastWave;
     private int _lastDungeonLevel;
     private float _lastStatUpdate;
+    private bool _lastInWorldHud;
 
     // Detailed stats toggle panel
     private GameObject _statsPanel;
@@ -337,16 +338,26 @@ public partial class GameUI : MonoBehaviour
             _lastXp = xp; _lastXpToNext = xpNext;
         }
 
+        // 开放世界模式隐藏副本HUD（楼层/波次/剩余计数），离开世界时恢复
+        bool inWorld = GameManager.Instance != null && GameManager.Instance.InWorld;
+        if (inWorld != _lastInWorldHud)
+        {
+            _lastInWorldHud = inWorld;
+            if (DungeonLevelText != null) DungeonLevelText.gameObject.SetActive(!inWorld);
+            if (MapNameText != null) MapNameText.gameObject.SetActive(!inWorld);
+            if (EnemyCountText != null) EnemyCountText.gameObject.SetActive(!inWorld);
+        }
+
         int dl = GameManager.Instance.DungeonLevel;
         int wave = CombatDirector.Instance?.CurrentStageWave ?? 0;
-        if (DungeonLevelText != null && (dl != _lastDungeonLevel || wave != _lastWave))
+        if (!inWorld && DungeonLevelText != null && (dl != _lastDungeonLevel || wave != _lastWave))
         {
             DungeonLevelText.text = UIStringBuilderPool.FormatDungeonInfo(dl, wave, GameManager.WavesPerStage);
             _lastDungeonLevel = dl; _lastWave = wave;
         }
 
         // 显示当前地图名称
-        if (MapNameText != null && GameManager.Instance != null)
+        if (!inWorld && MapNameText != null && GameManager.Instance != null)
         {
             int stageIdx = GameManager.Instance.CurrentStageIndex;
             string mapName = stageIdx switch
@@ -372,7 +383,7 @@ public partial class GameUI : MonoBehaviour
             potionText.text = $"{potions}/{PlayerRuntimeStats.MaxPotions} [H]";
 
         int alive = CombatDirector.Instance?.AliveEnemies ?? 0;
-        if (EnemyCountText != null && alive != _lastAlive)
+        if (!inWorld && EnemyCountText != null && alive != _lastAlive)
         {
             EnemyCountText.text = UIStringBuilderPool.FormatEnemyRemaining(alive);
             _lastAlive = alive;

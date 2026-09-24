@@ -21,7 +21,7 @@ public partial class GuildUI
         // 公会公告
         var announceArea = UIHelper.MakeGlowCard(_tabContent.transform, "Announce",
             new Vector2(0, 1), new Vector2(1, 1),
-            new Vector2(0, -50), new Vector2(0, 0),
+            new Vector2(0, -58), new Vector2(0, -8),
             new Color(0.06f, 0.04f, 0.08f, 0.5f), UIHelper.GlowBottom, UIHelper.BorderSubtle);
         var annTxt = new GameObject("Txt"); annTxt.transform.SetParent(announceArea.transform, false);
         var annR = annTxt.AddComponent<RectTransform>(); annR.anchorMin = new Vector2(0.05f, 0); annR.anchorMax = new Vector2(0.75f, 1); annR.offsetMin = new Vector2(8, 4); annR.offsetMax = new Vector2(-8, -4);
@@ -42,7 +42,7 @@ public partial class GuildUI
         int end = Mathf.Min(start + MembersPerPage, total);
         int count = end - start;
         float rowH = 50f, gap = 4f;
-        float startY = -10f;
+        float startY = -66f; // 公告卡(-8..-58)下方留8px，避免成员行与公告重叠
 
         for (int i = start; i < end; i++)
         {
@@ -123,95 +123,49 @@ public partial class GuildUI
             new Vector2(0.6f, 0), new Vector2(1f, 1), Vector2.zero, Vector2.zero,
             new Color(0.08f, 0.08f, 0.12f, 0.9f), 13, () => { if (_memberPage < totalPages - 1) { _memberPage++; RefreshTabLast(); } });
 
-        // 底部按钮行：邀请/任命/转让/退出 — 固定位置
-        float btnY = 75, btnH = 70, btnW = 180;
-        float[] btnXs = { -381, -191, -1, 189 }; // InviteBtn, AppointBtn, TransferBtn, LeaveBtn offsetMin.x
-        int btnIdx = 0;
-
-        // 邀请成员 (会长/副会长/长老可见)
+        // 底部按钮行：邀请/任命/转让/退出 — 按可见数量动态居中 (宽180 间隔10 y74 高70)
+        float btnY = 74, btnH = 70, btnW = 180, btnGap = 10;
+        var btnDefs = new List<(string name, Color color, string label, System.Action onClick)>();
         if (PlayerRank <= 2)
-        {
-            float x = btnXs[btnIdx];
-            var inviteBtn = new GameObject("InviteBtn"); inviteBtn.transform.SetParent(_tabContent.transform, false);
-            var ir = inviteBtn.AddComponent<RectTransform>();
-            ir.anchorMin = new Vector2(0.5f, 0); ir.anchorMax = new Vector2(0.5f, 0);
-            ir.pivot = new Vector2(0.5f, 0);
-            ir.offsetMin = new Vector2(x, btnY); ir.offsetMax = new Vector2(x + btnW, btnY + btnH);
-            inviteBtn.AddComponent<Image>().color = UIHelper.BtnConfirm;
-            var iBtn = inviteBtn.AddComponent<Button>();
-            var iLbl = new GameObject("Lbl"); iLbl.transform.SetParent(inviteBtn.transform, false);
-            var ilR = iLbl.AddComponent<RectTransform>(); ilR.anchorMin = Vector2.zero; ilR.anchorMax = Vector2.one; ilR.offsetMin = Vector2.zero; ilR.offsetMax = Vector2.zero;
-            var iTxt = iLbl.AddComponent<Text>(); iTxt.text = "邀请"; iTxt.alignment = TextAnchor.MiddleCenter; iTxt.fontSize = 14; iTxt.color = UIHelper.TextPrimary; iTxt.font = _font; iTxt.raycastTarget = false;
-            iBtn.onClick.AddListener(() => StartCoroutine(ShowGuildInvitePopup(members)));
-            btnIdx++;
-        }
-
-        // 任命职位（会长+副会长可见）
+            btnDefs.Add(("InviteBtn", UIHelper.BtnConfirm, "邀请", () => StartCoroutine(ShowGuildInvitePopup(members))));
         if (PlayerRank <= 1)
-        {
-            float x = btnXs[btnIdx];
-            var appointBtn = new GameObject("AppointBtn"); appointBtn.transform.SetParent(_tabContent.transform, false);
-            var apR = appointBtn.AddComponent<RectTransform>();
-            apR.anchorMin = new Vector2(0.5f, 0); apR.anchorMax = new Vector2(0.5f, 0);
-            apR.pivot = new Vector2(0.5f, 0);
-            apR.offsetMin = new Vector2(x, btnY); apR.offsetMax = new Vector2(x + btnW, btnY + btnH);
-            appointBtn.AddComponent<Image>().color = new Color(0.15f, 0.25f, 0.5f, 0.9f);
-            var apBtn = appointBtn.AddComponent<Button>();
-            var apLbl = new GameObject("Lbl"); apLbl.transform.SetParent(appointBtn.transform, false);
-            var aplR = apLbl.AddComponent<RectTransform>(); aplR.anchorMin = Vector2.zero; aplR.anchorMax = Vector2.one; aplR.offsetMin = Vector2.zero; aplR.offsetMax = Vector2.zero;
-            var apTxt = apLbl.AddComponent<Text>(); apTxt.text = "任命"; apTxt.alignment = TextAnchor.MiddleCenter; apTxt.fontSize = 14; apTxt.color = UIHelper.TextPrimary; apTxt.font = _font; apTxt.raycastTarget = false;
-            apBtn.onClick.AddListener(() => StartCoroutine(ShowAppointPopup(members)));
-            btnIdx++;
-        }
-
-        // 转让会长（仅会长）
+            btnDefs.Add(("AppointBtn", new Color(0.15f, 0.25f, 0.5f, 0.9f), "任命", () => StartCoroutine(ShowAppointPopup(members))));
         if (PlayerRank == 0 && members.Count > 0)
-        {
-            float x = btnXs[btnIdx];
-            var transferBtn = new GameObject("TransferBtn"); transferBtn.transform.SetParent(_tabContent.transform, false);
-            var tfR = transferBtn.AddComponent<RectTransform>();
-            tfR.anchorMin = new Vector2(0.5f, 0); tfR.anchorMax = new Vector2(0.5f, 0);
-            tfR.pivot = new Vector2(0.5f, 0);
-            tfR.offsetMin = new Vector2(x, btnY); tfR.offsetMax = new Vector2(x + btnW, btnY + btnH);
-            transferBtn.AddComponent<Image>().color = new Color(0.2f, 0.3f, 0.6f, 0.9f);
-            var tfBtn = transferBtn.AddComponent<Button>();
-            var tfLbl = new GameObject("Lbl"); tfLbl.transform.SetParent(transferBtn.transform, false);
-            var tflR = tfLbl.AddComponent<RectTransform>(); tflR.anchorMin = Vector2.zero; tflR.anchorMax = Vector2.one; tflR.offsetMin = Vector2.zero; tflR.offsetMax = Vector2.zero;
-            var tfTxt = tfLbl.AddComponent<Text>(); tfTxt.text = "转让"; tfTxt.alignment = TextAnchor.MiddleCenter; tfTxt.fontSize = 14; tfTxt.color = UIHelper.TextPrimary; tfTxt.font = _font; tfTxt.raycastTarget = false;
-            tfBtn.onClick.AddListener(() =>
+            btnDefs.Add(("TransferBtn", new Color(0.2f, 0.3f, 0.6f, 0.9f), "转让", () =>
             {
                 members[0] = new GuildData.GuildMember { name = members[0].name, cls = members[0].cls, level = members[0].level, contribution = members[0].contribution, rank = 0, online = members[0].online };
                 PlayerPrefs.SetInt(GuildData.KeyPlayerRank, 3);
                 SaveMembers(members);
                 if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast("转让成功", $"会长已转让给 {members[0].name}");
                 RefreshTabLast();
-            });
-            btnIdx++;
-        }
-
-        // 退出/解散
+            }));
+        btnDefs.Add(("LeaveBtn", UIHelper.BtnDanger, PlayerRank == 0 ? "解散公会" : "退出公会", () =>
         {
-            float x = btnXs[btnIdx];
-            var leaveBtn = new GameObject("LeaveBtn"); leaveBtn.transform.SetParent(_tabContent.transform, false);
-            var lvR = leaveBtn.AddComponent<RectTransform>();
-            lvR.anchorMin = new Vector2(0.5f, 0); lvR.anchorMax = new Vector2(0.5f, 0);
-            lvR.pivot = new Vector2(0.5f, 0);
-            lvR.offsetMin = new Vector2(x, btnY); lvR.offsetMax = new Vector2(x + btnW, btnY + btnH);
-            leaveBtn.AddComponent<Image>().color = UIHelper.BtnDanger;
-            var lBtn = leaveBtn.AddComponent<Button>();
-            var lLbl = new GameObject("Lbl"); lLbl.transform.SetParent(leaveBtn.transform, false);
-            var llR = lLbl.AddComponent<RectTransform>(); llR.anchorMin = Vector2.zero; llR.anchorMax = Vector2.one; llR.offsetMin = Vector2.zero; llR.offsetMax = Vector2.zero;
-            var lTxt = lLbl.AddComponent<Text>();
-            lTxt.text = PlayerRank == 0 ? "解散公会" : "退出公会";
-            lTxt.alignment = TextAnchor.MiddleCenter; lTxt.fontSize = 14; lTxt.color = UIHelper.TextPrimary; lTxt.font = _font; lTxt.raycastTarget = false;
-            lBtn.onClick.AddListener(() => {
-                PlayerPrefs.DeleteKey(GuildData.KeyGuildName); PlayerPrefs.DeleteKey(GuildData.KeyGuildLevel); PlayerPrefs.DeleteKey(GuildData.KeyGuildExp);
-                PlayerPrefs.DeleteKey(GuildData.KeyGuildAnnounce); PlayerPrefs.DeleteKey(GuildData.KeyContribution);
-                PlayerPrefs.DeleteKey(GuildData.KeyGuildMembers); PlayerPrefs.DeleteKey(GuildData.KeyPlayerRank);
-                PlayerPrefs.Save();
-                if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast(PlayerRank == 0 ? "公会已解散" : "已退出公会", "");
-                Show();
-            });
+            PlayerPrefs.DeleteKey(GuildData.KeyGuildName); PlayerPrefs.DeleteKey(GuildData.KeyGuildLevel); PlayerPrefs.DeleteKey(GuildData.KeyGuildExp);
+            PlayerPrefs.DeleteKey(GuildData.KeyGuildAnnounce); PlayerPrefs.DeleteKey(GuildData.KeyContribution);
+            PlayerPrefs.DeleteKey(GuildData.KeyGuildMembers); PlayerPrefs.DeleteKey(GuildData.KeyPlayerRank);
+            PlayerPrefs.Save();
+            if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast(PlayerRank == 0 ? "公会已解散" : "已退出公会", "");
+            Show();
+        }));
+
+        int btnCount = btnDefs.Count;
+        float rowWidth = btnCount * btnW + (btnCount - 1) * btnGap;
+        for (int i = 0; i < btnCount; i++)
+        {
+            var def = btnDefs[i];
+            float x = -rowWidth / 2f + i * (btnW + btnGap);
+            var btnObj = new GameObject(def.name); btnObj.transform.SetParent(_tabContent.transform, false);
+            var br = btnObj.AddComponent<RectTransform>();
+            br.anchorMin = new Vector2(0.5f, 0); br.anchorMax = new Vector2(0.5f, 0);
+            br.pivot = new Vector2(0.5f, 0);
+            br.offsetMin = new Vector2(x, btnY); br.offsetMax = new Vector2(x + btnW, btnY + btnH);
+            btnObj.AddComponent<Image>().color = def.color;
+            var btn = btnObj.AddComponent<Button>();
+            var lbl = new GameObject("Lbl"); lbl.transform.SetParent(btnObj.transform, false);
+            var lblR = lbl.AddComponent<RectTransform>(); lblR.anchorMin = Vector2.zero; lblR.anchorMax = Vector2.one; lblR.offsetMin = Vector2.zero; lblR.offsetMax = Vector2.zero;
+            var txt = lbl.AddComponent<Text>(); txt.text = def.label; txt.alignment = TextAnchor.MiddleCenter; txt.fontSize = 14; txt.color = UIHelper.TextPrimary; txt.font = _font; txt.raycastTarget = false;
+            btn.onClick.AddListener(() => def.onClick());
         }
     }
 

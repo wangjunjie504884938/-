@@ -189,7 +189,15 @@ public class EnemyController : MonoBehaviour
     private void ClampToMapBounds()
     {
         if (GameManager.Instance == null) return;
-        if (!_clampCached)
+
+        // 开放世界：clamp到世界边界（代替单张副本地图，边界由外墙Collider兜底）
+        if (GameManager.Instance.InWorld && WorldManager.Active)
+        {
+            _clampX = WorldManager.WorldHalfWidth - 1.5f - 0.5f;
+            _clampY = WorldManager.WorldHalfHeight - 1.5f - 0.5f;
+            _clampCached = true;
+        }
+        else if (!_clampCached)
         {
             var mapData = DungeonMapData.GetStageMap(GameManager.Instance.CurrentStageIndex);
             _clampX = mapData.mapHalfWidth - 1.5f - 0.5f;

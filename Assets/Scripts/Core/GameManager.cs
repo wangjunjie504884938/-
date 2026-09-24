@@ -73,6 +73,13 @@ public partial class GameManager : MonoBehaviour
     public bool IsInDungeon => CurrentState == GameState.Dungeon || CurrentState == GameState.Endless;
     public bool IsInHub => CurrentState == GameState.Hub;
     public bool IsEndlessMode => CurrentState == GameState.Endless;
+
+    /// <summary>开放世界模式标志 — 复用Dungeon状态，由WorldManager管理进入/退出</summary>
+    public bool InWorld { get; set; }
+
+    /// <summary>开放世界按区域难度设置舞台 (敌人属性/贴图随区变化)</summary>
+    public void SetWorldStage(int stageIndex) => CurrentStageIndex = stageIndex;
+
     public bool IsPaused { get; set; }
 
     public int AliveEnemies => CombatDirector.Instance != null ? CombatDirector.Instance.AliveEnemies : 0;
@@ -525,7 +532,19 @@ public partial class GameManager : MonoBehaviour
 
     public void ShowHub()
     {
+        // 世界内面板返回：不离开世界（面板已自行Hide，只收起导航栏）
+        if (InWorld && WorldManager.Active)
+        {
+            TopNavBar.Instance?.HideBar();
+            return;
+        }
+
+        // 兜底：世界仍活跃时先清理世界实体
+        if (WorldManager.Active) WorldManager.CleanupWorld();
+
         CurrentState = GameState.Hub;
+        InWorld = false;
+        if (CombatDirector.Instance != null) CombatDirector.WorldMode = false;
         Time.timeScale = 1f;
         GameLog.Log($"[ShowHub] START Player={(Player != null ? "exists" : "NULL")} active={(Player != null && Player.gameObject.activeSelf)}");
 
@@ -606,6 +625,9 @@ public partial class GameManager : MonoBehaviour
         CurrentStageIndex = stageIndex;
         DungeonLevel = (stageIndex + 1);
         CurrentState = GameState.Dungeon;
+        InWorld = false;
+        if (CombatDirector.Instance != null) CombatDirector.WorldMode = false;
+        if (WorldManager.Active) WorldManager.CleanupWorld(); // 从世界NPC进副本：清掉世界
         Time.timeScale = 1f;
         IsPaused = false;
         GameLog.Log($"[StartDungeon] stage={stageIndex} Player={(Player != null ? Player.gameObject.name : "NULL")} active={(Player != null && Player.gameObject.activeSelf)}");
@@ -907,6 +929,9 @@ public partial class GameManager : MonoBehaviour
             Destroy(dvObj);
         }
         DungeonVisuals.Instance = null;
+
+        // 世界模式死亡：清理世界实体
+        if (WorldManager.Active) WorldManager.CleanupWorld();
 
         // Mark death for achievement tracking
         if (AchievementManager.Instance != null)

@@ -15,6 +15,9 @@ public class CombatDirector : MonoBehaviour
     private int currentStageWave = 1;
     private bool waveActive;
 
+    /// <summary>开放世界模式 — 由WorldManager置位：无波次逻辑，死亡即时结算奖励</summary>
+    public static bool WorldMode = false;
+
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -137,6 +140,10 @@ public class CombatDirector : MonoBehaviour
             if (e != null && e.gameObject != null)
                 EnemyPool.Return(e.gameObject, 0.1f);
         }
+
+        // 7.5 世界模式：无波次结算点，每批死亡即时发放奖励
+        if (WorldMode)
+            FlushAccumulatedRewards();
 
         // 8. 检查波次完成
         if (aliveEnemyCount <= 0 && waveActive)
