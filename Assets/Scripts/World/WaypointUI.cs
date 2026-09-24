@@ -2,12 +2,31 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 世界地图/传送点面板 — 列出全部区域，已发现的传送点可快速旅行
+/// 世界地图/传送点面板 — 手绘世界地图为底图，16个传送点按生态对位放置
+/// 已发现: 亮色圆点+区名(可点击传送) / 未发现: 灰点 / 当前区: 金色高亮
 /// </summary>
 public class WaypointUI : MonoBehaviour
 {
     public static WaypointUI Instance { get; private set; }
     private GameObject _panel;
+
+    private const float BoxW = 1000f;
+    private const float BoxH = 840f;
+
+    private static Sprite _mapSprite;
+    private static Sprite MapSprite
+    {
+        get
+        {
+            if (_mapSprite == null)
+            {
+                var tex = Resources.Load<Texture2D>(ResourcePaths.WorldMap);
+                if (tex != null)
+                    _mapSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+            }
+            return _mapSprite;
+        }
+    }
 
     public static void Toggle()
     {
@@ -58,13 +77,13 @@ public class WaypointUI : MonoBehaviour
         pr.anchorMin = Vector2.zero; pr.anchorMax = Vector2.one;
         pr.offsetMin = Vector2.zero; pr.offsetMax = Vector2.zero;
         var bg = _panel.AddComponent<Image>();
-        bg.color = new Color(0f, 0f, 0f, 0.75f);
+        bg.color = new Color(0f, 0f, 0f, 0.8f);
         bg.raycastTarget = true;
 
         // 主卡片
         var box = UIHelper.MakeGlowCard(_panel.transform, "Box",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(-430, -400), new Vector2(430, 400),
+            new Vector2(-BoxW / 2f, -BoxH / 2f), new Vector2(BoxW / 2f, BoxH / 2f),
             new Color(0.06f, 0.04f, 0.09f, 0.97f), UIHelper.GlowBottom, UIHelper.Accent);
 
         // 标题
@@ -115,72 +134,111 @@ public class WaypointUI : MonoBehaviour
             evTxt.raycastTarget = false;
         }
 
-        // 滚动列表 4列×4行
-        var grid = new GameObject("Grid");
-        grid.transform.SetParent(box.transform, false);
-        var gR = grid.AddComponent<RectTransform>();
-        gR.anchorMin = new Vector2(0.03f, 0.08f); gR.anchorMax = new Vector2(0.97f, 0.88f);
-        gR.offsetMin = Vector2.zero; gR.offsetMax = Vector2.zero;
+        // ===== 手绘地图底图 (等比适配) =====
+        var mapArea = new GameObject("MapArea");
+        mapArea.transform.SetParent(box.transform, false);
+        var maR = mapArea.AddComponent<RectTransform>();
+        maR.anchorMin = new Vector2(0.03f, 0.04f); maR.anchorMax = new Vector2(0.97f, 0.87f);
+        maR.offsetMin = Vector2.zero; maR.offsetMax = Vector2.zero;
 
-        int cols = 4;
-        float cellW = 1f / cols, cellH = 1f / 4f;
+        var mapObj = new GameObject("MapImage");
+        mapObj.transform.SetParent(mapArea.transform, false);
+        var mR = mapObj.AddComponent<RectTransform>();
+        mR.anchorMin = new Vector2(0.5f, 0.5f); mR.anchorMax = new Vector2(0.5f, 0.5f);
+        mR.pivot = new Vector2(0.5f, 0.5f);
+
+        var sprite = MapSprite;
+        float areaW = BoxW * 0.94f, areaH = BoxH * 0.83f;
+        float mapW = areaW, mapH = areaH;
+        if (sprite != null)
+        {
+            float aspect = (float)sprite.rect.width / sprite.rect.height;
+            mapH = Mathf.Min(areaH, areaW / aspect);
+            mapW = mapH * aspect;
+        }
+        else
+        {
+            // 底图缺失: 深色底兜底
+            mR.sizeDelta = new Vector2(areaW, areaH);
+            var fallback = mapObj.AddComponent<Image>();
+            fallback.color = new Color(0.08f, 0.1f, 0.14f, 1f);
+        }
+        if (sprite != null)
+        {
+            mR.sizeDelta = new Vector2(mapW, mapH);
+            var img = mapObj.AddComponent<Image>();
+            img.sprite = sprite;
+            img.raycastTarget = true; // 挡住穿透点击
+        }
+
+        // ===== 传送点热点 =====
+        var curPos = GameManager.Instance?.Player?.transform.position ?? Vector3.zero;
+        var curZone = WorldData.GetAt(curPos.x, curPos.y);
+
         foreach (var zone in WorldData.Zones)
         {
             int idx = zone.Index;
             bool discovered = WorldData.IsDiscovered(idx);
-            int gx = idx % cols, gy = idx / cols;
+            bool here = curZone != null && curZone.Index == idx;
+            var anchor = WorldData.MapAnchors[idx];
 
-            var cell = new GameObject($"Zone_{idx}");
-            cell.transform.SetParent(grid.transform, false);
-            var cR = cell.AddComponent<RectTransform>();
-            cR.anchorMin = new Vector2(cellW * gx, 1 - cellH * (gy + 1));
-            cR.anchorMax = new Vector2(cellW * (gx + 1), 1 - cellH * gy);
-            cR.offsetMin = new Vector2(3, 3); cR.offsetMax = new Vector2(-3, -3);
-            var cImg = cell.AddComponent<Image>();
-            cImg.color = discovered ? new Color(0.1f, 0.14f, 0.2f, 0.9f) : new Color(0.06f, 0.06f, 0.08f, 0.9f);
+            var dot = new GameObject($"Spot_{idx}");
+            dot.transform.SetParent(mapObj.transform, false);
+            var dR = dot.AddComponent<RectTransform>();
+            dR.anchorMin = anchor; dR.anchorMax = anchor;
+            dR.pivot = new Vector2(0.5f, 0.5f);
+            dR.anchoredPosition = Vector2.zero;
+            dR.sizeDelta = new Vector2(30, 30);
 
-            var nameObj = new GameObject("Name");
-            nameObj.transform.SetParent(cell.transform, false);
-            var nR = nameObj.AddComponent<RectTransform>();
-            nR.anchorMin = new Vector2(0, 0.55f); nR.anchorMax = new Vector2(1, 0.9f);
-            nR.offsetMin = Vector2.zero; nR.offsetMax = Vector2.zero;
-            var nameTxt = nameObj.AddComponent<Text>();
-            nameTxt.text = discovered ? zone.Name : "？？？";
-            nameTxt.alignment = TextAnchor.MiddleCenter; nameTxt.fontSize = 15;
-            nameTxt.color = discovered ? UIHelper.TextPrimary : UIHelper.TextDim; nameTxt.font = font;
-            nameTxt.raycastTarget = false;
+            var outer = dot.AddComponent<Image>();
+            outer.raycastTarget = discovered; // 未发现不挡点击(虽然也没别的东西可点)
 
-            var infoObj = new GameObject("Info");
-            infoObj.transform.SetParent(cell.transform, false);
-            var iR = infoObj.AddComponent<RectTransform>();
-            iR.anchorMin = new Vector2(0, 0.12f); iR.anchorMax = new Vector2(1, 0.5f);
-            iR.offsetMin = Vector2.zero; iR.offsetMax = Vector2.zero;
-            var infoTxt = infoObj.AddComponent<Text>();
-            string infoText;
-            if (!discovered) infoText = "未发现";
-            else if (WorldData.IsZoneDone(idx)) infoText = "✓ 声望完成";
-            else infoText = $"击杀 {WorldManager.GetZoneKills(idx)}/10";
-            infoTxt.text = infoText;
-            infoTxt.alignment = TextAnchor.MiddleCenter; infoTxt.fontSize = 12;
-            infoTxt.color = UIHelper.TextSecondary; infoTxt.font = font;
-            infoTxt.raycastTarget = false;
+            var innerObj = new GameObject("Core");
+            innerObj.transform.SetParent(dot.transform, false);
+            var iR = innerObj.AddComponent<RectTransform>();
+            iR.anchorMin = Vector2.zero; iR.anchorMax = Vector2.one;
+            iR.offsetMin = new Vector2(6, 6); iR.offsetMax = new Vector2(-6, -6);
+            var inner = innerObj.AddComponent<Image>();
+            inner.raycastTarget = false;
 
-            if (discovered)
+            if (!discovered)
             {
-                var curPos = GameManager.Instance?.Player?.transform.position ?? Vector3.zero;
-                var curZone = WorldData.GetAt(curPos.x, curPos.y);
-                bool here = curZone != null && curZone.Index == idx;
-                UIHelper.MakeButton(cell.transform, "TpBtn", here ? "当前" : "传送", font,
-                    new Vector2(0.25f, 0.02f), new Vector2(0.75f, 0.2f), Vector2.zero, Vector2.zero,
-                    here ? new Color(0.2f, 0.4f, 0.2f, 0.9f) : UIHelper.BtnPrimary, 12,
-                    () =>
-                    {
-                        if (!here)
-                        {
-                            WorldManager.TeleportTo(idx);
-                            Hide();
-                        }
-                    });
+                outer.color = new Color(0.25f, 0.25f, 0.3f, 0.75f);
+                inner.color = new Color(0.45f, 0.45f, 0.5f, 0.6f);
+                continue;
+            }
+
+            // 当前区: 金色 / 其他: 青色
+            outer.color = here ? new Color(1f, 0.8f, 0.25f, 0.95f) : new Color(0.15f, 0.4f, 0.55f, 0.95f);
+            inner.color = here ? new Color(1f, 0.95f, 0.6f) : new Color(0.4f, 0.9f, 1f);
+
+            string label = here ? $"{zone.Name}·当前" : zone.Name;
+            if (WorldData.IsZoneDone(idx)) label += " ✓";
+            var lblObj = new GameObject("Name");
+            lblObj.transform.SetParent(dot.transform, false);
+            var lR = lblObj.AddComponent<RectTransform>();
+            lR.anchorMin = new Vector2(0.5f, 1); lR.anchorMax = new Vector2(0.5f, 1);
+            lR.pivot = new Vector2(0.5f, 0);
+            lR.anchoredPosition = new Vector2(0, 2);
+            lR.sizeDelta = new Vector2(150, 22);
+            var lbl = lblObj.AddComponent<Text>();
+            lbl.text = label;
+            lbl.alignment = TextAnchor.MiddleCenter;
+            lbl.fontSize = 13;
+            lbl.color = here ? new Color(1f, 0.85f, 0.4f) : new Color(1f, 1f, 1f, 0.92f);
+            lbl.font = font;
+            lbl.raycastTarget = false;
+
+            if (!here)
+            {
+                var btn = dot.AddComponent<Button>();
+                btn.transition = Selectable.Transition.None;
+                UIHelper.SetupButtonFeedback(btn, outer.color);
+                btn.onClick.AddListener(() =>
+                {
+                    WorldManager.TeleportTo(idx);
+                    Hide();
+                });
             }
         }
     }

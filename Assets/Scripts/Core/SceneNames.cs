@@ -63,4 +63,7 @@ public static class ResourcePaths
 
     // UI Prefabs
     public const string BossHealthPanel = "UI/BossHealthPanel";
+
+    // 开放世界
+    public const string WorldMap = "UI/WorldMap";
 }
