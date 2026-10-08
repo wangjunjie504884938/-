@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 开放世界视觉构建 — 官方世界地图作地面 + 区域边框/悬浮区名 + 世界边界墙 + 传送点光柱
+/// 开放世界视觉构建 — 16块区域地板(主题换色) + 区域边框/悬浮区名 + 世界边界墙 + 传送点光柱
 /// 一次性整图构建(纯Sprite, 无分块流式) — 走动无缝，区域间无碰撞体
 /// </summary>
 public class WorldVisuals : MonoBehaviour
@@ -42,7 +42,7 @@ public class WorldVisuals : MonoBehaviour
 
     private void BuildAll()
     {
-        BuildMapGround();
+        BuildFloors();
         BuildZoneOverlays();
         BuildBoundaryWalls();
         BuildWaypoints();
@@ -118,31 +118,69 @@ public class WorldVisuals : MonoBehaviour
         lblObj.transform.localScale = new Vector3(0.05f, 0.05f, 1f);
     }
 
-    // ===== 官方世界地图作地面 (单张quad替代16块主题地板, z=5f与原地板层一致) =====
-    private void BuildMapGround()
+    private static Sprite LoadFloorSprite(int theme)
     {
-        var parent = new GameObject("MapGround");
-        parent.transform.SetParent(transform, false);
-
-        var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        quad.name = "WorldMapGround";
-        quad.transform.SetParent(parent.transform, false);
-        quad.transform.position = new Vector3(0f, 0f, 5f);
-        quad.transform.localScale = new Vector3(WorldData.WorldHalf * 2f, WorldData.WorldHalf * 2f, 1f);
-        var col = quad.GetComponent<Collider>();
-        if (col != null) Destroy(col); // 世界用2D边界墙, 移除quad自带的3D碰撞
-
-        var mr = quad.GetComponent<MeshRenderer>();
-        var tex = Resources.Load<Texture2D>(ResourcePaths.WorldMap);
-        var mat = new Material(Shader.Find("Unlit/Texture"));
-        if (tex != null)
-            mat.mainTexture = tex;
-        else
-            mat.color = new Color(0.08f, 0.1f, 0.14f); // 底图缺失兜底
-        mr.sharedMaterial = mat;
+        string path = theme switch
+        {
+            0 => ResourcePaths.Floor_Forest,
+            1 => ResourcePaths.Floor_Forest,
+            2 => ResourcePaths.Floor_Ice,
+            3 => ResourcePaths.Floor_Fire,
+            4 => ResourcePaths.Floor_Shadow,
+            5 => ResourcePaths.Floor_Fire,
+            6 => ResourcePaths.Floor_Shadow,
+            7 => ResourcePaths.Floor_Fire,
+            _ => ResourcePaths.Floor_Stone
+        };
+        return Resources.Load<Sprite>(path);
     }
 
-    // ===== 区域边框 + 悬浮区名 (底图为地图画, 叠加轻量网格辅助辨认所在区域) =====
+    private static Color ThemeTint(int theme)
+    {
+        return theme switch
+        {
+            0 => new Color(0.72f, 0.95f, 0.72f),   // 幽暗森林
+            1 => new Color(0.85f, 1f, 0.8f),       // 翠绿平原
+            2 => new Color(0.7f, 0.85f, 1f),       // 冰霜
+            3 => new Color(1f, 0.72f, 0.55f),      // 火焰
+            4 => new Color(0.55f, 0.5f, 0.72f),    // 亡灵
+            5 => new Color(1f, 0.6f, 0.45f),       // 龙巢
+            6 => new Color(0.5f, 0.42f, 0.75f),    // 虚空
+            7 => new Color(0.9f, 0.5f, 0.4f),      // 魔王
+            _ => new Color(0.8f, 0.8f, 0.8f)
+        };
+    }
+
+    private void BuildFloors()
+    {
+        var floorParent = new GameObject("Floors");
+        floorParent.transform.SetParent(transform, false);
+        foreach (var zone in WorldData.Zones)
+        {
+            var sprite = LoadFloorSprite(zone.Theme);
+            var floorObj = new GameObject($"Zone_{zone.Index}");
+            floorObj.transform.SetParent(floorParent.transform, false);
+            floorObj.transform.position = new Vector3(zone.Center.x, zone.Center.y, 5f);
+
+            var sr = floorObj.AddComponent<SpriteRenderer>();
+            if (sprite != null)
+            {
+                sr.sprite = sprite;
+                float sx = WorldData.ZoneSize / sprite.bounds.size.x;
+                float sy = WorldData.ZoneSize / sprite.bounds.size.y;
+                floorObj.transform.localScale = new Vector3(sx, sy, 1f);
+            }
+            else
+            {
+                sr.sprite = SpriteCache.WhitePixel;
+                floorObj.transform.localScale = new Vector3(WorldData.ZoneSize, WorldData.ZoneSize, 1f);
+            }
+            sr.color = ThemeTint(zone.Theme);
+            sr.sortingOrder = -10;
+        }
+    }
+
+    // ===== 区域边框 + 悬浮区名 (叠加轻量网格辅助辨认所在区域) =====
     private void BuildZoneOverlays()
     {
         var parent = new GameObject("ZoneOverlays");
