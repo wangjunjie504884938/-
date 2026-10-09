@@ -364,7 +364,7 @@ public class MistSystem : MonoBehaviour
         var pr = _mmPanel.AddComponent<RectTransform>();
         pr.anchorMin = new Vector2(1f, 1f); pr.anchorMax = new Vector2(1f, 1f);
         pr.pivot = new Vector2(1f, 1f);
-        pr.anchoredPosition = new Vector2(-12f, -210f);
+        pr.anchoredPosition = new Vector2(-12f, -60f);
         pr.sizeDelta = new Vector2(232f, 172f);
         var bg = _mmPanel.AddComponent<Image>();
         bg.color = new Color(0.03f, 0.04f, 0.07f, 0.72f);
@@ -397,12 +397,12 @@ public class MistSystem : MonoBehaviour
         rr.anchorMin = new Vector2(0.5f, 0f); rr.anchorMax = new Vector2(0.5f, 0f);
         rr.pivot = new Vector2(0.5f, 0.5f);
         // 保持世界宽高比
-        float boxW = 224f, boxH = 142f;
+        float boxW = 215f, boxH = 145f;
         float worldAspect = (_halfW * 2f) / Mathf.Max(0.01f, _halfH * 2f);
         float w, h;
         if (boxW / boxH > worldAspect) { h = boxH; w = h * worldAspect; }
         else { w = boxW; h = w / worldAspect; }
-        rr.anchoredPosition = new Vector2(0f, 4f);
+        rr.anchoredPosition = new Vector2(0f, 80f);
         rr.sizeDelta = new Vector2(w, h);
         var raw = rawGo.AddComponent<RawImage>();
         raw.texture = _mmTex;

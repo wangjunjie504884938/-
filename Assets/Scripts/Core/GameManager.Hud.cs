@@ -91,6 +91,18 @@ public partial class GameManager
         hpSlider.minValue = 0; hpSlider.maxValue = 100; hpSlider.value = 100; hpSlider.interactable = false;
         gameUI.HpBar = hpSlider;
 
+        // 血条数值文本 (条内居中)
+        GameObject hpTextObj = new GameObject("HpText");
+        hpTextObj.transform.SetParent(hpBarObj.transform, false);
+        RectTransform hpTextRect = hpTextObj.AddComponent<RectTransform>();
+        hpTextRect.anchorMin = Vector2.zero; hpTextRect.anchorMax = Vector2.one;
+        hpTextRect.offsetMin = Vector2.zero; hpTextRect.offsetMax = Vector2.zero;
+        Text hpText = hpTextObj.AddComponent<Text>();
+        hpText.alignment = TextAnchor.MiddleCenter; hpText.fontSize = 14;
+        hpText.color = Color.white; hpText.font = font;
+        hpText.raycastTarget = false;
+        gameUI.HpText = hpText;
+
         GameObject shieldBarObj = new GameObject("ShieldBar");
         shieldBarObj.transform.SetParent(canvasTransform, false);
         RectTransform shieldRect = shieldBarObj.AddComponent<RectTransform>();
@@ -118,34 +130,86 @@ public partial class GameManager
         gameUI.ShieldBar = shieldBarObj;
         shieldBarObj.SetActive(false);
 
-        gameUI.LevelText = HudSpriteFactory.CreateText(canvasTransform, "LevelText", new Vector2(12, -102), new Vector2(200, 30), 24, Color.white);
-        gameUI.XpText = HudSpriteFactory.CreateText(canvasTransform, "XpText", new Vector2(12, -134), new Vector2(250, 28), 18, Color.cyan);
-        gameUI.DungeonLevelText = HudSpriteFactory.CreateText(canvasTransform, "DungeonLevelText", new Vector2(12, -162), new Vector2(250, 28), 18, Color.yellow);
-        gameUI.GoldText = HudSpriteFactory.CreateText(canvasTransform, "GoldText", new Vector2(12, -190), new Vector2(250, 28), 22, new Color(1f, 0.85f, 0.2f));
-        gameUI.EnemyCountText = HudSpriteFactory.CreateText(canvasTransform, "EnemyCountText", new Vector2(12, -218), new Vector2(300, 28), 18, new Color(1f, 0.6f, 0.6f));
+        // 经验条 (蓝条) — 等级角标在其左侧
+        GameObject xpBarObj = new GameObject("XpBar");
+        xpBarObj.transform.SetParent(canvasTransform, false);
+        RectTransform xpBarRect = xpBarObj.AddComponent<RectTransform>();
+        xpBarRect.anchorMin = new Vector2(0, 1); xpBarRect.anchorMax = new Vector2(0, 1);
+        xpBarRect.pivot = new Vector2(0, 0.5f); xpBarRect.anchoredPosition = new Vector2(54, -104);
+        xpBarRect.sizeDelta = new Vector2(300, 10);
+        Image xpBg = xpBarObj.AddComponent<Image>(); xpBg.color = new Color(0.06f, 0.06f, 0.1f, 0.9f);
+        GameObject xpFillObj = new GameObject("Fill");
+        xpFillObj.transform.SetParent(xpBarObj.transform, false);
+        RectTransform xpFillRect = xpFillObj.AddComponent<RectTransform>();
+        xpFillRect.anchorMin = Vector2.zero; xpFillRect.anchorMax = Vector2.one;
+        xpFillRect.offsetMin = Vector2.zero; xpFillRect.offsetMax = Vector2.zero;
+        Image xpFillImg = xpFillObj.AddComponent<Image>(); xpFillImg.color = new Color(0.3f, 0.55f, 1f, 1f);
+        Slider xpSlider = xpBarObj.AddComponent<Slider>();
+        xpSlider.targetGraphic = xpFillImg; xpSlider.fillRect = xpFillRect;
+        xpSlider.handleRect = null; xpSlider.direction = Slider.Direction.LeftToRight;
+        xpSlider.minValue = 0; xpSlider.maxValue = 1; xpSlider.value = 0; xpSlider.interactable = false;
+        gameUI.XpBar = xpSlider;
 
-        GameObject statObj = new GameObject("StatDetailText");
-        statObj.transform.SetParent(canvasTransform, false);
-        RectTransform statRect = statObj.AddComponent<RectTransform>();
-        statRect.anchorMin = new Vector2(1, 1); statRect.anchorMax = new Vector2(1, 1);
-        statRect.pivot = new Vector2(1, 1); statRect.anchoredPosition = new Vector2(-12.5f, -62);
-        statRect.sizeDelta = new Vector2(380, 110);
-        Text statText = statObj.AddComponent<Text>();
-        statText.alignment = TextAnchor.UpperRight; statText.fontSize = 22;
-        statText.color = new Color(0.8f, 0.8f, 0.8f); statText.font = font;
-        gameUI.StatDetailText = statText;
+        var levelBadge = gameUI.LevelText = HudSpriteFactory.CreateText(canvasTransform, "LevelText", new Vector2(5, -90), new Vector2(45, 25), 18, new Color(1f, 0.85f, 0.3f));
+        levelBadge.alignment = TextAnchor.MiddleRight;
+        levelBadge.raycastTarget = false;
+        gameUI.XpText = HudSpriteFactory.CreateText(canvasTransform, "XpText", new Vector2(360, -96), new Vector2(150, 22), 13, new Color(0.75f, 0.85f, 1f));
+
+        // 层数 (顶部居中, 地图名下方)
+        gameUI.DungeonLevelText = HudSpriteFactory.CreateText(canvasTransform, "DungeonLevelText", new Vector2(0, -60), new Vector2(300, 30), 17, Color.yellow);
+        var dlRect = gameUI.DungeonLevelText.GetComponent<RectTransform>();
+        dlRect.anchorMin = new Vector2(0.5f, 1); dlRect.anchorMax = new Vector2(0.5f, 1);
+        dlRect.pivot = new Vector2(0.5f, 1); dlRect.anchoredPosition = new Vector2(0, -60);
+        gameUI.DungeonLevelText.alignment = TextAnchor.MiddleCenter;
+
+        // 金币 (右上角, 小地图下方)
+        var goldText = gameUI.GoldText = HudSpriteFactory.CreateText(canvasTransform, "GoldText", new Vector2(-16, -240), new Vector2(220, 26), 20, new Color(1f, 0.85f, 0.2f));
+        var goldRect = goldText.GetComponent<RectTransform>();
+        goldRect.anchorMin = new Vector2(1, 1); goldRect.anchorMax = new Vector2(1, 1);
+        goldRect.pivot = new Vector2(1, 1); goldRect.anchoredPosition = new Vector2(-16, -240);
+        goldText.alignment = TextAnchor.MiddleRight;
+
+        // 剩余敌人 (右上角, 设置按钮左侧)
+        var enemyText = gameUI.EnemyCountText = HudSpriteFactory.CreateText(canvasTransform, "EnemyCountText", new Vector2(-170, -22), new Vector2(220, 26), 17, new Color(1f, 0.6f, 0.6f));
+        var enemyRect = enemyText.GetComponent<RectTransform>();
+        enemyRect.anchorMin = new Vector2(1, 1); enemyRect.anchorMax = new Vector2(1, 1);
+        enemyRect.pivot = new Vector2(1, 1); enemyRect.anchoredPosition = new Vector2(-170, -22);
+        enemyText.alignment = TextAnchor.MiddleRight;
 
         GameObject mapNameObj = new GameObject("MapNameText");
         mapNameObj.transform.SetParent(canvasTransform, false);
         RectTransform mapNameRect = mapNameObj.AddComponent<RectTransform>();
-        mapNameRect.anchorMin = new Vector2(1, 1); mapNameRect.anchorMax = new Vector2(1, 1);
-        mapNameRect.pivot = new Vector2(1, 1); mapNameRect.anchoredPosition = new Vector2(-12.5f, -20);
-        mapNameRect.sizeDelta = new Vector2(380, 36);
+        mapNameRect.anchorMin = new Vector2(0.5f, 1); mapNameRect.anchorMax = new Vector2(0.5f, 1);
+        mapNameRect.pivot = new Vector2(0.5f, 1); mapNameRect.anchoredPosition = new Vector2(0, -12);
+        mapNameRect.sizeDelta = new Vector2(500, 30);
         Text mapNameText = mapNameObj.AddComponent<Text>();
-        mapNameText.alignment = TextAnchor.UpperRight; mapNameText.fontSize = 20;
+        mapNameText.alignment = TextAnchor.MiddleCenter; mapNameText.fontSize = 19;
         mapNameText.color = new Color(0.9f, 0.85f, 0.4f, 1f); mapNameText.font = font;
         mapNameText.raycastTarget = false;
         gameUI.MapNameText = mapNameText;
+
+        // 设置按钮 (右上角)
+        var settingsObj = new GameObject("HudSettingsBtn");
+        settingsObj.transform.SetParent(canvasTransform, false);
+        var setRect = settingsObj.AddComponent<RectTransform>();
+        setRect.anchorMin = new Vector2(1, 1); setRect.anchorMax = new Vector2(1, 1);
+        setRect.pivot = new Vector2(1, 1); setRect.anchoredPosition = new Vector2(-12, -12);
+        setRect.sizeDelta = new Vector2(52, 30);
+        var setImg = settingsObj.AddComponent<Image>();
+        setImg.color = new Color(0.12f, 0.12f, 0.2f, 0.85f);
+        var setBtn = settingsObj.AddComponent<Button>();
+        setBtn.onClick.AddListener(() => { UIHelper.EnsureUIManager(); UIManager.Instance.ShowSettings(); });
+        UIHelper.SetupButtonFeedback(setBtn, setImg.color);
+        var setLblObj = new GameObject("Label");
+        setLblObj.transform.SetParent(settingsObj.transform, false);
+        var setLblRect = setLblObj.AddComponent<RectTransform>();
+        setLblRect.anchorMin = Vector2.zero; setLblRect.anchorMax = Vector2.one;
+        setLblRect.offsetMin = Vector2.zero; setLblRect.offsetMax = Vector2.zero;
+        var setLbl = setLblObj.AddComponent<Text>();
+        setLbl.text = "设置"; setLbl.alignment = TextAnchor.MiddleCenter;
+        setLbl.fontSize = 15; setLbl.color = Color.white; setLbl.font = font;
+        setLbl.raycastTarget = false;
+        gameUI.HudSettingsBtn = settingsObj;
 
         gameUI.BindBossHealthPanel(canvasTransform.GetComponentInParent<Canvas>());
 

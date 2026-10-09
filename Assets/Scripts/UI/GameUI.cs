@@ -9,15 +9,14 @@ public partial class GameUI : MonoBehaviour
 
     [Header("HUD")]
     public Slider HpBar;
+    public Text HpText;
     public Text LevelText;
     public Text XpText;
+    public Slider XpBar;
     public Text DungeonLevelText;
     public Text GoldText;
     public GameObject ShieldBar;
-    private Text potionText;
-
-    [Header("Stat Details")]
-    public Text StatDetailText;
+    public GameObject HudSettingsBtn;
     public Text MapNameText;
 
     [Header("Game Over")]
@@ -77,7 +76,6 @@ public partial class GameUI : MonoBehaviour
     // Cached frame-level values to skip redundant .text assignments
     private int _lastHp, _lastMaxHp, _lastLevel, _lastXp, _lastXpToNext, _lastGold, _lastAlive, _lastWave;
     private int _lastDungeonLevel;
-    private float _lastStatUpdate;
     private bool _lastInWorldHud;
 
     // Detailed stats toggle panel
@@ -100,7 +98,6 @@ public partial class GameUI : MonoBehaviour
         }
         Instance = this;
         CleanupStaleButtons();
-        CreatePotionText();
         CreateAutoBattleButton();
         CreateFPSText();
     }
@@ -128,29 +125,6 @@ public partial class GameUI : MonoBehaviour
         _fpsText.gameObject.SetActive(false);
     }
 
-    private void CreatePotionText()
-    {
-        Canvas canvas = GetComponentInParent<Canvas>();
-        if (canvas == null) return;
-        Font font = GameManager.GetUIFont();
-
-        var obj = new GameObject("PotionText");
-        obj.transform.SetParent(canvas.transform, false);
-        var rt = obj.AddComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0, 1);
-        rt.anchorMax = new Vector2(0, 1);
-        rt.pivot = new Vector2(0, 1);
-        rt.anchoredPosition = new Vector2(10, -80);
-        rt.sizeDelta = new Vector2(200, 28);
-        potionText = obj.AddComponent<Text>();
-        potionText.text = "0/5 [H]";
-        potionText.alignment = TextAnchor.MiddleLeft;
-        potionText.fontSize = 18;
-        potionText.color = new Color(0.3f, 1f, 0.4f);
-        potionText.font = font;
-        potionText.raycastTarget = false;
-    }
-
     private void CreateAutoBattleButton()
     {
         Canvas canvas = GetComponentInParent<Canvas>();
@@ -163,7 +137,7 @@ public partial class GameUI : MonoBehaviour
         rt.anchorMin = new Vector2(1, 1);
         rt.anchorMax = new Vector2(1, 1);
         rt.pivot = new Vector2(1, 1);
-        rt.anchoredPosition = new Vector2(-12, -160);
+        rt.anchoredPosition = new Vector2(-60, -12);
         rt.sizeDelta = new Vector2(100, 40);
 
         var img = _autoBattleBtn.AddComponent<Image>();
@@ -319,6 +293,7 @@ public partial class GameUI : MonoBehaviour
             {
                 HpBar.maxValue = maxHp;
                 HpBar.value = hp;
+                if (HpText != null) HpText.text = $"{hp}/{maxHp}";
                 _lastHp = hp; _lastMaxHp = maxHp;
             }
         }
@@ -335,6 +310,7 @@ public partial class GameUI : MonoBehaviour
         if (XpText != null && (xp != _lastXp || xpNext != _lastXpToNext))
         {
             XpText.text = UIStringBuilderPool.FormatXp(xp, xpNext);
+            if (XpBar != null) XpBar.value = xpNext > 0 ? Mathf.Clamp01((float)xp / xpNext) : 0f;
             _lastXp = xp; _lastXpToNext = xpNext;
         }
 
@@ -377,11 +353,6 @@ public partial class GameUI : MonoBehaviour
             _lastGold = gold;
         }
 
-        // Potion count display
-        int potions = player.Stats.Runtime?.Potions ?? 0;
-        if (potionText != null)
-            potionText.text = $"{potions}/{PlayerRuntimeStats.MaxPotions} [H]";
-
         int alive = CombatDirector.Instance?.AliveEnemies ?? 0;
         if (!inWorld && EnemyCountText != null && alive != _lastAlive)
         {
@@ -396,20 +367,6 @@ public partial class GameUI : MonoBehaviour
         {
             bool hasShield = player.Stats.ShieldHp > 0 && Time.time < player.Stats.ShieldEndTime;
             ShieldBar.SetActive(hasShield);
-        }
-
-        // Stat details — update every 0.25s, ensure visible
-        if (StatDetailText != null && Time.time - _lastStatUpdate > 0.25f)
-        {
-            _lastStatUpdate = Time.time;
-            var s = player.Stats;
-            StatDetailText.text = UIStringBuilderPool.FormatStats(
-                s.BuffedAttack, s.BuffedDefense, s.TotalMoveSpeed,
-                s.HpRegen, s.TotalCritChance, s.TotalLifeSteal,
-                s.TotalAttackRange, s.TotalAttackSpeed, s.ShieldHp);
-            // Ensure stat text is bright enough to read
-            if (StatDetailText.color.a < 0.8f)
-                StatDetailText.color = new Color(0.85f, 0.82f, 0.88f, 1f);
         }
 
         // Combo counter
@@ -562,12 +519,14 @@ public partial class GameUI : MonoBehaviour
     private void SetHUDVisibleInternal(bool visible)
     {
         if (HpBar != null) HpBar.gameObject.SetActive(visible);
+        if (HpText != null) HpText.gameObject.SetActive(visible);
         if (LevelText != null) LevelText.gameObject.SetActive(visible);
         if (XpText != null) XpText.gameObject.SetActive(visible);
+        if (XpBar != null) XpBar.gameObject.SetActive(visible);
         if (DungeonLevelText != null) DungeonLevelText.gameObject.SetActive(visible);
         if (EnemyCountText != null) EnemyCountText.gameObject.SetActive(visible);
         if (GoldText != null) GoldText.gameObject.SetActive(visible);
-        if (StatDetailText != null) StatDetailText.gameObject.SetActive(visible);
+        if (HudSettingsBtn != null) HudSettingsBtn.SetActive(visible);
         if (_statsPanel != null && !visible) { _statsPanel.SetActive(false); _statsPanelVisible = false; }
         if (ShieldBar != null) ShieldBar.SetActive(false);
         if (!visible && BossHealthPanel != null) BossHealthPanel.SetActive(false);
@@ -588,9 +547,6 @@ public partial class GameUI : MonoBehaviour
 
         // Nav buttons
         if (NavLayer != null) NavLayer.SetActive(visible);
-
-        // Potion display
-        if (potionText != null) potionText.gameObject.SetActive(visible);
 
         // Auto-battle button
         if (_autoBattleBtn != null) _autoBattleBtn.SetActive(visible);

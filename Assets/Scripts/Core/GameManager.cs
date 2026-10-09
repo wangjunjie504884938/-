@@ -666,6 +666,9 @@ public partial class GameManager : MonoBehaviour
         if (TopNavBar.Instance != null) TopNavBar.Instance.HideBar();
 
         // Re-enable gameplay HUD for dungeon
+        // 自愈：Canvas/GameUI/HUD可能已被意外销毁（如断线重连、异常流程），进副本前确保存在
+        bool hudRebuilt = GameUI.Instance == null || GameUI.Instance.HpBar == null;
+        if (hudRebuilt) BuildUI();
         if (GameUI.Instance != null)
         {
             GameUI.Instance.ShowHubMode(false);
@@ -711,6 +714,7 @@ public partial class GameManager : MonoBehaviour
                 Player.SkillCtrl.SetCombat(Player.Combat);
             GameLog.Log($"[StartDungeon] Player ready: IsDead={Player.IsDead} State={Player.StateMachine?.CurrentState} Skills={Player.Skills?.Count}");
         }
+        if (hudRebuilt) BuildUI(); // HUD重建后玩家已就绪，补连技能/摇杆/攻击键监听
 
         // 重置摄像机 — 先设置位置再启用跟随
         ResetCamera();
@@ -976,6 +980,9 @@ public partial class GameManager : MonoBehaviour
         CurrentState = GameState.Dungeon;
 
         // 关闭面板
+        // 自愈：Canvas/GameUI/HUD可能已被意外销毁，重试前确保存在
+        bool hudRebuilt = GameUI.Instance == null || GameUI.Instance.HpBar == null;
+        if (hudRebuilt) BuildUI();
         if (GameUI.Instance != null)
         {
             if (GameUI.Instance.GameOverPanel != null) GameUI.Instance.GameOverPanel.SetActive(false);
@@ -1002,6 +1009,7 @@ public partial class GameManager : MonoBehaviour
             Player.ResetRunLoot();
             Player.RollRunMutationPool();
         }
+        if (hudRebuilt) BuildUI(); // HUD重建后玩家已就绪，补连技能/摇杆/攻击键监听
 
         // 无尽模式
         if (EndlessWave > 0)
