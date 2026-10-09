@@ -390,6 +390,7 @@ public partial class FriendUI : MonoBehaviour
 
     private IEnumerator ShowAddFriendPopup()
     {
+        if (_font == null) _font = GameManager.GetUIFont(); // 大本营直通入口不走BuildUI,需兜底
         Canvas canvas = GameManager.EnsureCanvas();
         var overlay = new GameObject("AddFriendPopup");
         overlay.transform.SetParent(canvas.transform, false);

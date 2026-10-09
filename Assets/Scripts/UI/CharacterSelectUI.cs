@@ -277,7 +277,52 @@ public class CharacterSelectUI : MonoBehaviour
         clText.fontSize = 26; clText.color = new Color(1f, 0.95f, 0.7f); clText.font = font;
         clText.raycastTarget = false;
 
+        // 返回按钮 (左上角, 返回选角界面)
+        GameObject backObj = new GameObject("BackBtn");
+        backObj.transform.SetParent(panel.transform, false);
+        RectTransform backRect = backObj.AddComponent<RectTransform>();
+        backRect.anchorMin = new Vector2(0, 1); backRect.anchorMax = new Vector2(0, 1);
+        backRect.pivot = new Vector2(0, 1);
+        backRect.anchoredPosition = new Vector2(15, -15); backRect.sizeDelta = new Vector2(96, 42);
+
+        GameObject backBorderObj = new GameObject("BackBorder");
+        backBorderObj.transform.SetParent(backObj.transform, false);
+        RectTransform backBRect = backBorderObj.AddComponent<RectTransform>();
+        backBRect.anchorMin = Vector2.zero; backBRect.anchorMax = Vector2.one;
+        backBRect.offsetMin = new Vector2(-2, -2); backBRect.offsetMax = new Vector2(2, 2);
+        Image backBImg = backBorderObj.AddComponent<Image>();
+        backBImg.color = new Color(0.55f, 0.55f, 0.65f, 0.8f);
+        backBImg.raycastTarget = false;
+
+        GameObject backInnerObj = new GameObject("BackInner");
+        backInnerObj.transform.SetParent(backBorderObj.transform, false);
+        RectTransform backIRect = backInnerObj.AddComponent<RectTransform>();
+        backIRect.anchorMin = Vector2.zero; backIRect.anchorMax = Vector2.one;
+        backIRect.offsetMin = new Vector2(2, 2); backIRect.offsetMax = new Vector2(-2, -2);
+        Image backIImg = backInnerObj.AddComponent<Image>();
+        backIImg.color = new Color(0.12f, 0.12f, 0.18f, 0.95f);
+
+        Button backBtn = backObj.AddComponent<Button>();
+        backBtn.targetGraphic = backIImg;
+        backBtn.onClick.AddListener(OnBackClicked);
+
+        GameObject backLabel = new GameObject("Label");
+        backLabel.transform.SetParent(backObj.transform, false);
+        RectTransform backLRect = backLabel.AddComponent<RectTransform>();
+        backLRect.anchorMin = Vector2.zero; backLRect.anchorMax = Vector2.one;
+        backLRect.offsetMin = Vector2.zero; backLRect.offsetMax = Vector2.zero;
+        Text backLText = backLabel.AddComponent<Text>();
+        backLText.text = "← 返回"; backLText.alignment = TextAnchor.MiddleCenter;
+        backLText.fontSize = 18; backLText.color = new Color(0.9f, 0.9f, 0.95f); backLText.font = font;
+        backLText.raycastTarget = false;
+
         panel.SetActive(false);
+    }
+
+    private void OnBackClicked()
+    {
+        Hide();
+        if (CharacterSlotUI.Instance != null) CharacterSlotUI.Instance.Show();
     }
 
     private void BuildNavButtons(Font font)
@@ -381,6 +426,30 @@ public class CharacterSelectUI : MonoBehaviour
         titleText.alignment = TextAnchor.MiddleCenter;
         titleText.fontSize = 28; titleText.color = new Color(1f, 0.9f, 0.3f); titleText.font = font;
         titleText.raycastTarget = false;
+
+        // 关闭按钮 (右上角 X, 返回职业选择不创建)
+        GameObject closeObj = new GameObject("PopupCloseBtn");
+        closeObj.transform.SetParent(card.transform, false);
+        RectTransform closeRect = closeObj.AddComponent<RectTransform>();
+        closeRect.anchorMin = new Vector2(1, 1); closeRect.anchorMax = new Vector2(1, 1);
+        closeRect.pivot = new Vector2(1, 1);
+        closeRect.anchoredPosition = new Vector2(-10, -10); closeRect.sizeDelta = new Vector2(40, 40);
+        Image closeBg = closeObj.AddComponent<Image>();
+        closeBg.color = new Color(0.55f, 0.18f, 0.18f, 0.95f);
+
+        GameObject closeLabelObj = new GameObject("Label");
+        closeLabelObj.transform.SetParent(closeObj.transform, false);
+        RectTransform xLabelRect = closeLabelObj.AddComponent<RectTransform>();
+        xLabelRect.anchorMin = Vector2.zero; xLabelRect.anchorMax = Vector2.one;
+        xLabelRect.offsetMin = Vector2.zero; xLabelRect.offsetMax = Vector2.zero;
+        Text closeText = closeLabelObj.AddComponent<Text>();
+        closeText.text = "X"; closeText.alignment = TextAnchor.MiddleCenter;
+        closeText.fontSize = 20; closeText.color = new Color(1f, 0.9f, 0.9f); closeText.font = font;
+        closeText.raycastTarget = false;
+
+        Button closeBtn = closeObj.AddComponent<Button>();
+        closeBtn.targetGraphic = closeBg;
+        closeBtn.onClick.AddListener(() => _namePopup.SetActive(false));
 
         // Input field
         GameObject inputObj = new GameObject("NameInput");
