@@ -18,8 +18,6 @@ public class MistSystem : MonoBehaviour
     private float _campReveal;     // 营地初始照亮半径
     private float _nodeMinDist;    // 资源点离营地最小距离
 
-    private struct FogCell { public SpriteRenderer Sr; public float Alpha; public float Target; }
-
     private class ResourceNode
     {
         public GameObject Go;
@@ -30,7 +28,6 @@ public class MistSystem : MonoBehaviour
         public float Phase;
     }
 
-    private readonly List<FogCell> _cells = new List<FogCell>();
     private readonly List<ResourceNode> _nodes = new List<ResourceNode>();
     private bool[,] _revealed;
     private int _revealedCount;
@@ -39,6 +36,12 @@ public class MistSystem : MonoBehaviour
     private float _halfW, _halfH;
     private Vector2 _campPos = Vector2.zero;
     private float _revealTimer;
+
+    // 软迷雾 (单张纹理, 径向渐变驱散, 无方块感)
+    private const float FogPxPerUnit = 8f;
+    private Texture2D _fogTex;
+    private bool _fogDirty;
+    private float _fogApplyTimer;
 
     // 小地图
     private Texture2D _mmTex;
@@ -61,7 +64,7 @@ public class MistSystem : MonoBehaviour
     };
 
     // ===== 验证/调试只读 =====
-    public int CellCount => _cells.Count;
+    public int CellCount => _gw * _gh;
     public int RevealedCount => _revealedCount;
     public int NodeCount => _nodes.Count;
     public int NodeTakenCount { get; private set; }
@@ -116,37 +119,37 @@ public class MistSystem : MonoBehaviour
     {
         if (_mmPanel != null) Destroy(_mmPanel);
         if (_mmTex != null) Destroy(_mmTex);
+        if (_fogTex != null) Destroy(_fogTex);
         if (Instance == this) Instance = null;
     }
 
     // ===== 迷雾网格 =====
     private void BuildFog()
     {
-        // cell为正方形: 限制列≈18行≈14, 总量≤252
+        // 逻辑网格仅供小地图门控 (列≈18行≈14)
         _cellSize = Mathf.Max((_halfW * 2f) / 18f, (_halfH * 2f) / 14f);
         _gw = Mathf.Max(1, Mathf.CeilToInt((_halfW * 2f) / _cellSize));
         _gh = Mathf.Max(1, Mathf.CeilToInt((_halfH * 2f) / _cellSize));
         _revealed = new bool[_gw, _gh];
 
-        var sprite = SpriteCache.WhitePixel;
-        for (int x = 0; x < _gw; x++)
-        {
-            for (int y = 0; y < _gh; y++)
-            {
-                var cellGo = new GameObject($"Fog_{x}_{y}");
-                cellGo.transform.SetParent(transform, false);
-                float wx = -_halfW + (x + 0.5f) * _cellSize;
-                float wy = -_halfH + (y + 0.5f) * _cellSize;
-                cellGo.transform.position = new Vector3(wx, wy, 8f);
-                var sr = cellGo.AddComponent<SpriteRenderer>();
-                sr.sprite = sprite;
-                sr.color = new Color(0.02f, 0.03f, 0.05f, FogAlpha);
-                sr.sortingOrder = 40;
-                float over = 1.04f; // 轻微重叠防缝隙
-                cellGo.transform.localScale = new Vector3(_cellSize * over, _cellSize * over, 1f);
-                _cells.Add(new FogCell { Sr = sr, Alpha = FogAlpha, Target = FogAlpha });
-            }
-        }
+        // 软迷雾纹理: 双线性过滤 + 驱散时径向渐变, 替代方块格子
+        int tw = Mathf.Clamp(Mathf.RoundToInt(_halfW * 2f * FogPxPerUnit), 32, 384);
+        int th = Mathf.Clamp(Mathf.RoundToInt(_halfH * 2f * FogPxPerUnit), 32, 384);
+        _fogTex = new Texture2D(tw, th, TextureFormat.RGBA32, false);
+        _fogTex.filterMode = FilterMode.Bilinear;
+        _fogTex.wrapMode = TextureWrapMode.Clamp;
+        var full = new Color(0.02f, 0.03f, 0.05f, FogAlpha);
+        var pixels = new Color[tw * th];
+        for (int i = 0; i < pixels.Length; i++) pixels[i] = full;
+        _fogTex.SetPixels(pixels);
+        _fogTex.Apply();
+
+        var go = new GameObject("FogSprite");
+        go.transform.SetParent(transform, false);
+        go.transform.position = new Vector3(0f, 0f, 8f);
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = Sprite.Create(_fogTex, new Rect(0, 0, tw, th), new Vector2(0.5f, 0.5f), tw / (_halfW * 2f));
+        sr.sortingOrder = 40;
     }
 
     private void Update()
@@ -162,14 +165,12 @@ public class MistSystem : MonoBehaviour
             RevealAround(p.position, _revealRadius);
         }
 
-        // 迷雾淡出插值
-        for (int i = 0; i < _cells.Count; i++)
+        // 迷雾纹理上屏节流
+        if (_fogDirty && Time.unscaledTime - _fogApplyTimer > 0.15f)
         {
-            var c = _cells[i];
-            if (Mathf.Approximately(c.Alpha, c.Target)) continue;
-            c.Alpha = Mathf.MoveTowards(c.Alpha, c.Target, dt * 1.8f);
-            if (c.Sr != null) { var col = c.Sr.color; col.a = c.Alpha; c.Sr.color = col; }
-            _cells[i] = c;
+            _fogApplyTimer = Time.unscaledTime;
+            _fogDirty = false;
+            _fogTex.Apply();
         }
 
         UpdateNodes(dt, p.position);
@@ -178,6 +179,7 @@ public class MistSystem : MonoBehaviour
 
     private void RevealAround(Vector3 pos, float radius)
     {
+        // 逻辑网格 (小地图门控)
         int cx = WorldToCellX(pos.x), cy = WorldToCellY(pos.y);
         int r = Mathf.CeilToInt(radius / _cellSize);
         float rSq = radius * radius;
@@ -195,14 +197,49 @@ public class MistSystem : MonoBehaviour
                 if (dx * dx + dy * dy > rSq) continue;
                 _revealed[x, y] = true;
                 _revealedCount++;
-                int idx = x * _gh + y; // BuildFog: x外层y内层
-                var c = _cells[idx];
-                c.Target = 0f;
-                _cells[idx] = c;
                 changed = true;
             }
         }
         if (changed) _mmDirty = true;
+
+        // 软迷雾径向烙印: 内圈完全透明, 外圈45%半径内smoothstep过渡到全雾
+        if (_fogTex != null)
+        {
+            int tw = _fogTex.width, th = _fogTex.height;
+            float pxPerUnit = tw / (_halfW * 2f);
+            int pr = Mathf.CeilToInt(radius * pxPerUnit);
+            int px = Mathf.RoundToInt((pos.x + _halfW) * pxPerUnit);
+            int py = Mathf.RoundToInt((pos.y + _halfH) * pxPerUnit);
+            int x0 = Mathf.Max(0, px - pr), y0 = Mathf.Max(0, py - pr);
+            int x1 = Mathf.Min(tw - 1, px + pr), y1 = Mathf.Min(th - 1, py + pr);
+            int bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+            if (bw > 0 && bh > 0)
+            {
+                float inner = radius * 0.55f * pxPerUnit;
+                float outer = radius * pxPerUnit;
+                var block = _fogTex.GetPixels(x0, y0, bw, bh);
+                bool touched = false;
+                for (int lx = 0; lx < bw; lx++)
+                {
+                    float dx = (x0 + lx) - px;
+                    for (int ly = 0; ly < bh; ly++)
+                    {
+                        float dy = (y0 + ly) - py;
+                        float dSq = dx * dx + dy * dy;
+                        if (dSq > outer * outer) continue;
+                        float t = Mathf.Clamp01((Mathf.Sqrt(dSq) - inner) / Mathf.Max(0.01f, outer - inner));
+                        float a = FogAlpha * (t * t * (3f - 2f * t)); // smoothstep软边
+                        int idx = ly * bw + lx;
+                        if (block[idx].a > a) { block[idx].a = a; touched = true; }
+                    }
+                }
+                if (touched)
+                {
+                    _fogTex.SetPixels(x0, y0, bw, bh, block);
+                    _fogDirty = true;
+                }
+            }
+        }
     }
 
     private int WorldToCellX(float wx) => Mathf.FloorToInt((wx + _halfW) / _cellSize);
