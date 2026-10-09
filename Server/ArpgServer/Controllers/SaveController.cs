@@ -309,12 +309,12 @@ public class SaveController : ControllerBase
             return NotFound(new { error = "存档不存在" });
 
         // === 反作弊验证 ===
-        // 1. 关卡ID范围验证 (0-7)
-        if (req.DungeonId < 0 || req.DungeonId > 7)
+        // 1. 关卡ID范围验证 (秘境无限爬层: 0-999)
+        if (req.DungeonId < 0 || req.DungeonId > 999)
             return BadRequest(new { error = "无效的关卡ID", suspicious = true });
 
-        // 2. 击杀数上限 (每关最多100敌人)
-        if (req.EnemiesKilled < 0 || req.EnemiesKilled > 200)
+        // 2. 击杀数上限 (随层数放宽: 高层波次怪物更多)
+        if (req.EnemiesKilled < 0 || req.EnemiesKilled > 100 + req.DungeonId * 30)
             return BadRequest(new { error = "击杀数异常", enemiesKilled = req.EnemiesKilled, suspicious = true });
 
         // 3. 通关时间下限 (至少10秒，防止秒通关作弊)
@@ -338,7 +338,7 @@ public class SaveController : ControllerBase
         int baseGold = req.DungeonId switch
         {
             0 => 200, 1 => 300, 2 => 400, 3 => 500, 4 => 600, 5 => 800, 6 => 1000, 7 => 1500,
-            _ => 200
+            _ => 1500 + (req.DungeonId - 7) * 500 // 秘境高层: 每层+500
         };
         // 速度奖励: 通关时间越短金币越多 (120秒内+20%, 60秒内+50%)
         int speedBonus = 0;

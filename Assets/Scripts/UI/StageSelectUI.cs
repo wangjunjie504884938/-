@@ -13,6 +13,12 @@ public class StageSelectUI : MonoBehaviour
     private float animTime;
     private Coroutine showRoutine;
 
+    // 秘境无限爬层: 窗口化层卡片 (2列x6行, 翻页浏览)
+    private int _windowStart = 1;       // 窗口第一个可见层(1-based)
+    private const int VisibleRows = 12;
+    private readonly int[] _cardLayers = new int[12];
+    private Text _bestLayerText;
+
     // 暗青蓝配色
 
     // Stage definitions
@@ -38,24 +44,21 @@ public class StageSelectUI : MonoBehaviour
     {
         animTime += Time.deltaTime;
 
-        // Animate: pulse the "NEW" badge and locked borders
+        // 可挑战层呼吸 + 锁定层红字脉冲
         int cleared = RuntimePlayerData.Instance?.HighestStage ?? -1;
-        for (int i = 0; i < stageButtons.Count && i < Stages.Length; i++)
+        for (int i = 0; i < stageButtons.Count && i < VisibleRows; i++)
         {
-            // Pulse the next-unlocked stage border
-            if (i == cleared + 1)
-            {
-                var img = stageImages[i];
-                if (img != null)
-                {
-                    float pulse = 0.3f + Mathf.Sin(animTime * 3f) * 0.15f;
-                    var t = Stages[i].theme;
-                    img.color = new Color(t.r * pulse, t.g * pulse, t.b * pulse, 0.95f);
-                }
-            }
+            int layerIndex = _cardLayers[i] - 1;
+            var img = stageImages[i];
+            if (img == null) continue;
 
-            // Pulse lock icons on locked stages
-            if (i > cleared + 1)
+            if (layerIndex == cleared + 1)
+            {
+                float pulse = 0.3f + Mathf.Sin(animTime * 3f) * 0.15f;
+                var t = Stages[GameManager.RiftLayerToTheme(_cardLayers[i] - 1)].theme;
+                img.color = new Color(t.r * pulse, t.g * pulse, t.b * pulse, 0.95f);
+            }
+            else if (layerIndex > cleared + 1)
             {
                 var lockLabel = FindChildByName(stageButtons[i], "LockIcon");
                 if (lockLabel != null)
@@ -74,8 +77,10 @@ public class StageSelectUI : MonoBehaviour
     public void Show()
     {
         if (panel == null) BuildUI();
-        UIHelper.SetupTopBar("选择副本", () => { Hide(); UIHelper.EnsureUIManager(); UIManager.Instance.ShowHub(); });
-        UpdateButtons();
+        UIHelper.SetupTopBar("秘境挑战", () => { Hide(); UIHelper.EnsureUIManager(); UIManager.Instance.ShowHub(); });
+        int challenge = (RuntimePlayerData.Instance?.HighestStage ?? -1) + 2; // 1-based可挑战层
+        _windowStart = Mathf.Max(1, challenge - 3);
+        UpdateLayerCards();
         panel.SetActive(true);
         if (showRoutine != null) StopCoroutine(showRoutine);
         showRoutine = StartCoroutine(UIHelper.FadeIn(panel, 0.2f));
@@ -117,25 +122,31 @@ public class StageSelectUI : MonoBehaviour
         bg.color = UIHelper.BgDark;
         bg.raycastTarget = true;
 
-        // Stage grid — 蛇形路径排列 (居中, 导航栏下方)
-        float cardW = 200f, cardH = 170f;
-        float xLeft = -150f, xRight = 150f;
-        float ySpacing = 190f;
-        float yStart = 200f;
+        // 秘境最高层数标题
+        var bestObj = new GameObject("BestLayer");
+        bestObj.transform.SetParent(panel.transform, false);
+        var bestRect = bestObj.AddComponent<RectTransform>();
+        bestRect.anchorMin = new Vector2(0.5f, 1); bestRect.anchorMax = new Vector2(0.5f, 1);
+        bestRect.pivot = new Vector2(0.5f, 1); bestRect.anchoredPosition = new Vector2(0, -66);
+        bestRect.sizeDelta = new Vector2(600, 32);
+        _bestLayerText = bestObj.AddComponent<Text>();
+        _bestLayerText.alignment = TextAnchor.MiddleCenter;
+        _bestLayerText.fontSize = 20; _bestLayerText.color = UIHelper.Accent; _bestLayerText.font = font;
 
-        for (int i = 0; i < Stages.Length; i++)
+        // 层卡片窗口 — 2列x6行 (无限层数, 翻页浏览)
+        float cardW = 270f, cardH = 86f;
+        float xLeft = -175f, xRight = 175f;
+        float ySpacing = 98f;
+        float yStart = 130f;
+
+        for (int i = 0; i < VisibleRows; i++)
         {
-            int idx = i;
-            var stage = Stages[i];
-
-            // 蛇形排列: row determines left/right
             int row = i / 2;
-            bool goingRight = (row % 2 == 0);
-            int col = goingRight ? (i % 2) : (1 - i % 2);
+            int col = i % 2;
             float xPos = col == 0 ? xLeft : xRight;
             float yPos = yStart - row * ySpacing;
 
-            GameObject btnObj = new GameObject("Stage_" + i);
+            GameObject btnObj = new GameObject("LayerCard_" + i);
             btnObj.transform.SetParent(panel.transform, false);
             RectTransform btnRect = btnObj.AddComponent<RectTransform>();
             btnRect.anchorMin = new Vector2(0.5f, 0.5f); btnRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -143,184 +154,152 @@ public class StageSelectUI : MonoBehaviour
             btnRect.anchoredPosition = new Vector2(xPos, yPos);
             btnRect.sizeDelta = new Vector3(cardW, cardH);
             Image btnImg = btnObj.AddComponent<Image>();
-            btnImg.color = new Color(stage.theme.r * 0.3f, stage.theme.g * 0.3f, stage.theme.b * 0.3f, 0.9f);
+            btnImg.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
 
-            // Stage number
+            // 层数 (左)
             GameObject numObj = new GameObject("Num");
             numObj.transform.SetParent(btnObj.transform, false);
             RectTransform numRect = numObj.AddComponent<RectTransform>();
-            numRect.anchorMin = new Vector2(0.5f, 1); numRect.anchorMax = new Vector2(0.5f, 1);
-            numRect.pivot = new Vector2(0.5f, 1); numRect.anchoredPosition = new Vector2(0, -10);
-            numRect.sizeDelta = new Vector2(200, 30);
+            numRect.anchorMin = new Vector2(0, 0.5f); numRect.anchorMax = new Vector2(0.32f, 1);
+            numRect.offsetMin = new Vector2(8, 0); numRect.offsetMax = Vector2.zero;
             Text numText = numObj.AddComponent<Text>();
-            numText.text = $"第{i + 1}层"; numText.alignment = TextAnchor.MiddleCenter;
-            numText.fontSize = 18; numText.color = stage.theme; numText.font = font;
+            numText.alignment = TextAnchor.MiddleLeft;
+            numText.fontSize = 20; numText.color = Color.white; numText.font = font;
 
-            // Stage name
+            // 主题名 (右)
             GameObject nameObj = new GameObject("Name");
             nameObj.transform.SetParent(btnObj.transform, false);
             RectTransform nameRect = nameObj.AddComponent<RectTransform>();
-            nameRect.anchorMin = new Vector2(0, 0.45f); nameRect.anchorMax = new Vector2(1, 0.7f);
-            nameRect.offsetMin = new Vector2(5, 0); nameRect.offsetMax = new Vector2(-5, 0);
+            nameRect.anchorMin = new Vector2(0.34f, 0.5f); nameRect.anchorMax = new Vector2(1, 1);
+            nameRect.offsetMin = Vector2.zero; nameRect.offsetMax = new Vector2(-6, 0);
             Text nameText = nameObj.AddComponent<Text>();
-            nameText.text = stage.name; nameText.alignment = TextAnchor.MiddleCenter;
-            nameText.fontSize = 20; nameText.color = Color.white; nameText.font = font;
+            nameText.alignment = TextAnchor.MiddleRight;
+            nameText.fontSize = 17; nameText.color = Color.white; nameText.font = font;
 
-            // Reward
-            GameObject rewardObj = new GameObject("Reward");
-            rewardObj.transform.SetParent(btnObj.transform, false);
-            RectTransform rewardRect = rewardObj.AddComponent<RectTransform>();
-            rewardRect.anchorMin = new Vector2(0, 0.25f); rewardRect.anchorMax = new Vector2(1, 0.45f);
-            rewardRect.offsetMin = new Vector2(5, 0); rewardRect.offsetMax = new Vector2(-5, 0);
-            Text rewardText = rewardObj.AddComponent<Text>();
-            rewardText.text = $"奖励: {stage.goldReward}金"; rewardText.alignment = TextAnchor.MiddleCenter;
-            rewardText.fontSize = 16; rewardText.color = UIHelper.Accent; rewardText.font = font;
-
-            // Difficulty stars
-            GameObject diffObj = new GameObject("Diff");
-            diffObj.transform.SetParent(btnObj.transform, false);
-            RectTransform diffRect = diffObj.AddComponent<RectTransform>();
-            diffRect.anchorMin = new Vector2(0, 0.1f); diffRect.anchorMax = new Vector2(1, 0.25f);
-            diffRect.offsetMin = new Vector2(5, 0); diffRect.offsetMax = new Vector2(-5, 0);
-            Text diffText = diffObj.AddComponent<Text>();
-            diffText.text = new string('★', stage.difficulty); diffText.alignment = TextAnchor.MiddleCenter;
-            diffText.fontSize = 18; diffText.color = new Color(1f, 0.5f, 0.1f); diffText.font = font;
-
-            // Status icon slot
-            GameObject statusObj = new GameObject("StatusIcon");
+            // 状态行 (通关/可挑战/未解锁 + 奖励)
+            GameObject statusObj = new GameObject("Status");
             statusObj.transform.SetParent(btnObj.transform, false);
             RectTransform statusRect = statusObj.AddComponent<RectTransform>();
-            statusRect.anchorMin = new Vector2(0.5f, 1); statusRect.anchorMax = new Vector2(0.5f, 1);
-            statusRect.pivot = new Vector2(0.5f, 1); statusRect.anchoredPosition = new Vector2(65, -8);
-            statusRect.sizeDelta = new Vector2(28, 28);
+            statusRect.anchorMin = new Vector2(0, 0.06f); statusRect.anchorMax = new Vector2(1, 0.48f);
+            statusRect.offsetMin = new Vector2(8, 0); statusRect.offsetMax = new Vector2(-6, 0);
             Text statusText = statusObj.AddComponent<Text>();
-            statusText.alignment = TextAnchor.MiddleCenter;
-            statusText.fontSize = 20; statusText.font = font;
+            statusText.alignment = TextAnchor.MiddleLeft;
+            statusText.fontSize = 14; statusText.color = Color.white; statusText.font = font;
 
-            // Lock icon slot
+            // Boss层标记 (右上角)
+            GameObject bossObj = new GameObject("BossBadge");
+            bossObj.transform.SetParent(btnObj.transform, false);
+            RectTransform bossRect = bossObj.AddComponent<RectTransform>();
+            bossRect.anchorMin = new Vector2(1, 1); bossRect.anchorMax = new Vector2(1, 1);
+            bossRect.pivot = new Vector2(1, 1); bossRect.anchoredPosition = new Vector2(-4, -4);
+            bossRect.sizeDelta = new Vector2(58, 20);
+            Text bossText = bossObj.AddComponent<Text>();
+            bossText.text = "BOSS层"; bossText.alignment = TextAnchor.MiddleCenter;
+            bossText.fontSize = 12; bossText.color = new Color(1f, 0.35f, 0.2f); bossText.font = font;
+            bossObj.SetActive(false);
+
+            // 锁定遮罩
             GameObject lockObj = new GameObject("LockIcon");
             lockObj.transform.SetParent(btnObj.transform, false);
             RectTransform lockRect = lockObj.AddComponent<RectTransform>();
             lockRect.anchorMin = Vector2.zero; lockRect.anchorMax = Vector2.one;
             lockRect.offsetMin = Vector2.zero; lockRect.offsetMax = Vector2.zero;
             Text lockText = lockObj.AddComponent<Text>();
-            lockText.alignment = TextAnchor.MiddleCenter;
-            lockText.fontSize = 48; lockText.color = new Color(0.8f, 0.2f, 0.2f, 0.5f);
+            lockText.text = "未解锁"; lockText.alignment = TextAnchor.MiddleCenter;
+            lockText.fontSize = 20; lockText.color = new Color(0.8f, 0.2f, 0.2f, 0.6f);
             lockText.font = font;
-            lockText.gameObject.SetActive(false);
-
-            // NEW badge slot
-            GameObject newObj = new GameObject("NewBadge");
-            newObj.transform.SetParent(btnObj.transform, false);
-            RectTransform newRect = newObj.AddComponent<RectTransform>();
-            newRect.anchorMin = new Vector2(1, 1); newRect.anchorMax = new Vector2(1, 1);
-            newRect.pivot = new Vector2(1, 1); newRect.anchoredPosition = new Vector2(-5, -5);
-            newRect.sizeDelta = new Vector2(40, 20);
-            Text newText = newObj.AddComponent<Text>();
-            newText.text = "NEW"; newText.alignment = TextAnchor.MiddleCenter;
-            newText.fontSize = 12; newText.color = new Color(1f, 0.9f, 0.2f); newText.font = font;
-            newText.gameObject.SetActive(false);
+            lockObj.SetActive(false);
 
             Button btn = btnObj.AddComponent<Button>();
-            btn.onClick.AddListener(() => OnStageSelected(idx));
+            int cardIdx = i;
+            btn.onClick.AddListener(() => OnCardClicked(cardIdx));
             stageButtons.Add(btnObj);
             stageImages.Add(btnImg);
         }
 
-        // 连接路径线
-        for (int i = 0; i < Stages.Length - 1; i++)
-        {
-            int row = i / 2;
-            bool goingRight = (row % 2 == 0);
-            int col1 = goingRight ? (i % 2) : (1 - i % 2);
-            float x1 = col1 == 0 ? xLeft : xRight;
-            float y1 = yStart - row * ySpacing;
-
-            int nextRow = (i + 1) / 2;
-            bool nextGoingRight = (nextRow % 2 == 0);
-            int col2 = nextGoingRight ? ((i + 1) % 2) : (1 - (i + 1) % 2);
-            float x2 = col2 == 0 ? xLeft : xRight;
-            float y2 = yStart - nextRow * ySpacing;
-
-            // 水平线 (同行)
-            if (row == nextRow)
-            {
-                float midX = (x1 + x2) / 2f;
-                var line = new GameObject($"Path_{i}");
-                line.transform.SetParent(panel.transform, false);
-                var lr = line.AddComponent<RectTransform>();
-                lr.anchorMin = new Vector2(0.5f, 0.5f); lr.anchorMax = new Vector2(0.5f, 0.5f);
-                lr.pivot = new Vector2(0.5f, 0.5f);
-                lr.anchoredPosition = new Vector2(midX, y1);
-                lr.sizeDelta = new Vector2(Mathf.Abs(x2 - x1) - cardW, 4);
-                var lineImg = line.AddComponent<Image>();
-                lineImg.color = new Color(0.25f, 0.60f, 0.85f, 0.5f);
-                lineImg.raycastTarget = false;
-            }
-            else
-            {
-                // 垂直弯曲线 (跨行)
-                var line = new GameObject($"Path_{i}");
-                line.transform.SetParent(panel.transform, false);
-                var lr = line.AddComponent<RectTransform>();
-                lr.anchorMin = new Vector2(0.5f, 0.5f); lr.anchorMax = new Vector2(0.5f, 0.5f);
-                lr.pivot = new Vector2(0.5f, 0.5f);
-                lr.anchoredPosition = new Vector2(x1, (y1 + y2) / 2f);
-                lr.sizeDelta = new Vector2(4, Mathf.Abs(y2 - y1) - cardH);
-                var lineImg = line.AddComponent<Image>();
-                lineImg.color = new Color(0.25f, 0.60f, 0.85f, 0.5f);
-                lineImg.raycastTarget = false;
-            }
-        }
+        // 翻页按钮
+        UIHelper.MakeButton(panel.transform, "PrevBtn", "◀ 上一页", font,
+            new Vector2(0.5f, 0), new Vector2(0.5f, 0),
+            new Vector2(-280, 18), new Vector2(-80, 66),
+            new Color(0.15f, 0.25f, 0.5f, 0.9f), 18, () => PageShift(-VisibleRows));
+        UIHelper.MakeButton(panel.transform, "NextBtn", "下一页 ▶", font,
+            new Vector2(0.5f, 0), new Vector2(0.5f, 0),
+            new Vector2(80, 18), new Vector2(280, 66),
+            new Color(0.15f, 0.25f, 0.5f, 0.9f), 18, () => PageShift(VisibleRows));
 
         panel.SetActive(false);
     }
 
-    private void UpdateButtons()
+    private void UpdateLayerCards()
     {
-        int cleared = RuntimePlayerData.Instance?.HighestStage ?? -1;
-        for (int i = 0; i < stageButtons.Count && i < Stages.Length; i++)
-        {
-            var btn = stageButtons[i].GetComponent<Button>();
-            var img = stageImages[i];
-            var statusText = FindChildByName(stageButtons[i], "StatusIcon")?.GetComponent<Text>();
-            var lockObj = FindChildByName(stageButtons[i], "LockIcon");
-            var newObj = FindChildByName(stageButtons[i], "NewBadge");
+        int cleared = RuntimePlayerData.Instance?.HighestStage ?? -1; // 0-based已通关最高层
+        if (_bestLayerText != null)
+            _bestLayerText.text = cleared >= 0 ? $"最高通关层数: {cleared + 1}" : "尚未通关 — 从第1层开始挑战";
 
-            if (i <= cleared)
+        for (int i = 0; i < stageButtons.Count && i < VisibleRows; i++)
+        {
+            int layer = _windowStart + i;
+            _cardLayers[i] = layer;
+            int layerIndex = layer - 1;
+            var theme = Stages[GameManager.RiftLayerToTheme(layer - 1)];
+
+            var numText = FindChildByName(stageButtons[i], "Num")?.GetComponent<Text>();
+            var nameText = FindChildByName(stageButtons[i], "Name")?.GetComponent<Text>();
+            var statusText = FindChildByName(stageButtons[i], "Status")?.GetComponent<Text>();
+            var bossBadge = FindChildByName(stageButtons[i], "BossBadge");
+            var lockObj = FindChildByName(stageButtons[i], "LockIcon");
+            var img = i < stageImages.Count ? stageImages[i] : null;
+            var btn = stageButtons[i] != null ? stageButtons[i].GetComponent<Button>() : null;
+
+            if (numText != null) { numText.text = $"第{layer}层"; numText.color = theme.theme; }
+            if (nameText != null) nameText.text = theme.name;
+            if (bossBadge != null) bossBadge.SetActive(layer % 10 == 0);
+
+            string goldText = $"奖励{GameManager.GetLayerGoldReward(layer)}金";
+            if (statusText != null)
             {
-                // Cleared stage — show theme color + checkmark
-                btn.interactable = true;
-                var t = Stages[i].theme;
-                img.color = new Color(t.r * 0.3f, t.g * 0.3f, t.b * 0.3f, 0.9f);
-                if (statusText != null) { statusText.text = ""; statusText.color = new Color(0.2f, 1f, 0.3f); }
-                if (lockObj != null) lockObj.SetActive(false);
-                if (newObj != null) newObj.SetActive(false);
+                if (layerIndex <= cleared) { statusText.text = $"已通关 · {goldText}"; statusText.color = new Color(0.2f, 1f, 0.3f); }
+                else if (layerIndex == cleared + 1) { statusText.text = $"可挑战 · {goldText}"; statusText.color = new Color(1f, 0.9f, 0.2f); }
+                else { statusText.text = "未解锁"; statusText.color = new Color(0.6f, 0.6f, 0.65f, 0.8f); }
             }
-            else if (i == cleared + 1)
+            if (lockObj != null) lockObj.SetActive(layerIndex > cleared + 1);
+            if (btn != null) btn.interactable = layerIndex <= cleared + 1;
+            if (img != null)
             {
-                // Next available stage — dark with NEW badge
-                btn.interactable = true;
-                img.color = new Color(0.2f, 0.2f, 0.2f, 0.9f);
-                if (statusText != null) { statusText.text = ""; statusText.color = Color.white; }
-                if (lockObj != null) lockObj.SetActive(false);
-                if (newObj != null) newObj.SetActive(true);
-            }
-            else
-            {
-                // Locked stage — very dark with lock icon
-                btn.interactable = false;
-                img.color = new Color(0.1f, 0.1f, 0.1f, 0.7f);
-                if (statusText != null) { statusText.text = ""; statusText.color = Color.grey; }
-                if (lockObj != null) { lockObj.SetActive(true); var lt = lockObj.GetComponent<Text>(); if (lt != null) lt.text = ""; }
-                if (newObj != null) newObj.SetActive(false);
+                if (layerIndex == cleared + 1)
+                    img.color = new Color(0.2f, 0.2f, 0.2f, 0.9f); // 呼吸色由Update驱动
+                else if (layerIndex <= cleared)
+                    img.color = new Color(theme.theme.r * 0.3f, theme.theme.g * 0.3f, theme.theme.b * 0.3f, 0.9f);
+                else
+                    img.color = new Color(0.1f, 0.1f, 0.1f, 0.7f);
             }
         }
     }
 
+    private void PageShift(int delta)
+    {
+        int challenge = (RuntimePlayerData.Instance?.HighestStage ?? -1) + 2;
+        int maxStart = Mathf.Max(1, challenge);
+        _windowStart = Mathf.Clamp(_windowStart + delta, 1, maxStart);
+        UpdateLayerCards();
+    }
+
+    /// <summary>秘境层显示名 — 主题按8层循环</summary>
+    public static string GetLayerName(int layer1Based)
+    {
+        var t = Stages[GameManager.RiftLayerToTheme(layer1Based - 1)];
+        return $"第{layer1Based}层·{t.name}";
+    }
+
+    private void OnCardClicked(int cardIdx)
+    {
+        if (cardIdx < 0 || cardIdx >= VisibleRows) return;
+        OnStageSelected(_cardLayers[cardIdx] - 1); // 0-based层索引
+    }
+
     private void OnStageSelected(int stageIndex)
     {
-        // Don't allow selecting locked stages
+        // Don't allow selecting locked stages (秘境层数: 首通解锁下一层)
         int cleared = RuntimePlayerData.Instance?.HighestStage ?? -1;
         if (stageIndex > cleared + 1) return;
 
@@ -349,7 +328,7 @@ public class StageSelectUI : MonoBehaviour
         var titleObj = new GameObject("Title"); titleObj.transform.SetParent(box.transform, false);
         var tR = titleObj.AddComponent<RectTransform>(); tR.anchorMin = new Vector2(0, 0.75f); tR.anchorMax = new Vector2(1, 0.95f); tR.offsetMin = Vector2.zero; tR.offsetMax = Vector2.zero;
         var title = titleObj.AddComponent<Text>();
-        title.text = $"{Stages[stageIndex].name}"; title.alignment = TextAnchor.MiddleCenter; title.fontSize = 22; title.color = UIHelper.Accent; title.font = font;
+        title.text = GetLayerName(stageIndex + 1); title.alignment = TextAnchor.MiddleCenter; title.fontSize = 22; title.color = UIHelper.Accent; title.font = font;
 
         // 关闭
         UIHelper.MakeButton(box.transform, "CloseBtn", "✕", font,

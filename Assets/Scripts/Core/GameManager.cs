@@ -63,6 +63,20 @@ public partial class GameManager : MonoBehaviour
     public int DungeonLevel { get; set; } = 1;
     private float _dungeonStartTime; // 副本开始时间, 用于服务器结算速度奖励
     public int CurrentStageIndex { get; private set; }
+
+    /// <summary>秘境绝对层数(1-based无上限) — CurrentStageIndex仅作地图主题循环(%8), 缩放/结算/排行用本值</summary>
+    public int RiftLayer { get; private set; }
+
+    /// <summary>秘境层数 → 地图主题索引(8主题循环)</summary>
+    public static int RiftLayerToTheme(int stageIndex) => ((stageIndex % 8) + 8) % 8;
+
+    /// <summary>秘境层数金币奖励 — 前8层用主题表, 之后每层+500</summary>
+    public static int GetLayerGoldReward(int riftLayer)
+    {
+        int tableLen = StageSelectUI.Stages != null ? StageSelectUI.Stages.Length : 8;
+        if (riftLayer <= tableLen) return StageSelectUI.Stages[riftLayer - 1].goldReward;
+        return 1500 + (riftLayer - 1 - 7) * 500;
+    }
     public int EnemiesKilled => CombatDirector.Instance != null ? CombatDirector.Instance.EnemiesKilled : 0;
 
     /// <summary>Single source of truth for the current game phase.</summary>
@@ -622,15 +636,17 @@ public partial class GameManager : MonoBehaviour
 
     public void StartDungeon(int stageIndex)
     {
-        CurrentStageIndex = stageIndex;
-        DungeonLevel = (stageIndex + 1);
+        RiftLayer = stageIndex + 1;                        // 秘境绝对层数(无上限)
+        CurrentStageIndex = RiftLayerToTheme(stageIndex);  // 地图/主题按8循环
+        int themeStage = CurrentStageIndex;
+        DungeonLevel = (stageIndex + 1);                   // 数值缩放跟随真实层数
         CurrentState = GameState.Dungeon;
         InWorld = false;
         if (CombatDirector.Instance != null) CombatDirector.WorldMode = false;
         if (WorldManager.Active) WorldManager.CleanupWorld(); // 从世界NPC进副本：清掉世界
         Time.timeScale = 1f;
         IsPaused = false;
-        GameLog.Log($"[StartDungeon] stage={stageIndex} Player={(Player != null ? Player.gameObject.name : "NULL")} active={(Player != null && Player.gameObject.activeSelf)}");
+        GameLog.Log($"[StartDungeon] layer={RiftLayer} theme={themeStage} Player={(Player != null ? Player.gameObject.name : "NULL")} active={(Player != null && Player.gameObject.activeSelf)}");
         AudioManager.Instance?.PlayBGM(AudioManager.BGMType.Battle);
 
         // Reset achievement run state for new dungeon
@@ -673,6 +689,7 @@ public partial class GameManager : MonoBehaviour
             Destroy(oldDv);
         }
         CreateDungeonVisuals();
+        MistSystem.SpawnForMap(); // 秘境迷雾+小地图+资源点+营地
 
         // ★ 核心安全：确保玩家存在并可见 — 先移动玩家再设置相机
         EnsurePlayerExists();
@@ -699,7 +716,7 @@ public partial class GameManager : MonoBehaviour
         ResetCamera();
         if (Camera.main != null)
             Camera.main.transform.position = new Vector3(0, 0, -10);
-        var mapData = DungeonMapData.GetStageMap(stageIndex);
+        var mapData = DungeonMapData.GetStageMap(themeStage);
         if (CameraFollow.Instance != null)
         {
             CameraFollow.Instance.ForcedOrthoSize = mapData.cameraOrthoSize;
@@ -731,13 +748,13 @@ public partial class GameManager : MonoBehaviour
         // 组队模式：创建AI队友（与普通副本一致）
         DestroyTeammates();
         if (IsTeamMode && Player != null)
-            PetTeammates.CreateTeammates(Player.transform, stageIndex);
+            PetTeammates.CreateTeammates(Player.transform, themeStage);
 
         // First-time dungeon tutorial — disabled
 
         // Trigger stage start dialogue
         if (DialogueSystem.Instance == null) gameObject.AddComponent<DialogueSystem>();
-        DialogueSystem.Instance.ShowStageStartDialogue(stageIndex);
+        DialogueSystem.Instance.ShowStageStartDialogue(themeStage);
 
         GameLog.Log($"[StartDungeon] DONE State={CurrentState} Player.active={(Player != null && Player.gameObject.activeSelf)} DV={(DungeonVisuals.Instance != null ? "exists" : "NULL")}");
     }
@@ -764,10 +781,8 @@ public partial class GameManager : MonoBehaviour
         if (Player != null)
         {
             int enemiesKilledForReward = CombatDirector.Instance != null ? CombatDirector.Instance.EnemiesKilled : 0;
-            int instantXp = 50 + CurrentStageIndex * 30 + enemiesKilledForReward * 5;
-            int instantGold = 0;
-            if (StageSelectUI.Stages != null && CurrentStageIndex >= 0 && CurrentStageIndex < StageSelectUI.Stages.Length)
-                instantGold = StageSelectUI.Stages[CurrentStageIndex].goldReward;
+            int instantXp = 50 + (RiftLayer - 1) * 30 + enemiesKilledForReward * 5;
+            int instantGold = GetLayerGoldReward(RiftLayer);
             if (hpRemaining >= hpMax && hpMax > 0)
                 instantGold += Mathf.RoundToInt(instantGold * 0.5f);
 
@@ -776,19 +791,19 @@ public partial class GameManager : MonoBehaviour
             Player.RunGoldEarned += instantGold;
             Player.RunXpEarned += instantXp;
 
-            int dungeonLevel = CurrentStageIndex + 1;
+            int dungeonLevel = RiftLayer;
             int dropCount = 3;
             for (int i = 0; i < dropCount; i++)
             {
-                float roll = Random.Range(0f, 1f);
-                int rarity = roll < 0.02f ? 3 : roll < 0.10f ? 2 : roll < 0.30f ? 1 : 0;
+                // 稀有度随秘境层数提升 (ItemData.RollRarity: 传奇 0.02+lv*0.005)
+                var rarity = ItemData.RollRarity(dungeonLevel);
                 var slotType = (EquipSlotType)Random.Range(0, 3);
-                var item = EquipmentItem.Generate(slotType, (ItemRarity)rarity, dungeonLevel);
+                var item = EquipmentItem.Generate(slotType, rarity, dungeonLevel);
                 Player.RunLootItems.Add(item);
                 if (!Player.Inventory.AddToBackpack(item))
                     LocalMailSystem.SendItemMail($"副本掉落: {item.Name}", $"背包已满，装备已发送至邮箱。\n{item.GetStatSummary()}", item);
             }
-            if ((CurrentStageIndex + 1) % 5 == 0)
+            if (RiftLayer % 5 == 0)
             {
                 var bonusItem = EquipmentItem.GenerateRandom(dungeonLevel);
                 Player.Inventory.AddToBackpack(bonusItem);
@@ -804,9 +819,9 @@ public partial class GameManager : MonoBehaviour
             Player.transform.position = new Vector3(9999, 9999, 0);
 
         if (Player != null)
-            LeaderboardUI.SubmitScore(CurrentStageIndex + 1, (int)Player.HeroClass, Player.Stats.Level);
+            LeaderboardUI.SubmitScore(RiftLayer, (int)Player.HeroClass, Player.Stats.Level);
 
-        StartCoroutine(RewardFlow.CompleteDungeonFlow(timeUsed, hpRemaining, hpMax, enemiesKilled, CurrentStageIndex));
+        StartCoroutine(RewardFlow.CompleteDungeonFlow(timeUsed, hpRemaining, hpMax, enemiesKilled, RiftLayer - 1));
     }
 
     // === PLAYER CREATION ===
@@ -997,6 +1012,7 @@ public partial class GameManager : MonoBehaviour
 
         // 重建地图
         CreateDungeonVisuals();
+        MistSystem.SpawnForMap(); // 秘境迷雾重建
 
         // 重置摄像机 — 先设置位置再启用跟随
         ResetCamera();

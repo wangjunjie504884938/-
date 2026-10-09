@@ -626,7 +626,9 @@ public partial class GameUI : MonoBehaviour
         titleRect.pivot = new Vector2(0.5f, 1); titleRect.anchoredPosition = new Vector2(0, -50);
         titleRect.sizeDelta = new Vector2(400, 50);
         Text titleText = titleObj.AddComponent<Text>();
-        titleText.text = "副本完成!"; titleText.alignment = TextAnchor.MiddleCenter;
+        var gmForTitle = GameManager.Instance;
+        titleText.text = gmForTitle != null && gmForTitle.RiftLayer > 0 ? $"第{gmForTitle.RiftLayer}层 通关!" : "副本完成!";
+        titleText.alignment = TextAnchor.MiddleCenter;
         titleText.fontSize = 38; titleText.color = new Color(1f, 0.9f, 0.2f); titleText.font = font;
 
         // Build loot summary content
@@ -650,6 +652,38 @@ public partial class GameUI : MonoBehaviour
         lootText.text = lootSummary; lootText.alignment = TextAnchor.UpperCenter;
         lootText.fontSize = 20; lootText.color = Color.white; lootText.font = font;
         lootText.supportRichText = true;
+
+        // 挑战下一层按钮 (秘境爬层核心循环 — 通关后下一层自动解锁)
+        var gmNext = GameManager.Instance;
+        if (gmNext != null && gmNext.RiftLayer > 0)
+        {
+            GameObject nextObj = new GameObject("NextLayerBtn");
+            nextObj.transform.SetParent(DungeonCompletePanel.transform, false);
+            RectTransform nextRect = nextObj.AddComponent<RectTransform>();
+            nextRect.anchorMin = new Vector2(0.5f, 0); nextRect.anchorMax = new Vector2(0.5f, 0);
+            nextRect.pivot = new Vector2(0.5f, 0.5f); nextRect.anchoredPosition = new Vector2(0, 125);
+            nextRect.sizeDelta = new Vector2(250, 55);
+            Image nextImg = nextObj.AddComponent<Image>();
+            nextImg.color = new Color(1f, 0.75f, 0.15f, 0.95f);
+            Button nextBtn = nextObj.AddComponent<Button>();
+            int nextLayerStart = gmNext.RiftLayer; // 0-based入参: 当前层+1 = RiftLayer
+            nextBtn.onClick.AddListener(() =>
+            {
+                ClearAllToasts();
+                DungeonCompletePanel.SetActive(false);
+                if (GameManager.Instance.Player != null)
+                    GameManager.Instance.Player.ResetRunLoot();
+                GameManager.Instance.StartDungeon(nextLayerStart);
+            });
+            GameObject nlObj = new GameObject("Label");
+            nlObj.transform.SetParent(nextObj.transform, false);
+            RectTransform nlRect = nlObj.AddComponent<RectTransform>();
+            nlRect.anchorMin = Vector2.zero; nlRect.anchorMax = Vector2.one;
+            nlRect.offsetMin = Vector2.zero; nlRect.offsetMax = Vector2.zero;
+            Text nlText = nlObj.AddComponent<Text>();
+            nlText.text = $"挑战第{gmNext.RiftLayer + 1}层"; nlText.alignment = TextAnchor.MiddleCenter;
+            nlText.fontSize = 24; nlText.color = new Color(0.25f, 0.12f, 0f); nlText.font = font;
+        }
 
         // Return to hub button
         GameObject returnObj = new GameObject("ReturnBtn");
