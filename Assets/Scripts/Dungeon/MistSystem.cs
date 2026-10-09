@@ -45,6 +45,9 @@ public class MistSystem : MonoBehaviour
     private GameObject _mmPanel;
     private RectTransform _mmMapRect;
     private RectTransform _playerDot;
+    private RectTransform _campMarker;
+    private readonly List<Image> _enemyDots = new List<Image>();
+    private float _enemyDotTimer;
     private bool _mmDirty;
     private float _mmApplyTimer;
     private static readonly Color MmFog = new Color(0.045f, 0.05f, 0.09f);
@@ -407,15 +410,51 @@ public class MistSystem : MonoBehaviour
         var raw = rawGo.AddComponent<RawImage>();
         raw.texture = _mmTex;
         raw.raycastTarget = false;
+        // 地图边框
+        var frame = rawGo.AddComponent<Outline>();
+        frame.effectColor = new Color(1f, 0.85f, 0.5f, 0.4f);
+        frame.effectDistance = new Vector2(2f, -2f);
         _mmMapRect = rr;
+
+        // 营地金色菱形标记
+        var campGo = new GameObject("CampMarker");
+        campGo.transform.SetParent(rawGo.transform, false);
+        var cr = campGo.AddComponent<RectTransform>();
+        cr.sizeDelta = new Vector2(9f, 9f);
+        cr.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        var cImg = campGo.AddComponent<Image>();
+        cImg.color = new Color(1f, 0.85f, 0.3f, 0.95f);
+        cImg.raycastTarget = false;
+        float cw = rr.sizeDelta.x, ch = rr.sizeDelta.y;
+        float cnx = Mathf.Clamp01((_campPos.x + _halfW) / (_halfW * 2f));
+        float cny = Mathf.Clamp01((_campPos.y + _halfH) / (_halfH * 2f));
+        cr.anchoredPosition = new Vector2((cnx - 0.5f) * cw, (cny - 0.5f) * ch);
+        _campMarker = cr;
+
+        // 敌人红点池 (仅显示已探索区内的存活敌人)
+        for (int i = 0; i < 24; i++)
+        {
+            var eGo = new GameObject($"EnemyDot_{i}");
+            eGo.transform.SetParent(rawGo.transform, false);
+            var er = eGo.AddComponent<RectTransform>();
+            er.sizeDelta = new Vector2(5f, 5f);
+            var eImg = eGo.AddComponent<Image>();
+            eImg.color = new Color(1f, 0.25f, 0.25f, 0.9f);
+            eImg.raycastTarget = false;
+            eGo.SetActive(false);
+            _enemyDots.Add(eImg);
+        }
 
         var dotGo = new GameObject("PlayerDot");
         dotGo.transform.SetParent(rawGo.transform, false);
         var dr = dotGo.AddComponent<RectTransform>();
-        dr.sizeDelta = new Vector2(7f, 7f);
+        dr.sizeDelta = new Vector2(9f, 9f);
         var dImg = dotGo.AddComponent<Image>();
         dImg.color = new Color(1f, 0.9f, 0.3f);
         dImg.raycastTarget = false;
+        var dOl = dotGo.AddComponent<Outline>();
+        dOl.effectColor = Color.white;
+        dOl.effectDistance = new Vector2(1.5f, -1.5f);
         _playerDot = dr;
 
         _mmDirty = true;
@@ -429,6 +468,15 @@ public class MistSystem : MonoBehaviour
         float nx = Mathf.Clamp01((p.x + _halfW) / (_halfW * 2f));
         float ny = Mathf.Clamp01((p.y + _halfH) / (_halfH * 2f));
         _playerDot.anchoredPosition = new Vector2((nx - 0.5f) * w, (ny - 0.5f) * h);
+        float pulse = 0.85f + Mathf.Sin(Time.unscaledTime * 4f) * 0.18f;
+        _playerDot.localScale = new Vector3(pulse, pulse, 1f);
+
+        _enemyDotTimer -= Time.deltaTime;
+        if (_enemyDotTimer <= 0f)
+        {
+            _enemyDotTimer = 0.15f;
+            UpdateEnemyDots(w, h);
+        }
 
         if (_mmDirty && Time.unscaledTime - _mmApplyTimer > 0.25f)
         {
@@ -444,6 +492,31 @@ public class MistSystem : MonoBehaviour
                 if (!n.Taken) SetTexPixelWorld(n.Pos, MmNodeColors[n.Kind]);
             }
             _mmTex.Apply();
+        }
+    }
+
+    private void UpdateEnemyDots(float w, float h)
+    {
+        int used = 0;
+        var enemies = SceneRegistry.GetEnemiesSnapshot();
+        for (int i = 0; i < enemies.Count && used < _enemyDots.Count; i++)
+        {
+            var e = enemies[i];
+            if (e == null || e.IsDead) continue;
+            var ep = e.transform.position;
+            int cx = WorldToCellX(ep.x), cy = WorldToCellY(ep.y);
+            if (cx < 0 || cx >= _gw || cy < 0 || cy >= _gh) continue;
+            if (!_revealed[cx, cy]) continue; // 迷雾中的敌人不显示
+            float nx = Mathf.Clamp01((ep.x + _halfW) / (_halfW * 2f));
+            float ny = Mathf.Clamp01((ep.y + _halfH) / (_halfH * 2f));
+            var img = _enemyDots[used];
+            img.rectTransform.anchoredPosition = new Vector2((nx - 0.5f) * w, (ny - 0.5f) * h);
+            if (!img.gameObject.activeSelf) img.gameObject.SetActive(true);
+            used++;
+        }
+        for (int i = used; i < _enemyDots.Count; i++)
+        {
+            if (_enemyDots[i].gameObject.activeSelf) _enemyDots[i].gameObject.SetActive(false);
         }
     }
 
