@@ -489,7 +489,11 @@ public class MistSystem : MonoBehaviour
             for (int i = 0; i < _nodes.Count; i++)
             {
                 var n = _nodes[i];
-                if (!n.Taken) SetTexPixelWorld(n.Pos, MmNodeColors[n.Kind]);
+                if (n.Taken) continue;
+                int ncx = WorldToCellX(n.Pos.x), ncy = WorldToCellY(n.Pos.y);
+                if (ncx < 0 || ncx >= _gw || ncy < 0 || ncy >= _gh) continue;
+                if (!_revealed[ncx, ncy]) continue; // 未探索迷雾中的资源点不显示
+                SetTexPixelWorld(n.Pos, MmNodeColors[n.Kind]);
             }
             _mmTex.Apply();
         }
