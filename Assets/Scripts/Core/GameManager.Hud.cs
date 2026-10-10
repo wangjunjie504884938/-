@@ -360,11 +360,20 @@ public partial class GameManager
 
         UIHelper.MakeButton(gameOverPanel.transform, "RestartButton", "返回大厅", font,
             new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-100, 75), new Vector2(100, 125),
-            new Color(0.2f, 0.6f, 1f, 0.9f), 24, () => { if (GameUI.Instance?.GameOverPanel != null) GameUI.Instance.GameOverPanel.SetActive(false); ShowHub(); });
+            new Color(0.2f, 0.6f, 1f, 0.9f), 24, () => { if (GameUI.Instance?.GameOverPanel != null) GameUI.Instance.GameOverPanel.SetActive(false); ReturnToHubExitingWorld(); });
 
         UIHelper.MakeButton(gameOverPanel.transform, "RetryButton", "重新挑战", font,
             new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-100, 145), new Vector2(100, 195),
-            new Color(0.8f, 0.3f, 0.1f, 0.9f), 24, () => RetryStage());
+            new Color(0.8f, 0.3f, 0.1f, 0.9f), 24, () =>
+            {
+                if (GameUI.Instance?.GameOverPanel != null) GameUI.Instance.GameOverPanel.SetActive(false);
+                if (DiedInWorld)
+                {
+                    DiedInWorld = false;
+                    WorldManager.EnterWorld(0); // 世界内死亡: 重进世界安全区
+                }
+                else RetryStage();
+            });
     }
 
     private void DestroyUIComponent<T>() where T : Component

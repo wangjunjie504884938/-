@@ -544,6 +544,16 @@ public partial class GameManager : MonoBehaviour
         ShowHub();
     }
 
+    /// <summary>返回大厅 — 世界内先退出世界再回大厅 (死亡/暂停等全屏返回入口共用)</summary>
+    public void ReturnToHubExitingWorld()
+    {
+        if (InWorld && WorldManager.Active) WorldManager.ExitWorld();
+        else ShowHub();
+    }
+
+    /// <summary>本次死亡是否发生在世界内 (OnPlayerDeath记录, 供重新挑战路由)</summary>
+    public bool DiedInWorld { get; private set; }
+
     public void ShowHub()
     {
         // 世界内面板返回：不离开世界（面板已自行Hide，只收起导航栏）
@@ -950,6 +960,7 @@ public partial class GameManager : MonoBehaviour
         DungeonVisuals.Instance = null;
 
         // 世界模式死亡：清理世界实体
+        DiedInWorld = InWorld && WorldManager.Active; // 供死亡面板"重新挑战"区分重进世界/重试副本
         if (WorldManager.Active) WorldManager.CleanupWorld();
 
         // Mark death for achievement tracking

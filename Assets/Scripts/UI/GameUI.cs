@@ -792,7 +792,7 @@ public partial class GameUI : MonoBehaviour
         GameManager.Instance.IsPaused = false;
         Time.timeScale = 1f;
         if (PausePanel != null) PausePanel.SetActive(false);
-        GameManager.Instance.ShowHub();
+        GameManager.Instance.ReturnToHubExitingWorld();
     }
 
     public void ShowVictoryScreen(int goldReward)
