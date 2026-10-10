@@ -68,6 +68,7 @@ public class WorldManager : MonoBehaviour
         DestroyPanel<SkillTreeUI>(); DestroyPanel<EquipUI>(); DestroyPanel<TitleScreen>();
         DestroyPanel<CharacterSlotUI>();
         if (TopNavBar.Instance != null) TopNavBar.Instance.HideBar();
+        GameManager.Instance?.EnsureHud(); // HUD幂等自愈 (Canvas被毁场景)
         if (GameUI.Instance != null)
         {
             GameUI.Instance.ShowHubMode(false);
@@ -89,6 +90,7 @@ public class WorldManager : MonoBehaviour
 
         // 构建世界
         WorldVisuals.Build();
+        MistSystem.SpawnForWorld(); // 世界小地图(无迷雾)
 
         // 玩家就位 (出生在指定区传送点)
         gm.EnsurePlayerExists();
@@ -168,6 +170,16 @@ public class WorldManager : MonoBehaviour
         WaypointUI.Hide();
         WorldQuestUI.ShutdownWorld();
         WorldVisuals.DestroyInstance();
+
+        // 清理世界小地图 + 复位相机参数 (返回大厅/进副本不再残留世界缩放)
+        if (MistSystem.Instance != null) Destroy(MistSystem.Instance.gameObject);
+        if (CameraFollow.Instance != null)
+        {
+            CameraFollow.Instance.ForcedOrthoSize = 10f; // CameraFollow.BaseOrthoSize
+            CameraFollow.Instance.MapHalfWidth = 12f;
+            CameraFollow.Instance.MapHalfHeight = 15f;
+            CameraFollow.Instance.ClampToMap = false;
+        }
     }
 
     /// <summary>快速旅行到指定区传送点 (需已发现)</summary>

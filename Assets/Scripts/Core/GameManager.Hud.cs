@@ -9,6 +9,13 @@ using System.Collections;
 /// </summary>
 public partial class GameManager
 {
+    /// <summary>HUD幂等自愈 — 供世界等外部流程调用 (Canvas被毁后重建)</summary>
+    public void EnsureHud()
+    {
+        if (GameUI.Instance == null || GameUI.Instance.HpBar == null)
+            BuildUI();
+    }
+
     private void BuildUI()
     {
         Canvas canvas = EnsureCanvas();

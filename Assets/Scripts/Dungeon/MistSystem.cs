@@ -36,6 +36,8 @@ public class MistSystem : MonoBehaviour
     private float _halfW, _halfH;
     private Vector2 _campPos = Vector2.zero;
     private float _revealTimer;
+    private bool _worldMode;              // 大世界小地图模式 (无迷雾, 全图可见)
+    private static bool _spawnAsWorld;    // SpawnForWorld传给Awake的标记
 
     // 软迷雾 (单张纹理, 径向渐变驱散, 无方块感)
     private const float FogPxPerUnit = 8f;
@@ -94,10 +96,44 @@ public class MistSystem : MonoBehaviour
         go.AddComponent<MistSystem>();
     }
 
+    /// <summary>大世界小地图 (无迷雾全图可见, 不建雾/营地/资源点)</summary>
+    public static void SpawnForWorld()
+    {
+        var gm = GameManager.Instance;
+        if (gm == null || !gm.InWorld) return;
+        if (WorldVisuals.Instance == null) return;
+
+        if (Instance != null)
+        {
+            var old = Instance.gameObject;
+            Instance = null;
+            Destroy(old);
+        }
+
+        var go = new GameObject("MistSystem");
+        go.transform.SetParent(WorldVisuals.Instance.transform, false);
+        _spawnAsWorld = true;
+        go.AddComponent<MistSystem>();
+        _spawnAsWorld = false;
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        _worldMode = _spawnAsWorld;
+
+        if (_worldMode)
+        {
+            // 大世界: 仅小地图, 无迷雾/营地/资源点
+            _halfW = WorldData.WorldHalf;
+            _halfH = WorldData.WorldHalf;
+            _cellSize = (_halfW * 2f) / 72f; // 72x72纹理: 每区18像素便于画分界
+            _gw = _gh = 72;
+            _revealed = null;
+            BuildMinimap();
+            return;
+        }
 
         var gm = GameManager.Instance;
         int theme = GameManager.RiftLayerToTheme(gm.CurrentStageIndex);
@@ -158,11 +194,14 @@ public class MistSystem : MonoBehaviour
         if (p == null) return;
         float dt = Time.deltaTime;
 
-        _revealTimer -= dt;
-        if (_revealTimer <= 0f)
+        if (!_worldMode)
         {
-            _revealTimer = 0.12f;
-            RevealAround(p.position, _revealRadius);
+            _revealTimer -= dt;
+            if (_revealTimer <= 0f)
+            {
+                _revealTimer = 0.12f;
+                RevealAround(p.position, _revealRadius);
+            }
         }
 
         // 迷雾纹理上屏节流
@@ -416,19 +455,20 @@ public class MistSystem : MonoBehaviour
         tr.pivot = new Vector2(0.5f, 1f); tr.anchoredPosition = new Vector2(0f, -2f);
         tr.sizeDelta = new Vector2(0f, 20f);
         var tt = titleGo.AddComponent<Text>();
-        tt.text = $"秘境地图 · 第{GameManager.Instance.RiftLayer}层";
+        tt.text = _worldMode ? "世界地图" : $"秘境地图 · 第{GameManager.Instance.RiftLayer}层";
         tt.alignment = TextAnchor.MiddleCenter;
         tt.fontSize = 14;
         tt.color = new Color(0.85f, 0.82f, 0.6f);
         tt.font = font;
         tt.raycastTarget = false;
 
-        // 迷雾纹理 (未探索=暗, 已探索=亮, 资源/营地染色)
+        // 迷雾纹理 (未探索=暗, 已探索=亮; 世界模式全亮+区分界)
         _mmTex = new Texture2D(_gw, _gh, TextureFormat.RGBA32, false);
         _mmTex.filterMode = FilterMode.Point;
         for (int x = 0; x < _gw; x++)
             for (int y = 0; y < _gh; y++)
-                _mmTex.SetPixel(x, y, _revealed != null && _revealed[x, y] ? MmLand : MmFog);
+                _mmTex.SetPixel(x, y, _worldMode || (_revealed != null && _revealed[x, y]) ? MmLand : MmFog);
+        if (_worldMode) DrawWorldGrid();
         _mmTex.Apply();
 
         var rawGo = new GameObject("Map");
@@ -453,20 +493,23 @@ public class MistSystem : MonoBehaviour
         frame.effectDistance = new Vector2(2f, -2f);
         _mmMapRect = rr;
 
-        // 营地金色菱形标记
-        var campGo = new GameObject("CampMarker");
-        campGo.transform.SetParent(rawGo.transform, false);
-        var cr = campGo.AddComponent<RectTransform>();
-        cr.sizeDelta = new Vector2(9f, 9f);
-        cr.localRotation = Quaternion.Euler(0f, 0f, 45f);
-        var cImg = campGo.AddComponent<Image>();
-        cImg.color = new Color(1f, 0.85f, 0.3f, 0.95f);
-        cImg.raycastTarget = false;
-        float cw = rr.sizeDelta.x, ch = rr.sizeDelta.y;
-        float cnx = Mathf.Clamp01((_campPos.x + _halfW) / (_halfW * 2f));
-        float cny = Mathf.Clamp01((_campPos.y + _halfH) / (_halfH * 2f));
-        cr.anchoredPosition = new Vector2((cnx - 0.5f) * cw, (cny - 0.5f) * ch);
-        _campMarker = cr;
+        // 营地金色菱形标记 (世界模式无营地)
+        if (!_worldMode)
+        {
+            var campGo = new GameObject("CampMarker");
+            campGo.transform.SetParent(rawGo.transform, false);
+            var cr = campGo.AddComponent<RectTransform>();
+            cr.sizeDelta = new Vector2(9f, 9f);
+            cr.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            var cImg = campGo.AddComponent<Image>();
+            cImg.color = new Color(1f, 0.85f, 0.3f, 0.95f);
+            cImg.raycastTarget = false;
+            float cw = rr.sizeDelta.x, ch = rr.sizeDelta.y;
+            float cnx = Mathf.Clamp01((_campPos.x + _halfW) / (_halfW * 2f));
+            float cny = Mathf.Clamp01((_campPos.y + _halfH) / (_halfH * 2f));
+            cr.anchoredPosition = new Vector2((cnx - 0.5f) * cw, (cny - 0.5f) * ch);
+            _campMarker = cr;
+        }
 
         // 敌人红点池 (仅显示已探索区内的存活敌人)
         for (int i = 0; i < 24; i++)
@@ -521,16 +564,23 @@ public class MistSystem : MonoBehaviour
             _mmDirty = false;
             for (int x = 0; x < _gw; x++)
                 for (int y = 0; y < _gh; y++)
-                    _mmTex.SetPixel(x, y, _revealed[x, y] ? MmLand : MmFog);
-            SetTexPixelWorld(_campPos, MmCamp);
-            for (int i = 0; i < _nodes.Count; i++)
+                    _mmTex.SetPixel(x, y, _worldMode || _revealed[x, y] ? MmLand : MmFog);
+            if (_worldMode)
             {
-                var n = _nodes[i];
-                if (n.Taken) continue;
-                int ncx = WorldToCellX(n.Pos.x), ncy = WorldToCellY(n.Pos.y);
-                if (ncx < 0 || ncx >= _gw || ncy < 0 || ncy >= _gh) continue;
-                if (!_revealed[ncx, ncy]) continue; // 未探索迷雾中的资源点不显示
-                SetTexPixelWorld(n.Pos, MmNodeColors[n.Kind]);
+                DrawWorldGrid();
+            }
+            else
+            {
+                SetTexPixelWorld(_campPos, MmCamp);
+                for (int i = 0; i < _nodes.Count; i++)
+                {
+                    var n = _nodes[i];
+                    if (n.Taken) continue;
+                    int ncx = WorldToCellX(n.Pos.x), ncy = WorldToCellY(n.Pos.y);
+                    if (ncx < 0 || ncx >= _gw || ncy < 0 || ncy >= _gh) continue;
+                    if (!_revealed[ncx, ncy]) continue; // 未探索迷雾中的资源点不显示
+                    SetTexPixelWorld(n.Pos, MmNodeColors[n.Kind]);
+                }
             }
             _mmTex.Apply();
         }
@@ -545,9 +595,12 @@ public class MistSystem : MonoBehaviour
             var e = enemies[i];
             if (e == null || e.IsDead) continue;
             var ep = e.transform.position;
-            int cx = WorldToCellX(ep.x), cy = WorldToCellY(ep.y);
-            if (cx < 0 || cx >= _gw || cy < 0 || cy >= _gh) continue;
-            if (!_revealed[cx, cy]) continue; // 迷雾中的敌人不显示
+            if (!_worldMode)
+            {
+                int cx = WorldToCellX(ep.x), cy = WorldToCellY(ep.y);
+                if (cx < 0 || cx >= _gw || cy < 0 || cy >= _gh) continue;
+                if (!_revealed[cx, cy]) continue; // 迷雾中的敌人不显示
+            }
             float nx = Mathf.Clamp01((ep.x + _halfW) / (_halfW * 2f));
             float ny = Mathf.Clamp01((ep.y + _halfH) / (_halfH * 2f));
             var img = _enemyDots[used];
@@ -566,5 +619,25 @@ public class MistSystem : MonoBehaviour
         int x = WorldToCellX(worldPos.x), y = WorldToCellY(worldPos.y);
         if (x < 0 || x >= _gw || y < 0 || y >= _gh) return;
         _mmTex.SetPixel(x, y, c);
+    }
+
+    private void DrawWorldGrid()
+    {
+        // 4x4区分界线 (每区_gw/4像素) + 安全区(区0=西南)暖色
+        int per = _gw / 4;
+        var lineCol = new Color(0.28f, 0.30f, 0.38f);
+        for (int g = 1; g < 4; g++)
+        {
+            int p = g * per;
+            for (int i = 0; i < _gw; i++)
+            {
+                _mmTex.SetPixel(p, i, lineCol);
+                _mmTex.SetPixel(i, p, lineCol);
+            }
+        }
+        var safeCol = new Color(0.5f, 0.5f, 0.42f);
+        for (int x = 0; x < per; x++)
+            for (int y = 0; y < per; y++)
+                _mmTex.SetPixel(x, y, safeCol);
     }
 }
