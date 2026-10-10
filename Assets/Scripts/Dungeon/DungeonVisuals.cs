@@ -101,7 +101,7 @@ public class DungeonVisuals : MonoBehaviour
     public void SetStageTheme(int stageIndex)
     {
         // Each stage gets its own unique theme (no modulo recycling)
-        currentTheme = Mathf.Clamp(stageIndex, 0, 7);
+        currentTheme = Mathf.Clamp(stageIndex, 0, 10);
         switch (stageIndex)
         {
             case 0: // 幽暗森林
@@ -120,6 +120,12 @@ public class DungeonVisuals : MonoBehaviour
                 floorTint = new Color(0.3f, 0.2f, 0.4f); wallTint = new Color(0.5f, 0.3f, 0.6f); vignetteTint = new Color(0.05f, 0f, 0.08f); break;
             case 7: // 魔王殿堂 — 独特深红主题
                 floorTint = new Color(0.5f, 0.15f, 0.15f); wallTint = new Color(0.3f, 0.1f, 0.1f); vignetteTint = new Color(0.1f, 0f, 0f); break;
+            case 8: // 熔岩回廊 — 熔金橙主题
+                floorTint = new Color(1f, 0.75f, 0.55f); wallTint = new Color(0.7f, 0.3f, 0.15f); vignetteTint = new Color(0.08f, 0.02f, 0f); break;
+            case 9: // 幽冥深井 — 幽蓝紫主题
+                floorTint = new Color(0.35f, 0.3f, 0.5f); wallTint = new Color(0.45f, 0.4f, 0.65f); vignetteTint = new Color(0.04f, 0f, 0.08f); break;
+            case 10: // 玄冰广原 — 冰蓝主题
+                floorTint = new Color(0.85f, 0.95f, 1f); wallTint = new Color(0.6f, 0.75f, 0.9f); vignetteTint = new Color(0f, 0.02f, 0.05f); break;
             default:
                 floorTint = new Color(0.9f, 0.88f, 0.92f); wallTint = new Color(0.6f, 0.55f, 0.65f); vignetteTint = new Color(0f, 0f, 0f); break;
         }
@@ -169,6 +175,9 @@ public class DungeonVisuals : MonoBehaviour
                 5 => "Floor_Fire",     // 龙巢: 复用火焰地板(暗红)
                 6 => "Floor_Shadow",   // 虚空: 复用暗影地板(紫黑)
                 7 => "Floor_Fire",     // 魔王殿: 复用火焰地板(深红)
+                8 => "Floor_Fire",     // 熔岩回廊: 复用火焰地板(熔金橙)
+                9 => "Floor_Shadow",   // 幽冥深井: 复用暗影地板(幽紫)
+                10 => "Floor_Ice",     // 玄冰广原: 复用冰霜地板(冰蓝)
                 _ => "Floor_Stone"
             };
             floorSprite = LoadCachedSprite(ResourcePaths.DungeonBase + floorName);

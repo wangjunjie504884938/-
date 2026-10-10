@@ -67,8 +67,8 @@ public partial class GameManager : MonoBehaviour
     /// <summary>秘境绝对层数(1-based无上限) — CurrentStageIndex仅作地图主题循环(%8), 缩放/结算/排行用本值</summary>
     public int RiftLayer { get; private set; }
 
-    /// <summary>秘境层数 → 地图主题索引(8主题循环)</summary>
-    public static int RiftLayerToTheme(int stageIndex) => ((stageIndex % 8) + 8) % 8;
+    /// <summary>秘境层数 → 地图主题索引(11图循环, 22层每图两次)</summary>
+    public static int RiftLayerToTheme(int stageIndex) => ((stageIndex % DungeonMapData.TotalMaps) + DungeonMapData.TotalMaps) % DungeonMapData.TotalMaps;
 
     /// <summary>秘境层数金币奖励 — 前8层用主题表, 之后每层+500</summary>
     public static int GetLayerGoldReward(int riftLayer)
@@ -647,7 +647,7 @@ public partial class GameManager : MonoBehaviour
     public void StartDungeon(int stageIndex)
     {
         RiftLayer = stageIndex + 1;                        // 秘境绝对层数(无上限)
-        CurrentStageIndex = RiftLayerToTheme(stageIndex);  // 地图/主题按8循环
+        CurrentStageIndex = RiftLayerToTheme(stageIndex);  // 地图/主题按11图循环(22层每图两次)
         int themeStage = CurrentStageIndex;
         DungeonLevel = (stageIndex + 1);                   // 数值缩放跟随真实层数
         CurrentState = GameState.Dungeon;

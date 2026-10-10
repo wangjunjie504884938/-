@@ -31,7 +31,10 @@ public class StageSelectUI : MonoBehaviour
         ("亡灵墓穴", "亡灵领主的领地", 5, 250, new Color(0.3f, 0.2f, 0.4f)),
         ("龙巢深处", "远古巨龙的巢穴", 6, 400, new Color(0.7f, 0.5f, 0.1f)),
         ("混沌虚空", "来自虚空的怪物", 7, 600, new Color(0.5f, 0.1f, 0.6f)),
-        ("魔王殿堂", "最终BOSS", 8, 1000, new Color(0.8f, 0f, 0f))
+        ("魔王殿堂", "最终BOSS", 8, 1000, new Color(0.8f, 0f, 0f)),
+        ("熔岩回廊", "狭长熔岩裂廊·侧翼包抄", 9, 1200, new Color(0.9f, 0.45f, 0.1f)),
+        ("幽冥深井", "深不见底的竖井·纵深缠斗", 10, 1500, new Color(0.25f, 0.2f, 0.55f)),
+        ("玄冰广原", "辽阔冰封荒原·正面推进", 11, 2000, new Color(0.65f, 0.85f, 1f))
     };
 
     private void Awake()
@@ -284,7 +287,7 @@ public class StageSelectUI : MonoBehaviour
         UpdateLayerCards();
     }
 
-    /// <summary>秘境层显示名 — 主题按8层循环</summary>
+    /// <summary>秘境层显示名 — 主题按11图循环 (秘境1-22层每图出现两次)</summary>
     public static string GetLayerName(int layer1Based)
     {
         var t = Stages[GameManager.RiftLayerToTheme(layer1Based - 1)];

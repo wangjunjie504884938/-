@@ -12,6 +12,9 @@ using System.Collections.Generic;
 /// </summary>
 public class DungeonMapData
 {
+    /// <summary>秘境地图主题总数 (RiftLayerToTheme按此循环; 22层=11图×2)</summary>
+    public const int TotalMaps = 11;
+
     public enum ObstacleType
     {
         Pillar,
@@ -104,6 +107,9 @@ public class DungeonMapData
             5 => new[] { ObstacleType.Rock, ObstacleType.LavaPool, ObstacleType.Pillar },
             6 => new[] { ObstacleType.Rock, ObstacleType.Pillar, ObstacleType.IceSpike },
             7 => new[] { ObstacleType.Rock, ObstacleType.Pillar, ObstacleType.Tombstone },
+            8 => new[] { ObstacleType.LavaPool, ObstacleType.Rock, ObstacleType.Pillar },
+            9 => new[] { ObstacleType.Tombstone, ObstacleType.Rock, ObstacleType.Pillar },
+            10 => new[] { ObstacleType.IceSpike, ObstacleType.Rock, ObstacleType.Pillar },
             _ => new[] { ObstacleType.Rock, ObstacleType.Pillar }
         };
 
@@ -164,7 +170,7 @@ public class DungeonMapData
 
     private static void BuildConfigs()
     {
-        configs = new StageMapConfig[8];
+        configs = new StageMapConfig[TotalMaps];
 
         // Stage 1: 幽暗森林（Map_Stage0 图片 1719×2048，宽高比 0.84:1，PPU 74.19）
         // 图片中心(859.5,1024) → 世界中心(0,0)；worldX=(px-859.5)/PPU*scale, worldY=(1024-py)/PPU*scale
@@ -451,6 +457,60 @@ public class DungeonMapData
                 new ObstacleData(ObstacleType.Rock, new Vector3(0f, 12f, 0f), new Vector3(2.5f, 2.5f, 1f)),
                 new ObstacleData(ObstacleType.Rock, new Vector3(0f, -12f, 0f), new Vector3(2.5f, 2.5f, 1f))
             }
+        };
+
+        // Theme 8: 熔岩回廊 — 横向长廊 (60×24, 2.5:1 强矩形; 秘境第9/20层)
+        configs[8] = new StageMapConfig
+        {
+            mapHalfWidth = 30f,
+            mapHalfHeight = 12f,
+            cameraOrthoSize = 9.5f,
+            spawnPoints = new Vector3[]
+            {
+                new Vector3(-10f, 3f, 0f),
+                new Vector3(10f, 3f, 0f),
+                new Vector3(-10f, -3f, 0f),
+                new Vector3(10f, -3f, 0f),
+                new Vector3(0f, 4f, 0f),
+                new Vector3(0f, -4f, 0f)
+            },
+            obstacles = new ObstacleData[] { } // 实际障碍由GenerateRandomObstacles按主题随机生成
+        };
+
+        // Theme 9: 幽冥深井 — 纵向竖井 (26×60, 1:2.3 强矩形; 秘境第10/21层)
+        configs[9] = new StageMapConfig
+        {
+            mapHalfWidth = 13f,
+            mapHalfHeight = 30f,
+            cameraOrthoSize = 8.5f,
+            spawnPoints = new Vector3[]
+            {
+                new Vector3(3f, -10f, 0f),
+                new Vector3(-3f, -10f, 0f),
+                new Vector3(3f, 10f, 0f),
+                new Vector3(-3f, 10f, 0f),
+                new Vector3(4f, 0f, 0f),
+                new Vector3(-4f, 0f, 0f)
+            },
+            obstacles = new ObstacleData[] { } // 实际障碍由GenerateRandomObstacles按主题随机生成
+        };
+
+        // Theme 10: 玄冰广原 — 辽阔横原 (68×36, 1.9:1; 秘境第11/22层)
+        configs[10] = new StageMapConfig
+        {
+            mapHalfWidth = 34f,
+            mapHalfHeight = 18f,
+            cameraOrthoSize = 10.5f,
+            spawnPoints = new Vector3[]
+            {
+                new Vector3(-12f, 5f, 0f),
+                new Vector3(12f, 5f, 0f),
+                new Vector3(-12f, -5f, 0f),
+                new Vector3(12f, -5f, 0f),
+                new Vector3(0f, 6f, 0f),
+                new Vector3(0f, -6f, 0f)
+            },
+            obstacles = new ObstacleData[] { }
         };
     }
 }
