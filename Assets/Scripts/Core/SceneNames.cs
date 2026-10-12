@@ -19,6 +19,11 @@ public static class ResourcePaths
     public const string MageSheet = "Sprites/Character/Sprite_20260707_165540";
     public const string PriestSheet = "Sprites/Character/Sprite_20260707_165905";
 
+    // 标题界面
+    public const string TitleBackground = "Sprites/Title/TitleBackground";
+    public const string TitleLogo = "Sprites/Title/TitleLogo";
+    public const string TitleEnterBtn = "Sprites/Title/EnterBtn";
+
     // 敌人
     public const string EnemyBase = "Sprites/Enemy/";
     public const string MeleeGoblin = "Sprites/Enemy/Melee_Goblin";

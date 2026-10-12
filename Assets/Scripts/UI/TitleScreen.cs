@@ -4,12 +4,11 @@ using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
-/// Animated title screen for "卫冕战争" with dynamic background:
-/// - Gradient animated background
+/// Animated title screen for "卫冕战争" with design-asset background:
+/// - Full-screen design background image (Sprites/Title/TitleBackground)
+/// - Design title logo (Sprites/Title/TitleLogo)
+/// - Golden plaque enter button (Sprites/Title/EnterBtn)
 /// - Floating particle system (embers / stars)
-/// - Pulsing title glow
-/// - Animated sword icons
-/// - Scroll fog layers
 /// </summary>
 public partial class TitleScreen : MonoBehaviour
 {
@@ -20,11 +19,6 @@ public partial class TitleScreen : MonoBehaviour
 
     // Animation references
     private List<ParticleData> particles = new List<ParticleData>();
-    private List<FogLayerData> fogLayers = new List<FogLayerData>();
-    private GameObject titleTextObj;
-    private GameObject leftSwordIcon;
-    private GameObject rightSwordIcon;
-    private Image bannerImg;
     private float animTime;
 
     private struct ParticleData
@@ -34,14 +28,6 @@ public partial class TitleScreen : MonoBehaviour
         public float phase;
         public float amplitude;
         public float baseAlpha;
-    }
-
-    private struct FogLayerData
-    {
-        public RectTransform rect;
-        public float speed;
-        public float startX;
-        public float width;
     }
 
     private void Awake()
@@ -98,55 +84,6 @@ public partial class TitleScreen : MonoBehaviour
                 img.color = c;
             }
         }
-
-        // Animate fog scroll
-        for (int i = 0; i < fogLayers.Count; i++)
-        {
-            var f = fogLayers[i];
-            Vector2 pos = f.rect.anchoredPosition;
-            pos.x += f.speed * Time.deltaTime * 30f;
-            if (f.speed > 0 && pos.x > f.width * 0.5f)
-                pos.x = -f.width * 0.5f;
-            else if (f.speed < 0 && pos.x < -f.width * 0.5f)
-                pos.x = f.width * 0.5f;
-            f.rect.anchoredPosition = pos;
-        }
-
-        // Pulse title glow
-        if (titleTextObj != null)
-        {
-            var txt = titleTextObj.GetComponent<Text>();
-            if (txt != null)
-            {
-                float pulse = 0.85f + Mathf.Sin(animTime * 2f) * 0.15f;
-                txt.color = new Color(1f * pulse, 0.85f * pulse, 0.2f, 1f);
-            }
-        }
-
-        // Animate banner border shimmer
-        if (bannerImg != null)
-        {
-            float shimmer = 0.7f + Mathf.Sin(animTime * 1.5f) * 0.3f;
-            bannerImg.color = new Color(0.8f * shimmer, 0.6f * shimmer, 0.1f, 0.9f);
-        }
-
-        // Animate sword icons (bob up/down + slow rotate)
-        AnimateSwordIcon(leftSwordIcon, animTime, -1);
-        AnimateSwordIcon(rightSwordIcon, animTime + 0.5f, 1);
-    }
-
-    private void AnimateSwordIcon(GameObject swordObj, float time, int side)
-    {
-        if (swordObj == null) return;
-        float bob = Mathf.Sin(time * 1.8f) * 8f;
-        float tilt = Mathf.Sin(time * 1.2f + side) * 5f;
-        var rect = swordObj.GetComponent<RectTransform>();
-        if (rect != null)
-        {
-            Vector2 basePos = side < 0 ? new Vector2(-180, 50) : new Vector2(180, 50);
-            rect.anchoredPosition = basePos + new Vector2(0, bob);
-            rect.localEulerAngles = new Vector3(0, 0, tilt * side);
-        }
     }
 
     private void BuildUI()
@@ -162,8 +99,9 @@ public partial class TitleScreen : MonoBehaviour
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
 
-        // === Animated gradient background ===
-        GameObject bgObj = new GameObject("AnimatedBG");
+        // === 设计图背景 (2560x1440 全屏铺满, 加载失败回退渐变底) ===
+        Sprite bgSprite = Resources.Load<Sprite>(ResourcePaths.TitleBackground);
+        GameObject bgObj = new GameObject("DesignBG");
         bgObj.transform.SetParent(panel.transform, false);
         RectTransform bgRect = bgObj.AddComponent<RectTransform>();
         bgRect.anchorMin = Vector2.zero;
@@ -171,188 +109,61 @@ public partial class TitleScreen : MonoBehaviour
         bgRect.offsetMin = Vector2.zero;
         bgRect.offsetMax = Vector2.zero;
         Image bgImg = bgObj.AddComponent<Image>();
-        bgImg.sprite = CreateGradientBG(256, 256);
+        bgImg.sprite = bgSprite != null ? bgSprite : CreateGradientBG(256, 256);
         bgImg.color = Color.white;
         bgImg.raycastTarget = false;
-
-        // === Fog layers (scrolling atmospheric fog) ===
-        CreateFogLayer(panel, new Color(0.12f, 0.08f, 0.18f, 0.25f), 1200f, 0.3f);  // slow left
-        CreateFogLayer(panel, new Color(0.08f, 0.06f, 0.15f, 0.2f), 1400f, -0.2f);  // slow right
-        CreateFogLayer(panel, new Color(0.15f, 0.10f, 0.20f, 0.15f), 1000f, 0.5f);  // medium left
 
         // === Floating particle system (embers / stars) ===
         CreateParticles(panel, 35);
 
-        // === Title Banner Background ===
-        GameObject bannerObj = new GameObject("TitleBanner");
-        bannerObj.transform.SetParent(panel.transform, false);
-        RectTransform bannerRect = bannerObj.AddComponent<RectTransform>();
-        bannerRect.anchorMin = new Vector2(0.5f, 0.65f);
-        bannerRect.anchorMax = new Vector2(0.5f, 0.65f);
-        bannerRect.pivot = new Vector2(0.5f, 0.5f);
-        bannerRect.anchoredPosition = Vector2.zero;
-        bannerRect.sizeDelta = new Vector2(700, 200);
+        // === 游戏标题 (设计图素材, 标题文字已烙图) ===
+        Sprite logoSprite = Resources.Load<Sprite>(ResourcePaths.TitleLogo);
+        if (logoSprite == null)
+            Debug.LogError("TitleScreen: missing sprite Sprites/Title/TitleLogo");
+        GameObject logoObj = new GameObject("TitleLogo");
+        logoObj.transform.SetParent(panel.transform, false);
+        RectTransform logoRect = logoObj.AddComponent<RectTransform>();
+        logoRect.anchorMin = new Vector2(0.5f, 0.5f);
+        logoRect.anchorMax = new Vector2(0.5f, 0.5f);
+        logoRect.pivot = new Vector2(0.5f, 0.5f);
+        logoRect.anchoredPosition = new Vector2(0, -20);
+        logoRect.sizeDelta = new Vector2(1516, 193);
+        Image logoImg = logoObj.AddComponent<Image>();
+        logoImg.sprite = logoSprite;
+        logoImg.preserveAspect = true;
+        logoImg.raycastTarget = false;
 
-        // Banner glow (pulsing outer glow)
-        GameObject bannerGlow = new GameObject("BannerGlow");
-        bannerGlow.transform.SetParent(bannerObj.transform, false);
-        RectTransform glowRect = bannerGlow.AddComponent<RectTransform>();
-        glowRect.anchorMin = Vector2.zero;
-        glowRect.anchorMax = Vector2.one;
-        glowRect.offsetMin = new Vector2(-20, -15);
-        glowRect.offsetMax = new Vector2(20, 15);
-        Image glowImg = bannerGlow.AddComponent<Image>();
-        glowImg.sprite = CreateRadialGlow(128, new Color(0.8f, 0.6f, 0.1f, 0.3f));
-        glowImg.color = Color.white;
-
-        // Banner background
-        Image bannerBgImg = bannerObj.AddComponent<Image>();
-        bannerBgImg.color = new Color(0.08f, 0.05f, 0.15f, 0.85f);
-
-        // Decorative border around banner (animated shimmer)
-        GameObject borderObj = new GameObject("BannerBorder");
-        borderObj.transform.SetParent(bannerObj.transform, false);
-        RectTransform borderRect = borderObj.AddComponent<RectTransform>();
-        borderRect.anchorMin = Vector2.zero;
-        borderRect.anchorMax = Vector2.one;
-        borderRect.offsetMin = new Vector2(-3, -3);
-        borderRect.offsetMax = new Vector2(3, 3);
-        bannerImg = borderObj.AddComponent<Image>();
-        bannerImg.color = new Color(0.8f, 0.6f, 0.1f, 0.9f);
-
-        // Corner ornaments on banner
-        CreateCornerOrnament(borderObj, new Vector2(-8, -8), new Vector2(20, 20));
-        CreateCornerOrnament(borderObj, new Vector2(8, -8), new Vector2(20, 20));
-        CreateCornerOrnament(borderObj, new Vector2(-8, 8), new Vector2(20, 20));
-        CreateCornerOrnament(borderObj, new Vector2(8, 8), new Vector2(20, 20));
-
-        // Inner border
-        GameObject innerObj = new GameObject("BannerInner");
-        innerObj.transform.SetParent(borderObj.transform, false);
-        RectTransform innerRect = innerObj.AddComponent<RectTransform>();
-        innerRect.anchorMin = Vector2.zero;
-        innerRect.anchorMax = Vector2.one;
-        innerRect.offsetMin = new Vector2(3, 3);
-        innerRect.offsetMax = new Vector2(-3, -3);
-        Image innerImg = innerObj.AddComponent<Image>();
-        innerImg.color = new Color(0.05f, 0.03f, 0.12f, 1f);
-
-        // === Title Text "卫冕战争" ===
-        titleTextObj = new GameObject("GameTitle");
-        titleTextObj.transform.SetParent(bannerObj.transform, false);
-        RectTransform titleRect = titleTextObj.AddComponent<RectTransform>();
-        titleRect.anchorMin = Vector2.zero;
-        titleRect.anchorMax = Vector2.one;
-        titleRect.offsetMin = Vector2.zero;
-        titleRect.offsetMax = Vector2.zero;
-
-        // Shadow text (offset for depth)
-        GameObject titleShadow = new GameObject("TitleShadow");
-        titleShadow.transform.SetParent(titleTextObj.transform, false);
-        RectTransform shadowRect = titleShadow.AddComponent<RectTransform>();
-        shadowRect.anchorMin = Vector2.zero;
-        shadowRect.anchorMax = Vector2.one;
-        shadowRect.offsetMin = new Vector2(2, -2);
-        shadowRect.offsetMax = new Vector2(2, -2);
-        Text shadowText = titleShadow.AddComponent<Text>();
-        shadowText.text = "卫冕战争";
-        shadowText.alignment = TextAnchor.MiddleCenter;
-        shadowText.fontSize = 72;
-        shadowText.color = new Color(0.3f, 0.15f, 0f, 0.7f);
-        shadowText.font = font;
-
-        Text titleText = titleTextObj.AddComponent<Text>();
-        titleText.text = "卫冕战争";
-        titleText.alignment = TextAnchor.MiddleCenter;
-        titleText.fontSize = 72;
-        titleText.color = new Color(1f, 0.85f, 0.2f);
-        titleText.font = font;
-
-        // Subtitle
-        GameObject subObj = new GameObject("Subtitle");
-        subObj.transform.SetParent(panel.transform, false);
-        RectTransform subRect = subObj.AddComponent<RectTransform>();
-        subRect.anchorMin = new Vector2(0.5f, 0.5f);
-        subRect.anchorMax = new Vector2(0.5f, 0.5f);
-        subRect.pivot = new Vector2(0.5f, 0.5f);
-        subRect.anchoredPosition = new Vector2(0, 50);
-        subRect.sizeDelta = new Vector2(500, 40);
-        Text subText = subObj.AddComponent<Text>();
-        subText.text = "—— 2D 地下城 ARPG ——";
-        subText.alignment = TextAnchor.MiddleCenter;
-        subText.fontSize = 22;
-        subText.color = new Color(0.7f, 0.7f, 0.8f, 0.8f);
-        subText.font = font;
-
-        // === Decorative Sword Icons (animated) ===
-        leftSwordIcon = CreateDecorativeIcon(panel, new Vector2(-180, 50), new Color(0.8f, 0.6f, 0.1f), 3f);
-        rightSwordIcon = CreateDecorativeIcon(panel, new Vector2(180, 50), new Color(0.8f, 0.6f, 0.1f), 3f);
-
-        // === Decorative diamond separators ===
-        CreateDiamondSeparator(panel, new Vector2(-250, 50));
-        CreateDiamondSeparator(panel, new Vector2(250, 50));
-
-        // === Start Button (with glow effect) ===
+        // === 进入游戏按钮 (金牌设计图, 铜牌面位于图上部约10%~58%区域) ===
+        Sprite btnSprite = Resources.Load<Sprite>(ResourcePaths.TitleEnterBtn);
+        if (btnSprite == null)
+            Debug.LogError("TitleScreen: missing sprite Sprites/Title/EnterBtn");
         GameObject startObj = new GameObject("StartBtn");
         startObj.transform.SetParent(panel.transform, false);
         RectTransform startRect = startObj.AddComponent<RectTransform>();
-        startRect.anchorMin = new Vector2(0.5f, 0.3f);
-        startRect.anchorMax = new Vector2(0.5f, 0.3f);
+        startRect.anchorMin = new Vector2(0.5f, 0.5f);
+        startRect.anchorMax = new Vector2(0.5f, 0.5f);
         startRect.pivot = new Vector2(0.5f, 0.5f);
-        startRect.anchoredPosition = Vector2.zero;
-        startRect.sizeDelta = new Vector2(300, 65);
-
-        // Button glow
-        GameObject btnGlow = new GameObject("BtnGlow");
-        btnGlow.transform.SetParent(startObj.transform, false);
-        RectTransform btnGlowRect = btnGlow.AddComponent<RectTransform>();
-        btnGlowRect.anchorMin = Vector2.zero;
-        btnGlowRect.anchorMax = Vector2.one;
-        btnGlowRect.offsetMin = new Vector2(-12, -12);
-        btnGlowRect.offsetMax = new Vector2(12, 12);
-        Image btnGlowImg = btnGlow.AddComponent<Image>();
-        btnGlowImg.sprite = CreateRadialGlow(64, new Color(0.9f, 0.3f, 0.1f, 0.35f));
-        btnGlowImg.color = Color.white;
-
+        startRect.anchoredPosition = new Vector2(0, -280);
+        startRect.sizeDelta = new Vector2(330, 108);
         Image startImg = startObj.AddComponent<Image>();
-        startImg.color = new Color(0.6f, 0.15f, 0.1f, 0.9f);
+        startImg.sprite = btnSprite;
+        if (btnSprite == null) startImg.color = new Color(0.6f, 0.15f, 0.1f, 0.9f);
 
-        // Button border
-        GameObject btnBorderObj = new GameObject("BtnBorder");
-        btnBorderObj.transform.SetParent(startObj.transform, false);
-        RectTransform btnBorderRect = btnBorderObj.AddComponent<RectTransform>();
-        btnBorderRect.anchorMin = Vector2.zero;
-        btnBorderRect.anchorMax = Vector2.one;
-        btnBorderRect.offsetMin = new Vector2(-2, -2);
-        btnBorderRect.offsetMax = new Vector2(2, 2);
-        Image btnBorderImg = btnBorderObj.AddComponent<Image>();
-        btnBorderImg.color = new Color(1f, 0.8f, 0.2f, 0.9f);
-
-        // Button inner
-        GameObject btnInnerObj = new GameObject("BtnInner");
-        btnInnerObj.transform.SetParent(btnBorderObj.transform, false);
-        RectTransform btnInnerRect = btnInnerObj.AddComponent<RectTransform>();
-        btnInnerRect.anchorMin = Vector2.zero;
-        btnInnerRect.anchorMax = Vector2.one;
-        btnInnerRect.offsetMin = new Vector2(2, 2);
-        btnInnerRect.offsetMax = new Vector2(-2, -2);
-        Image btnInnerImg = btnInnerObj.AddComponent<Image>();
-        btnInnerImg.color = new Color(0.5f, 0.1f, 0.08f, 0.95f);
-
-        // Button text
+        // Button text — 深色字对准铜牌面 (牌面在图顶部8%~55%, Unity锚点自底起算)
         GameObject btnLabel = new GameObject("Label");
         btnLabel.transform.SetParent(startObj.transform, false);
         RectTransform lblRect = btnLabel.AddComponent<RectTransform>();
-        lblRect.anchorMin = Vector2.zero;
-        lblRect.anchorMax = Vector2.one;
+        lblRect.anchorMin = new Vector2(0f, 0.45f);
+        lblRect.anchorMax = new Vector2(1f, 0.92f);
         lblRect.offsetMin = Vector2.zero;
         lblRect.offsetMax = Vector2.zero;
         Text lblText = btnLabel.AddComponent<Text>();
-        lblText.text = "开始游戏";
+        lblText.text = "进入游戏";
         lblText.alignment = TextAnchor.MiddleCenter;
-        lblText.fontSize = 32;
-        lblText.color = new Color(1f, 0.9f, 0.6f);
+        lblText.fontSize = 36;
+        lblText.color = new Color(0.2f, 0.1f, 0.03f);
         lblText.font = font;
+        lblText.raycastTarget = false;
 
         Button startBtn = startObj.AddComponent<Button>();
         startBtn.onClick.AddListener(OnStartGame);
