@@ -45,6 +45,12 @@ public class MistSystem : MonoBehaviour
     private bool _fogDirty;
     private float _fogApplyTimer;
 
+    // 漂浮雾絮 (径向渐变运行时生成, 避免WhitePixel方块)
+    private class WispData { public GameObject Go; public SpriteRenderer Sr; public Vector2 Vel; public float Phase; public float BaseAlpha; }
+    private readonly List<WispData> _wisps = new List<WispData>();
+    private Texture2D _wispTex;
+    private Sprite _wispSprite;
+
     // 小地图
     private Texture2D _mmTex;
     private GameObject _mmPanel;
@@ -156,6 +162,8 @@ public class MistSystem : MonoBehaviour
         if (_mmPanel != null) Destroy(_mmPanel);
         if (_mmTex != null) Destroy(_mmTex);
         if (_fogTex != null) Destroy(_fogTex);
+        if (_wispTex != null) Destroy(_wispTex);
+        if (_wispSprite != null) Destroy(_wispSprite);
         if (Instance == this) Instance = null;
     }
 
@@ -177,8 +185,33 @@ public class MistSystem : MonoBehaviour
         var full = new Color(0.02f, 0.03f, 0.05f, FogAlpha);
         var pixels = new Color[tw * th];
         for (int i = 0; i < pixels.Length; i++) pixels[i] = full;
+
+        // 低频噪点烘焙: 迷雾呈薄雾明暗起伏, 不再是死黑平面
+        int cw = tw / 24 + 2, ch = th / 24 + 2;
+        var noise = new float[cw * ch];
+        for (int i = 0; i < noise.Length; i++) noise[i] = Random.Range(-1f, 1f);
+        for (int y = 0; y < th; y++)
+        {
+            float fy = y / 24f;
+            int ny0 = Mathf.FloorToInt(fy);
+            float ty = Mathf.SmoothStep(0f, 1f, fy - ny0);
+            for (int x = 0; x < tw; x++)
+            {
+                float fx = x / 24f;
+                int nx0 = Mathf.FloorToInt(fx);
+                float tx = Mathf.SmoothStep(0f, 1f, fx - nx0);
+                float n = Mathf.Lerp(
+                    Mathf.Lerp(noise[ny0 * cw + nx0], noise[ny0 * cw + nx0 + 1], tx),
+                    Mathf.Lerp(noise[(ny0 + 1) * cw + nx0], noise[(ny0 + 1) * cw + nx0 + 1], tx), ty);
+                var p = pixels[y * tw + x];
+                p.a = Mathf.Clamp01(FogAlpha + n * 0.05f);
+                pixels[y * tw + x] = p;
+            }
+        }
         _fogTex.SetPixels(pixels);
         _fogTex.Apply();
+
+        BuildWisps();
 
         var go = new GameObject("FogSprite");
         go.transform.SetParent(transform, false);
@@ -186,6 +219,50 @@ public class MistSystem : MonoBehaviour
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sprite = Sprite.Create(_fogTex, new Rect(0, 0, tw, th), new Vector2(0.5f, 0.5f), tw / (_halfW * 2f));
         sr.sortingOrder = 40;
+    }
+
+    // 雾絮: 数张柔和雾团在迷雾上层缓慢漂移
+    private void BuildWisps()
+    {
+        const int S = 128;
+        _wispTex = new Texture2D(S, S, TextureFormat.RGBA32, false);
+        _wispTex.filterMode = FilterMode.Bilinear;
+        _wispTex.wrapMode = TextureWrapMode.Clamp;
+        var wpx = new Color[S * S];
+        var c = new Vector2(S / 2f - 0.5f, S / 2f - 0.5f);
+        float maxD = S * 0.5f;
+        for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x, y), c) / maxD;
+                float a = Mathf.Clamp01(1f - d);
+                wpx[y * S + x] = new Color(1f, 1f, 1f, a * a * (3f - 2f * a)); // smoothstep径向渐变
+            }
+        _wispTex.SetPixels(wpx);
+        _wispTex.Apply();
+        _wispSprite = Sprite.Create(_wispTex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f), S / 4f); // 基础4单位
+
+        for (int i = 0; i < 3; i++)
+        {
+            var go = new GameObject("FogWisp_" + i);
+            go.transform.SetParent(transform, false);
+            go.transform.position = new Vector3(Random.Range(-_halfW, _halfW), Random.Range(-_halfH, _halfH), 6f);
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = _wispSprite;
+            sr.sortingOrder = 41; // 迷雾(40)之上
+            sr.color = new Color(0.72f, 0.78f, 0.9f, 0f);
+            float sc = Random.Range(1.8f, 3f);
+            go.transform.localScale = new Vector3(sc, sc * Random.Range(0.6f, 0.85f), 1f);
+            var ang = Random.Range(0f, Mathf.PI * 2f);
+            _wisps.Add(new WispData
+            {
+                Go = go,
+                Sr = sr,
+                Vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang) * 0.4f) * Random.Range(0.25f, 0.5f),
+                Phase = Random.Range(0f, 6.28f),
+                BaseAlpha = Random.Range(0.05f, 0.09f)
+            });
+        }
     }
 
     private void Update()
@@ -213,7 +290,33 @@ public class MistSystem : MonoBehaviour
         }
 
         UpdateNodes(dt, p.position);
+        UpdateWisps(dt);
         UpdateMinimap(p.position);
+    }
+
+    private void UpdateWisps(float dt)
+    {
+        for (int i = 0; i < _wisps.Count; i++)
+        {
+            var w = _wisps[i];
+            if (w.Go == null) continue;
+            var pos = w.Go.transform.position;
+            pos.x += w.Vel.x * dt;
+            pos.y += w.Vel.y * dt;
+            // 越界环绕
+            if (pos.x > _halfW + 3f) pos.x = -_halfW - 3f;
+            if (pos.x < -_halfW - 3f) pos.x = _halfW + 3f;
+            if (pos.y > _halfH + 3f) pos.y = -_halfH - 3f;
+            if (pos.y < -_halfH - 3f) pos.y = _halfH + 3f;
+            w.Go.transform.position = pos;
+            w.Phase += dt * 0.7f;
+            if (w.Sr != null)
+            {
+                var c = w.Sr.color;
+                c.a = w.BaseAlpha * (0.6f + Mathf.Sin(w.Phase) * 0.4f);
+                w.Sr.color = c;
+            }
+        }
     }
 
     private void RevealAround(Vector3 pos, float radius)
@@ -254,7 +357,7 @@ public class MistSystem : MonoBehaviour
             int bw = x1 - x0 + 1, bh = y1 - y0 + 1;
             if (bw > 0 && bh > 0)
             {
-                float inner = radius * 0.55f * pxPerUnit;
+                float inner = radius * 0.45f * pxPerUnit; // 更宽的柔边过渡带
                 float outer = radius * pxPerUnit;
                 var block = _fogTex.GetPixels(x0, y0, bw, bh);
                 bool touched = false;

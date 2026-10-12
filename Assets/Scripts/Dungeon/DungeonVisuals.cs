@@ -21,6 +21,42 @@ public class DungeonVisuals : MonoBehaviour
         return sprite;
     }
 
+    // ===== 遗迹素材图集 (Sprites/Dungeon/RuinsTileset, 多片切片) =====
+    private static Sprite[] _ruinsAll;
+    private static readonly List<Sprite> RuinsFloor = new List<Sprite>();
+    private static readonly List<Sprite> RuinsWallBig = new List<Sprite>();
+    private static readonly List<Sprite> RuinsPillar = new List<Sprite>();
+    private static readonly List<Sprite> RuinsDeco = new List<Sprite>();
+    private static readonly List<Sprite> RuinsSmall = new List<Sprite>();
+    private static readonly List<Sprite> RuinsRock = new List<Sprite>();
+
+    private static void LoadRuins()
+    {
+        if (_ruinsAll != null) return;
+        _ruinsAll = Resources.LoadAll<Sprite>("Sprites/Dungeon/RuinsTileset");
+        foreach (var s in _ruinsAll)
+        {
+            if (s == null) continue;
+            float w = s.rect.width, h = s.rect.height;
+            if (s.name.Contains("_Floor_")) RuinsFloor.Add(s);
+            else if (s.name.Contains("_Column_")) RuinsPillar.Add(s);
+            else if (s.name.Contains("_Wall_"))
+            {
+                if (w >= 55f && h >= 55f) RuinsWallBig.Add(s);
+                else RuinsSmall.Add(s);
+            }
+            else if (s.name.Contains("_Rubble") || s.name.Contains("_Stone_"))
+            {
+                RuinsSmall.Add(s);
+                if (w >= 60f && h >= 60f) RuinsRock.Add(s);
+            }
+            else RuinsDeco.Add(s); // Arch_/Chain_ 残段作装饰
+        }
+    }
+
+    private static Sprite PickRandom(List<Sprite> list)
+        => list != null && list.Count > 0 ? list[Random.Range(0, list.Count)] : null;
+
     private DungeonMapData.StageMapConfig currentMap;
 
     private GameObject floorObj;
@@ -31,6 +67,8 @@ public class DungeonVisuals : MonoBehaviour
     private SpriteRenderer floorSpriteRenderer;
     private SpriteRenderer[] wallSpriteRenderers;
     private SpriteRenderer vignetteSpriteRenderer;
+    private readonly List<SpriteRenderer> floorTiles = new List<SpriteRenderer>();
+    private readonly List<SpriteRenderer> wallTiles = new List<SpriteRenderer>();
 
     private Color floorTint = new Color(0.9f, 0.88f, 0.92f);
     private Color wallTint = new Color(0.6f, 0.55f, 0.65f);
@@ -85,6 +123,7 @@ public class DungeonVisuals : MonoBehaviour
     public void BuildMap(int stageIndex)
     {
         mapBuilt = true;
+        LoadRuins();
         currentMap = DungeonMapData.GetStageMap(stageIndex);
         SetStageTheme(stageIndex);
         CreateFloor();
@@ -137,6 +176,8 @@ public class DungeonVisuals : MonoBehaviour
         if (floorSpriteRenderer != null) floorSpriteRenderer.color = floorTint;
         if (wallSpriteRenderers != null) { foreach (var sr in wallSpriteRenderers) { if (sr != null) sr.color = wallTint; } }
         if (vignetteSpriteRenderer != null) vignetteSpriteRenderer.color = new Color(vignetteTint.r, vignetteTint.g, vignetteTint.b, 1f);
+        for (int i = 0; i < floorTiles.Count; i++) { if (floorTiles[i] != null) floorTiles[i].color = floorTint; }
+        for (int i = 0; i < wallTiles.Count; i++) { if (wallTiles[i] != null) wallTiles[i].color = wallTint; }
         torches.Clear(); crystals.Clear(); vines.Clear(); lavaCracks.Clear();
         if (decoContainer != null) Destroy(decoContainer);
         CreateDecorations();
@@ -150,6 +191,7 @@ public class DungeonVisuals : MonoBehaviour
         floorObj = new GameObject("DungeonFloor");
         floorObj.transform.SetParent(transform, false);
         floorObj.transform.position = new Vector3(0f, 0f, 5f);
+        floorTiles.Clear();
 
         float hw = currentMap.mapHalfWidth;
         float hh = currentMap.mapHalfHeight;
@@ -162,6 +204,69 @@ public class DungeonVisuals : MonoBehaviour
         {
             floorSprite = LoadCachedSprite(ResourcePaths.Map_Stage0);
             if (floorSprite != null) useMapImage = true;
+        }
+
+        // 遗迹地砖拼贴: 每格随机砖块+随机翻转/旋转+明度抖动, 消除整图单贴图的重复感
+        if (!useMapImage && RuinsFloor.Count > 0)
+        {
+            // 暗色底衬: 主题地板贴图压暗铺底, 石板间缝隙呈暗色石基而非纯黑
+            string underName = currentTheme switch
+            {
+                2 => "Floor_Ice",
+                3 => "Floor_Fire",
+                4 => "Floor_Shadow",
+                8 => "Floor_Fire",
+                9 => "Floor_Shadow",
+                10 => "Floor_Ice",
+                1 => "Floor_Forest",
+                _ => "Floor_Stone"
+            };
+            var underSprite = LoadCachedSprite(ResourcePaths.DungeonBase + underName);
+            if (underSprite != null)
+            {
+                var underGo = new GameObject("FloorUnderlay");
+                underGo.transform.SetParent(floorObj.transform, false);
+                underGo.transform.localPosition = Vector3.zero;
+                var usr = underGo.AddComponent<SpriteRenderer>();
+                usr.sprite = underSprite;
+                usr.sortingOrder = -11;
+                float uw = underSprite.rect.width / underSprite.pixelsPerUnit;
+                float uh = underSprite.rect.height / underSprite.pixelsPerUnit;
+                underGo.transform.localScale = new Vector3(hw * 2f / uw, hh * 2f / uh, 1f);
+                usr.color = new Color(floorTint.r * 0.3f, floorTint.g * 0.3f, floorTint.b * 0.35f, 1f);
+            }
+
+            float tile = 2.6f;
+            int nx = Mathf.Max(1, Mathf.CeilToInt(hw * 2f / tile));
+            int ny = Mathf.Max(1, Mathf.CeilToInt(hh * 2f / tile));
+            float tw = hw * 2f / nx;
+            float th = hh * 2f / ny;
+            for (int gx = 0; gx < nx; gx++)
+            {
+                for (int gy = 0; gy < ny; gy++)
+                {
+                    var sp = RuinsFloor[Random.Range(0, RuinsFloor.Count)];
+                    var cellGo = new GameObject($"Floor_{gx}_{gy}");
+                    cellGo.transform.SetParent(floorObj.transform, false);
+                    cellGo.transform.localPosition = new Vector3(-hw + (gx + 0.5f) * tw, -hh + (gy + 0.5f) * th, 0f);
+                    var sr = cellGo.AddComponent<SpriteRenderer>();
+                    sr.sprite = sp;
+                    sr.sortingOrder = -10;
+                    float sw = sp.rect.width / sp.pixelsPerUnit;
+                    float sh = sp.rect.height / sp.pixelsPerUnit;
+                    float s = Mathf.Max(tw / sw, th / sh) * 1.04f; // 轻微重叠防缝隙
+                    cellGo.transform.localScale = new Vector3(s, s, 1f);
+                    sr.flipX = Random.value < 0.5f;
+                    sr.flipY = Random.value < 0.5f;
+                    if (Mathf.Abs(sw - sh) / Mathf.Max(sw, sh) < 0.2f)
+                        cellGo.transform.localRotation = Quaternion.Euler(0f, 0f, 90 * Random.Range(0, 4));
+                    float jitter = Random.Range(0.86f, 1f);
+                    sr.color = new Color(floorTint.r * jitter, floorTint.g * jitter, floorTint.b * jitter, 1f);
+                    floorTiles.Add(sr);
+                }
+            }
+            floorSpriteRenderer = null;
+            return;
         }
 
         if (!useMapImage)
@@ -185,9 +290,9 @@ public class DungeonVisuals : MonoBehaviour
 
         if (floorSprite == null) floorSprite = SpriteCache.WhitePixel;
 
-        var sr = floorObj.AddComponent<SpriteRenderer>();
-        sr.sprite = floorSprite;
-        sr.sortingOrder = -10;
+        var floorSr = floorObj.AddComponent<SpriteRenderer>();
+        floorSr.sprite = floorSprite;
+        floorSr.sortingOrder = -10;
 
         if (useMapImage)
         {
@@ -197,7 +302,7 @@ public class DungeonVisuals : MonoBehaviour
             float scaleY = (hh * 2f) / spriteWorldH;
             float uniformScale = Mathf.Min(scaleX, scaleY);
             floorObj.transform.localScale = new Vector3(uniformScale, uniformScale, 1f);
-            sr.color = Color.white;
+            floorSr.color = Color.white;
         }
         else
         {
@@ -207,10 +312,10 @@ public class DungeonVisuals : MonoBehaviour
             float scaleX = (hw * 2f) / spriteWorldW;
             float scaleY = (hh * 2f) / spriteWorldH;
             floorObj.transform.localScale = new Vector3(scaleX, scaleY, 1f);
-            sr.color = floorTint;
+            floorSr.color = floorTint;
         }
 
-        floorSpriteRenderer = sr;
+        floorSpriteRenderer = floorSr;
     }
 
     // ======================== WALLS ========================
@@ -223,21 +328,78 @@ public class DungeonVisuals : MonoBehaviour
 
         float hw = currentMap.mapHalfWidth;
         float hh = currentMap.mapHalfHeight;
+        wallTiles.Clear();
 
-        Sprite wallSprite = LoadCachedSprite(ResourcePaths.Wall_Brick);
-        if (wallSprite == null) wallSprite = SpriteCache.WhitePixel;
-
-        wallSpriteRenderers = new SpriteRenderer[4];
         float wallThickness = 3f;
-        float wallSpanH = hw * 2f + wallThickness * 2f;
-        float wallSpanV = hh * 2f + wallThickness * 2f;
 
-        wallSpriteRenderers[0] = CreateWallSprite("WallTop", wallContainer, wallSprite, new Vector3(0f, hh + wallThickness / 2f, 0f), new Vector3(wallSpanH, wallThickness, 1f));
-        wallSpriteRenderers[1] = CreateWallSprite("WallBottom", wallContainer, wallSprite, new Vector3(0f, -hh - wallThickness / 2f, 0f), new Vector3(wallSpanH, wallThickness, 1f));
-        wallSpriteRenderers[2] = CreateWallSprite("WallLeft", wallContainer, wallSprite, new Vector3(-hw - wallThickness / 2f, 0f, 0f), new Vector3(wallThickness, wallSpanV, 1f));
-        wallSpriteRenderers[3] = CreateWallSprite("WallRight", wallContainer, wallSprite, new Vector3(hw + wallThickness / 2f, 0f, 0f), new Vector3(wallThickness, wallSpanV, 1f));
+        // 碰撞条(无渲染) — 视觉与碰撞分离
+        CreateWallCollider("WallTopCollider", new Vector3(0f, hh + wallThickness / 2f, 0f), new Vector3(hw * 2f + wallThickness * 2f, wallThickness, 1f));
+        CreateWallCollider("WallBottomCollider", new Vector3(0f, -hh - wallThickness / 2f, 0f), new Vector3(hw * 2f + wallThickness * 2f, wallThickness, 1f));
+        CreateWallCollider("WallLeftCollider", new Vector3(-hw - wallThickness / 2f, 0f, 0f), new Vector3(wallThickness, hh * 2f + wallThickness * 2f, 1f));
+        CreateWallCollider("WallRightCollider", new Vector3(hw + wallThickness / 2f, 0f, 0f), new Vector3(wallThickness, hh * 2f + wallThickness * 2f, 1f));
+
+        if (RuinsWallBig.Count > 0)
+        {
+            // 墙段拼贴: 随机墙块+翻转, 告别整条拉伸贴图
+            TileWallRun(true, hw * 2f + wallThickness * 2f, new Vector3(0f, hh + wallThickness / 2f, 0f), wallThickness, true);
+            TileWallRun(true, hw * 2f + wallThickness * 2f, new Vector3(0f, -hh - wallThickness / 2f, 0f), wallThickness, true);
+            TileWallRun(false, hh * 2f + wallThickness * 2f, new Vector3(-hw - wallThickness / 2f, 0f, 0f), wallThickness, false);
+            TileWallRun(false, hh * 2f + wallThickness * 2f, new Vector3(hw + wallThickness / 2f, 0f, 0f), wallThickness, false);
+        }
+        else
+        {
+            // 素材缺失回退: 拉伸砖墙(旧行为)
+            Sprite wallSprite = LoadCachedSprite(ResourcePaths.Wall_Brick);
+            if (wallSprite == null) wallSprite = SpriteCache.WhitePixel;
+
+            wallSpriteRenderers = new SpriteRenderer[4];
+            float wallSpanH = hw * 2f + wallThickness * 2f;
+            float wallSpanV = hh * 2f + wallThickness * 2f;
+
+            wallSpriteRenderers[0] = CreateWallSprite("WallTop", wallContainer, wallSprite, new Vector3(0f, hh + wallThickness / 2f, 0f), new Vector3(wallSpanH, wallThickness, 1f));
+            wallSpriteRenderers[1] = CreateWallSprite("WallBottom", wallContainer, wallSprite, new Vector3(0f, -hh - wallThickness / 2f, 0f), new Vector3(wallSpanH, wallThickness, 1f));
+            wallSpriteRenderers[2] = CreateWallSprite("WallLeft", wallContainer, wallSprite, new Vector3(-hw - wallThickness / 2f, 0f, 0f), new Vector3(wallThickness, wallSpanV, 1f));
+            wallSpriteRenderers[3] = CreateWallSprite("WallRight", wallContainer, wallSprite, new Vector3(hw + wallThickness / 2f, 0f, 0f), new Vector3(wallThickness, wallSpanV, 1f));
+        }
 
         CreateWallShadow();
+    }
+
+    // 沿一条墙线循环铺随机墙块; horizontal=横墙(块高对齐thickness), 竖墙(块宽对齐thickness)
+    private void TileWallRun(bool horizontal, float span, Vector3 center, float thickness, bool alignByHeight)
+    {
+        float cursor = -span * 0.5f;
+        int guard = 0;
+        while (cursor < span * 0.5f - 0.05f && guard++ < 64)
+        {
+            var sp = RuinsWallBig[Random.Range(0, RuinsWallBig.Count)];
+            float pieceMain = (alignByHeight ? sp.rect.height : sp.rect.width) / sp.pixelsPerUnit;
+            float pieceCross = (alignByHeight ? sp.rect.width : sp.rect.height) / sp.pixelsPerUnit;
+            float s = thickness / Mathf.Max(0.01f, pieceMain);
+            float pieceLen = pieceCross * s;
+            var go = new GameObject("WallPiece");
+            go.transform.SetParent(wallContainer.transform, false);
+            float along = Mathf.Min(cursor + pieceLen * 0.5f, span * 0.5f - pieceLen * 0.5f);
+            if (horizontal) go.transform.position = new Vector3(center.x + along, center.y, 0f);
+            else go.transform.position = new Vector3(center.x, center.y + along, 0f);
+            go.transform.localScale = new Vector3(s, s, 1f);
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sp;
+            sr.sortingOrder = -5;
+            sr.color = wallTint;
+            sr.flipX = Random.value < 0.5f;
+            wallTiles.Add(sr);
+            cursor += pieceLen * 0.96f; // 轻微搭接防缝隙
+        }
+    }
+
+    private void CreateWallCollider(string name, Vector3 pos, Vector3 scale)
+    {
+        var obj = new GameObject(name);
+        obj.transform.SetParent(wallContainer.transform, false);
+        obj.transform.position = pos;
+        obj.transform.localScale = scale;
+        obj.AddComponent<BoxCollider2D>();
     }
 
     private void CreateWallShadow()
@@ -283,7 +445,13 @@ public class DungeonVisuals : MonoBehaviour
 
             var sr = obj.AddComponent<SpriteRenderer>();
             sr.sortingOrder = -2;
-            sr.sprite = CreateObstacleSprite(obs.type);
+            sr.sprite = CreateObstacleSprite(obs.type, out bool ruinsSourced);
+            if (ruinsSourced)
+            {
+                // 灰白石质素材 → 主题色轻染 + 随机镜像, 同类障碍不再千人一面
+                sr.color = Color.Lerp(wallTint, Color.white, 0.35f);
+                sr.flipX = Random.value < 0.5f;
+            }
 
             // All obstacles use CircleCollider2D — radius clamped to prevent player getting stuck
             if (obs.type != DungeonMapData.ObstacleType.LavaPool)
@@ -305,8 +473,22 @@ public class DungeonVisuals : MonoBehaviour
         }
     }
 
-    private Sprite CreateObstacleSprite(DungeonMapData.ObstacleType type)
+    private Sprite CreateObstacleSprite(DungeonMapData.ObstacleType type, out bool ruinsSourced)
     {
+        ruinsSourced = false;
+        // 石柱/岩石/墓碑优先用遗迹素材随机variant
+        switch (type)
+        {
+            case DungeonMapData.ObstacleType.Pillar:
+                var col = PickRandom(RuinsPillar);
+                if (col != null) { ruinsSourced = true; return col; }
+                break;
+            case DungeonMapData.ObstacleType.Rock:
+            case DungeonMapData.ObstacleType.Tombstone:
+                var rub = PickRandom(RuinsRock);
+                if (rub != null) { ruinsSourced = true; return rub; }
+                break;
+        }
         string assetName = type switch
         {
             DungeonMapData.ObstacleType.Pillar => "Obstacle_Pillar",
@@ -338,6 +520,41 @@ public class DungeonVisuals : MonoBehaviour
             case 5: CreateFireDecorations(); break;  // 龙巢: 复用火焰装饰
             case 6: CreateShadowDecorations(); break; // 虚空: 复用暗影装饰
             case 7: CreateFireDecorations(); break;  // 魔王殿: 复用火焰装饰
+        }
+        // 遗迹残件散布(主题0手绘图地板除外): 补足8/9/10层无专属装饰的空缺
+        if (currentTheme != 0) CreateRuinsScatter();
+    }
+
+    // 随机散布拱门残段/锁链柱/碎石堆 — 每次进图布局都不同
+    private void CreateRuinsScatter()
+    {
+        var pool = new List<Sprite>();
+        pool.AddRange(RuinsDeco);
+        pool.AddRange(RuinsSmall);
+        if (pool.Count == 0) return;
+        int count = Mathf.Clamp(Mathf.RoundToInt(W * H / 45f), 6, 16);
+        int attempts = 0;
+        int placed = 0;
+        while (placed < count && attempts++ < count * 6)
+        {
+            var sp = pool[Random.Range(0, pool.Count)];
+            float x = Random.Range(-W + 3f, W - 3f);
+            float y = Random.Range(-H + 2.5f, H - 2.5f);
+            if (new Vector2(x, y).sqrMagnitude < 36f) continue; // 让开出生营地
+            var go = new GameObject("RuinsDeco");
+            go.transform.SetParent(decoContainer.transform, false);
+            go.transform.position = new Vector3(x, y, 0f);
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sp;
+            sr.sortingOrder = -3;
+            sr.flipX = Random.value < 0.5f;
+            float sw = sp.rect.width / sp.pixelsPerUnit;
+            float sh = sp.rect.height / sp.pixelsPerUnit;
+            float s = Mathf.Clamp(Mathf.Min(2.8f / Mathf.Max(sw, 0.01f), 2.8f / Mathf.Max(sh, 0.01f)), 0.5f, 1.3f)
+                      * Random.Range(0.8f, 1.15f);
+            go.transform.localScale = new Vector3(s, s, 1f);
+            sr.color = Color.Lerp(wallTint, Color.white, 0.25f);
+            placed++;
         }
     }
 
