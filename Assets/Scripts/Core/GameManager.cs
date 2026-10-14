@@ -646,20 +646,26 @@ public partial class GameManager : MonoBehaviour
 
     public void StartDungeon(int stageIndex)
     {
+        // 同步先置状态(调用方/GameOverPanel三重判断依赖), 重活分帧由协程完成
         RiftLayer = stageIndex + 1;                        // 秘境绝对层数(无上限)
         CurrentStageIndex = RiftLayerToTheme(stageIndex);  // 地图/主题按11图循环(22层每图两次)
-        int themeStage = CurrentStageIndex;
         DungeonLevel = (stageIndex + 1);                   // 数值缩放跟随真实层数
         CurrentState = GameState.Dungeon;
         InWorld = false;
         if (CombatDirector.Instance != null) CombatDirector.WorldMode = false;
-        if (WorldManager.Active) WorldManager.CleanupWorld(); // 从世界NPC进副本：清掉世界
         Time.timeScale = 1f;
         IsPaused = false;
-        GameLog.Log($"[StartDungeon] layer={RiftLayer} theme={themeStage} Player={(Player != null ? Player.gameObject.name : "NULL")} active={(Player != null && Player.gameObject.activeSelf)}");
-        AudioManager.Instance?.PlayBGM(AudioManager.BGMType.Battle);
+        StartCoroutine(StartDungeonCo(stageIndex));
+    }
 
-        // Reset achievement run state for new dungeon
+    private System.Collections.IEnumerator StartDungeonCo(int stageIndex)
+    {
+        int themeStage = CurrentStageIndex;
+        LoadingScreen.Show("正在进入秘境...");
+        GameLog.Log($"[StartDungeon] layer={RiftLayer} theme={themeStage} Player={(Player != null ? Player.gameObject.name : "NULL")} active={(Player != null && Player.gameObject.activeSelf)}");
+
+        // 第0步: UI切换 + BGM + 成就重置 (轻量, 同帧完成)
+        AudioManager.Instance?.PlayBGM(AudioManager.BGMType.Battle);
         if (AchievementManager.Instance != null)
             AchievementManager.Instance.ResetRunState();
 
@@ -685,12 +691,14 @@ public partial class GameManager : MonoBehaviour
             GameUI.Instance.SetHUDVisible(true);
         }
 
-        // Clean up any leftover from previous runs
+        LoadingScreen.SetProgress(0.12f);
+        yield return null; // 遮罩先渲染一帧, 后续重活分帧执行防卡死
+
+        // 第1步: 清理上一局残留
+        if (WorldManager.Active) WorldManager.CleanupWorld(); // 从世界NPC进副本：清掉世界
         SceneRegistry.ClearAll();
         VFXPool.ClearAll();
         EnemyPool.ClearAll();
-
-        // 清理残留HPBar根对象
         EnemyHealthBar.CleanupAll();
 
         // 延迟销毁旧地图，确保渲染线程完成当前帧的GPU资源释放
@@ -701,10 +709,20 @@ public partial class GameManager : MonoBehaviour
             oldDv.SetActive(false);
             Destroy(oldDv);
         }
-        CreateDungeonVisuals();
-        MistSystem.SpawnForMap(); // 秘境迷雾+小地图+资源点+营地
+        LoadingScreen.SetProgress(0.25f);
+        yield return null;
 
-        // ★ 核心安全：确保玩家存在并可见 — 先移动玩家再设置相机
+        // 第2步: 重建地图 (最重, 单独一帧)
+        CreateDungeonVisuals();
+        LoadingScreen.SetProgress(0.5f);
+        yield return null;
+
+        // 第3步: 秘境迷雾+小地图+资源点+营地
+        MistSystem.SpawnForMap();
+        LoadingScreen.SetProgress(0.62f);
+        yield return null;
+
+        // ★ 第4步: 核心安全：确保玩家存在并可见 — 先移动玩家再设置相机
         EnsurePlayerExists();
         if (Player != null)
         {
@@ -725,8 +743,10 @@ public partial class GameManager : MonoBehaviour
             GameLog.Log($"[StartDungeon] Player ready: IsDead={Player.IsDead} State={Player.StateMachine?.CurrentState} Skills={Player.Skills?.Count}");
         }
         if (hudRebuilt) BuildUI(); // HUD重建后玩家已就绪，补连技能/摇杆/攻击键监听
+        LoadingScreen.SetProgress(0.75f);
+        yield return null;
 
-        // 重置摄像机 — 先设置位置再启用跟随
+        // 第5步: 重置摄像机 — 先设置位置再启用跟随
         ResetCamera();
         if (Camera.main != null)
             Camera.main.transform.position = new Vector3(0, 0, -10);
@@ -741,13 +761,12 @@ public partial class GameManager : MonoBehaviour
             CameraFollow.Instance.SnapToTarget();
         }
 
-        // 清理上次副本的VFX对象池, 避免积累
-        VFXPool.ClearAll();
-
-        // 预热VFX对象池, 避免首帧卡顿
+        // 第6步: 预热VFX对象池, 避免首帧卡顿
         VFXPool.PrewarmAll();
+        LoadingScreen.SetProgress(0.88f);
+        yield return null;
 
-        // Delegate combat initialization to CombatDirector
+        // 第7步: 战斗初始化
         if (CombatDirector.Instance != null)
         {
             CombatDirector.Instance.StartCombat(DungeonLevel);
@@ -764,9 +783,11 @@ public partial class GameManager : MonoBehaviour
         if (IsTeamMode && Player != null)
             PetTeammates.CreateTeammates(Player.transform, themeStage);
 
-        // First-time dungeon tutorial — disabled
+        LoadingScreen.SetProgress(1f);
+        yield return null;
 
-        // Trigger stage start dialogue
+        // 第8步: 副本开场对话 (遮罩隐藏后显示)
+        LoadingScreen.Hide();
         if (DialogueSystem.Instance == null) gameObject.AddComponent<DialogueSystem>();
         DialogueSystem.Instance.ShowStageStartDialogue(themeStage);
 
@@ -984,11 +1005,17 @@ public partial class GameManager : MonoBehaviour
 
     public void RetryStage()
     {
-        Time.timeScale = 1f;
-        GameLog.Log($"[RetryStage] START State={CurrentState} Player={(Player != null ? "exists" : "NULL")}");
-
         // 必须在最前面改为Dungeon，否则GameUI.Update()每帧都会重新显示GameOverPanel
+        Time.timeScale = 1f;
         CurrentState = GameState.Dungeon;
+        StartCoroutine(RetryStageCo());
+    }
+
+    private System.Collections.IEnumerator RetryStageCo()
+    {
+        bool endless = EndlessWave > 0;
+        LoadingScreen.Show(endless ? "无尽模式..." : "正在复活...");
+        GameLog.Log($"[RetryStage] START State={CurrentState} Player={(Player != null ? "exists" : "NULL")} endless={endless}");
 
         // 关闭面板
         // 自愈：Canvas/GameUI/HUD可能已被意外销毁，重试前确保存在
@@ -1001,10 +1028,15 @@ public partial class GameManager : MonoBehaviour
             GameUI.Instance.SetHUDVisible(true);
         }
 
+        LoadingScreen.SetProgress(0.15f);
+        yield return null;
+
         // 清理全部场景对象
         CleanupAllDungeonResiduals();
         DestroyTeammates();
         DestroyPets();
+        LoadingScreen.SetProgress(0.3f);
+        yield return null;
 
         // ★ 核心安全：确保玩家存在并可见 — 先移动玩家再设置相机
         EnsurePlayerExists();
@@ -1021,17 +1053,21 @@ public partial class GameManager : MonoBehaviour
             Player.RollRunMutationPool();
         }
         if (hudRebuilt) BuildUI(); // HUD重建后玩家已就绪，补连技能/摇杆/攻击键监听
+        LoadingScreen.SetProgress(0.5f);
+        yield return null;
 
         // 无尽模式
         if (EndlessWave > 0)
         {
-            StartEndlessMode();
-            return;
+            StartEndlessMode(); // 无尽协程接管遮罩并自行Hide
+            yield break;
         }
 
-        // 重建地图
+        // 重建地图 + 迷雾
         CreateDungeonVisuals();
         MistSystem.SpawnForMap(); // 秘境迷雾重建
+        LoadingScreen.SetProgress(0.72f);
+        yield return null;
 
         // 重置摄像机 — 先设置位置再启用跟随
         ResetCamera();
@@ -1057,10 +1093,16 @@ public partial class GameManager : MonoBehaviour
 
         // VFX预热
         VFXPool.PrewarmAll();
+        LoadingScreen.SetProgress(0.9f);
+        yield return null;
 
         // 宠物
         if (Player != null && PetDataManager.HasActivePet())
             CreatePet(Player.transform);
+
+        LoadingScreen.SetProgress(1f);
+        yield return null;
+        LoadingScreen.Hide();
 
         GameLog.Log($"[RetryStage] DONE State={CurrentState} Player.active={(Player != null && Player.gameObject.activeSelf)} DV={(DungeonVisuals.Instance != null ? "exists" : "NULL")}");
     }

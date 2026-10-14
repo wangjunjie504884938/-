@@ -19,6 +19,13 @@ public static class ResourcePaths
     public const string MageSheet = "Sprites/Character/Sprite_20260707_165540";
     public const string PriestSheet = "Sprites/Character/Sprite_20260707_165905";
 
+    // 加载页面
+    public const string LoadingBackground = "Sprites/Loading/LoadingBackground";
+    public const string LoadingBarBase = "Sprites/Loading/BarBase";
+    public const string LoadingBarFill = "Sprites/Loading/BarFill";
+    public const string LoadingBarFrame = "Sprites/Loading/BarFrame";
+    public const string LoadingBarWalker = "Sprites/Loading/BarWalker";
+
     // 标题界面
     public const string TitleBackground = "Sprites/Title/TitleBackground";
     public const string TitleLogo = "Sprites/Title/TitleLogo";

@@ -324,18 +324,15 @@ public partial class TitleScreen : MonoBehaviour
 
     private System.Collections.IEnumerator CheckServerAndStart()
     {
-        // 显示加载页面
-        GameObject loadingPanel = CreateLoadingPanel();
-        loadingPanel.SetActive(true);
-
-        yield return null; // 等一帧让加载页渲染
+        // 统一加载遮罩页 (异步分步推进, 全屏遮罩防误操作)
+        LoadingScreen.Show("正在连接服务器...");
+        yield return null; // 等一帧让遮罩渲染
 
         // 检查服务器是否连接
         string serverUrl = CloudSaveManager.Instance?.ServerUrl ?? "http://39.107.141.107:5132";
         bool serverOk = false;
 
-        UpdateLoadingText(loadingPanel, "正在连接服务器...");
-        var progressFill = loadingPanel.transform.Find("ProgressBar/Fill")?.GetComponent<Image>();
+        LoadingScreen.SetStage("正在连接服务器...");
 
         string testJson = "{\"username\":\"__ping__\",\"password\":\"__ping__\"}";
         using (var req = UnityEngine.Networking.UnityWebRequest.PostWwwForm($"{serverUrl}/api/auth/login", ""))
@@ -352,190 +349,60 @@ public partial class TitleScreen : MonoBehaviour
 
         if (!serverOk)
         {
-            UpdateLoadingText(loadingPanel, "服务器连接失败");
-            if (progressFill != null) progressFill.fillAmount = 0f;
+            LoadingScreen.SetStage("服务器连接失败");
+            LoadingScreen.SetProgress(0f);
             yield return new WaitForSeconds(1.5f);
-            Destroy(loadingPanel);
+            LoadingScreen.Hide();
             started = false;
             yield break;
         }
-        UpdateLoadingText(loadingPanel, "服务器连接成功");
-        if (progressFill != null) progressFill.fillAmount = 0.15f;
+        LoadingScreen.SetStage("服务器连接成功");
+        LoadingScreen.SetProgress(0.15f);
         yield return new WaitForSeconds(0.2f);
 
         // Step 2: 加载游戏配置 (15-40%)
-        UpdateLoadingText(loadingPanel, "正在加载游戏配置...");
-        if (progressFill != null) progressFill.fillAmount = 0.20f;
+        LoadingScreen.SetStage("正在加载游戏配置...");
+        LoadingScreen.SetProgress(0.20f);
         if (GameConfigManager.Instance != null && !GameConfigManager.Instance.IsLoaded)
         {
             yield return StartCoroutine(GameConfigManager.Instance.LoadConfigCo());
         }
-        UpdateLoadingText(loadingPanel, "游戏配置加载完成");
-        if (progressFill != null) progressFill.fillAmount = 0.40f;
+        LoadingScreen.SetStage("游戏配置加载完成");
+        LoadingScreen.SetProgress(0.40f);
         yield return new WaitForSeconds(0.2f);
 
         // Step 3: 加载玩家存档 (40-70%)
-        UpdateLoadingText(loadingPanel, "正在加载存档数据...");
-        if (progressFill != null) progressFill.fillAmount = 0.50f;
+        LoadingScreen.SetStage("正在加载存档数据...");
+        LoadingScreen.SetProgress(0.50f);
         yield return new WaitForSeconds(0.3f);
-        UpdateLoadingText(loadingPanel, "存档加载完成");
-        if (progressFill != null) progressFill.fillAmount = 0.70f;
+        LoadingScreen.SetStage("存档加载完成");
+        LoadingScreen.SetProgress(0.70f);
         yield return new WaitForSeconds(0.2f);
 
         // Step 4: 预加载资源 (70-90%)
-        UpdateLoadingText(loadingPanel, "正在预加载资源...");
-        if (progressFill != null) progressFill.fillAmount = 0.75f;
+        LoadingScreen.SetStage("正在预加载资源...");
+        LoadingScreen.SetProgress(0.75f);
         // 异步预加载所有角色预览Sprite (通过GameConfigSO配置路径)
         yield return CharacterSpriteFactory.PreloadAllAsync();
         Resources.LoadAsync<Sprite>(ResourcePaths.MeleeGoblin);
         yield return null;
-        UpdateLoadingText(loadingPanel, "资源预加载完成");
-        if (progressFill != null) progressFill.fillAmount = 0.90f;
+        LoadingScreen.SetStage("资源预加载完成");
+        LoadingScreen.SetProgress(0.90f);
         yield return new WaitForSeconds(0.2f);
 
         // Step 5: 进入游戏 (90-100%)
-        UpdateLoadingText(loadingPanel, "正在进入游戏...");
-        if (progressFill != null) progressFill.fillAmount = 0.95f;
-        Hide();
+        LoadingScreen.SetStage("正在进入游戏...");
+        LoadingScreen.SetProgress(0.95f);
         GameManager.Instance.OnTitleStartNewGame();
-        UpdateLoadingText(loadingPanel, "欢迎来到卫冕战争!");
-        if (progressFill != null) progressFill.fillAmount = 1.0f;
+        LoadingScreen.SetStage("欢迎来到卫冕战争!");
+        LoadingScreen.SetProgress(1f);
         yield return new WaitForSeconds(0.8f);
-        Destroy(loadingPanel);
-    }
-
-    private GameObject CreateLoadingPanel()
-    {
-        Font font = GameManager.GetUIFont();
-        Canvas canvas = GameManager.EnsureCanvas();
-
-        var panel = new GameObject("LoadingPanel");
-        panel.transform.SetParent(canvas.transform, false);
-        var pr = panel.AddComponent<RectTransform>();
-        pr.anchorMin = Vector2.zero; pr.anchorMax = Vector2.one;
-        pr.offsetMin = Vector2.zero; pr.offsetMax = Vector2.zero;
-
-        var bg = panel.AddComponent<Image>();
-        bg.color = new Color(0.02f, 0.01f, 0.04f, 0.95f);
-
-        var pc = panel.AddComponent<Canvas>();
-        pc.overrideSorting = true; pc.sortingOrder = 999;
-        panel.AddComponent<GraphicRaycaster>();
-
-        // 旋转加载圈
-        var spinnerObj = new GameObject("Spinner");
-        spinnerObj.transform.SetParent(panel.transform, false);
-        var sr = spinnerObj.AddComponent<RectTransform>();
-        sr.anchorMin = new Vector2(0.5f, 0.6f); sr.anchorMax = new Vector2(0.5f, 0.6f);
-        sr.pivot = new Vector2(0.5f, 0.5f); sr.anchoredPosition = Vector2.zero; sr.sizeDelta = new Vector2(60, 60);
-        var spinnerImg = spinnerObj.AddComponent<Image>();
-        spinnerImg.sprite = SpriteCache.WhitePixel;
-        spinnerImg.color = new Color(0.55f, 0.3f, 0.75f, 0.8f);
-        spinnerImg.type = Image.Type.Filled;
-        spinnerImg.fillMethod = Image.FillMethod.Radial360;
-        spinnerImg.fillAmount = 0.3f;
-        // 旋转动画
-        var rotator = spinnerObj.AddComponent<SpinnerRotator>();
-
-        // 加载文字
-        var txtObj = new GameObject("LoadingText");
-        txtObj.transform.SetParent(panel.transform, false);
-        var tr = txtObj.AddComponent<RectTransform>();
-        tr.anchorMin = new Vector2(0.2f, 0.42f); tr.anchorMax = new Vector2(0.8f, 0.50f);
-        tr.offsetMin = Vector2.zero; tr.offsetMax = Vector2.zero;
-        var txt = txtObj.AddComponent<Text>();
-        txt.text = "正在连接服务器...";
-        txt.alignment = TextAnchor.MiddleCenter;
-        txt.fontSize = 24; txt.color = new Color(0.85f, 0.82f, 0.9f); txt.font = font;
-        txt.raycastTarget = false;
-        txt.supportRichText = true;
-
-        // 进度点动画
-        var dotsObj = new GameObject("Dots");
-        dotsObj.transform.SetParent(panel.transform, false);
-        var dr = dotsObj.AddComponent<RectTransform>();
-        dr.anchorMin = new Vector2(0.3f, 0.32f); dr.anchorMax = new Vector2(0.7f, 0.38f);
-        dr.offsetMin = Vector2.zero; dr.offsetMax = Vector2.zero;
-        var dotsTxt = dotsObj.AddComponent<Text>();
-        dotsTxt.text = "●";
-        dotsTxt.alignment = TextAnchor.MiddleCenter;
-        dotsTxt.fontSize = 20; dotsTxt.color = new Color(0.55f, 0.3f, 0.75f, 0.6f); dotsTxt.font = font;
-        dotsTxt.raycastTarget = false;
-        var dotAnim = dotsObj.AddComponent<DotsAnimator>();
-
-        // 进度条
-        var pbObj = new GameObject("ProgressBar");
-        pbObj.transform.SetParent(panel.transform, false);
-        var pbR = pbObj.AddComponent<RectTransform>();
-        pbR.anchorMin = new Vector2(0.15f, 0.25f); pbR.anchorMax = new Vector2(0.85f, 0.28f);
-        pbR.offsetMin = Vector2.zero; pbR.offsetMax = Vector2.zero;
-        var pbBg = pbObj.AddComponent<Image>();
-        pbBg.color = new Color(0.08f, 0.06f, 0.12f, 0.9f);
-
-        var fillObj = new GameObject("Fill");
-        fillObj.transform.SetParent(pbObj.transform, false);
-        var fillR = fillObj.AddComponent<RectTransform>();
-        fillR.anchorMin = Vector2.zero; fillR.anchorMax = Vector2.one;
-        fillR.offsetMin = Vector2.zero; fillR.offsetMax = Vector2.zero;
-        var fillImg = fillObj.AddComponent<Image>();
-        fillImg.color = new Color(0.55f, 0.3f, 0.75f, 0.9f);
-        fillImg.type = Image.Type.Filled;
-        fillImg.fillMethod = Image.FillMethod.Horizontal;
-        fillImg.fillAmount = 0f;
-
-        // Tips文字
-        var tipObj = new GameObject("TipText");
-        tipObj.transform.SetParent(panel.transform, false);
-        var tipR = tipObj.AddComponent<RectTransform>();
-        tipR.anchorMin = new Vector2(0.1f, 0.10f); tipR.anchorMax = new Vector2(0.9f, 0.18f);
-        tipR.offsetMin = Vector2.zero; tipR.offsetMax = Vector2.zero;
-        var tipTxt = tipObj.AddComponent<Text>();
-        tipTxt.text = "暴击可以打断敌人的攻击动作";
-        tipTxt.alignment = TextAnchor.MiddleCenter;
-        tipTxt.fontSize = 14; tipTxt.color = new Color(0.5f, 0.45f, 0.6f); tipTxt.font = font;
-        tipTxt.raycastTarget = false;
-
-        return panel;
-    }
-
-    private void UpdateLoadingText(GameObject loadingPanel, string text)
-    {
-        var txt = loadingPanel?.transform.Find("LoadingText")?.GetComponent<Text>();
-        if (txt != null) txt.text = text;
+        LoadingScreen.Hide();
     }
 
     private void OnDestroy()
     {
         if (panel != null) Destroy(panel);
         if (Instance == this) Instance = null;
-    }
-}
-
-/// <summary>旋转加载圈</summary>
-internal class SpinnerRotator : MonoBehaviour
-{
-    private void Update()
-    {
-        transform.Rotate(0, 0, -360f * Time.deltaTime);
-    }
-}
-
-/// <summary>进度点动画 ●→●●→●●●</summary>
-internal class DotsAnimator : MonoBehaviour
-{
-    private float timer;
-    private int dotCount;
-
-    private void Update()
-    {
-        timer += Time.deltaTime;
-        if (timer >= 0.4f)
-        {
-            timer = 0;
-            dotCount = (dotCount + 1) % 4;
-            var txt = GetComponent<Text>();
-            if (txt != null)
-                txt.text = dotCount == 0 ? "" : new string('●', dotCount);
-        }
     }
 }

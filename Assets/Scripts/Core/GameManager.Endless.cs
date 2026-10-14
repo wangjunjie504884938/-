@@ -11,9 +11,16 @@ public partial class GameManager
 
     public void StartEndlessMode()
     {
+        // 同步先置状态, 重活分帧由协程完成
         CurrentState = GameState.Endless;
         EndlessWave = 0;
         DungeonLevel = 5; // Fixed starting difficulty
+        StartCoroutine(StartEndlessModeCo());
+    }
+
+    private System.Collections.IEnumerator StartEndlessModeCo()
+    {
+        LoadingScreen.Show("正在进入无尽模式...");
 
         // Clean up hub UI
         DestroyUIComponent<HubUI>();
@@ -29,13 +36,13 @@ public partial class GameManager
             GameUI.Instance.ShowHubMode(false);
             GameUI.Instance.SetHUDVisible(true);
         }
+        LoadingScreen.SetProgress(0.15f);
+        yield return null;
 
         // Clear leftovers
         SceneRegistry.ClearAll();
         VFXPool.ClearAll();
         EnemyPool.ClearAll();
-
-        // 清理残留HPBar根对象
         EnemyHealthBar.CleanupAll();
 
         // 无尽模式随机地图 — Stage 1-7 每次不同
@@ -51,18 +58,12 @@ public partial class GameManager
             oldDv.SetActive(false);
             Destroy(oldDv);
         }
-        CreateDungeonVisuals();
+        LoadingScreen.SetProgress(0.3f);
+        yield return null;
 
-        // Camera clamp
-        var mapData = DungeonMapData.GetStageMap(randomStage);
-        if (CameraFollow.Instance != null)
-        {
-            CameraFollow.Instance.ForcedOrthoSize = mapData.cameraOrthoSize;
-            CameraFollow.Instance.MapHalfWidth = mapData.mapHalfWidth;
-            CameraFollow.Instance.MapHalfHeight = mapData.mapHalfHeight;
-            CameraFollow.Instance.ClampToMap = true;
-            CameraFollow.Instance.enabled = true;
-        }
+        CreateDungeonVisuals();
+        LoadingScreen.SetProgress(0.6f);
+        yield return null;
 
         // ★ 核心安全：确保玩家存在并可见
         EnsurePlayerExists();
@@ -80,6 +81,7 @@ public partial class GameManager
 
         // 重置摄像机
         ResetCamera();
+        var mapData = DungeonMapData.GetStageMap(randomStage);
         if (CameraFollow.Instance != null)
         {
             CameraFollow.Instance.ForcedOrthoSize = mapData.cameraOrthoSize;
@@ -88,6 +90,8 @@ public partial class GameManager
             CameraFollow.Instance.ClampToMap = true;
             CameraFollow.Instance.enabled = true;
         }
+        LoadingScreen.SetProgress(0.8f);
+        yield return null;
 
         // Start combat system
         if (CombatDirector.Instance != null)
@@ -101,6 +105,10 @@ public partial class GameManager
         DestroyTeammates();
         if (IsTeamMode && Player != null)
             PetTeammates.CreateTeammates(Player.transform, CurrentStageIndex);
+
+        LoadingScreen.SetProgress(1f);
+        yield return null;
+        LoadingScreen.Hide();
 
         StartCoroutine(SpawnEndlessWaveAfterDelay(2f));
     }

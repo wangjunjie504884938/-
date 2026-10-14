@@ -55,12 +55,19 @@ public class WorldManager : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null) return;
         if (Active) { TeleportTo(spawnZoneIndex); return; }
+        StartCoroutine(DoEnterWorldCo(spawnZoneIndex));
+    }
 
+    private System.Collections.IEnumerator DoEnterWorldCo(int spawnZoneIndex)
+    {
+        var gm = GameManager.Instance;
         Active = true;
         gm.CurrentState = GameState.Dungeon; // 复用副本状态：玩家控制/HUD/死亡流程全部兼容
         gm.InWorld = true;
         Time.timeScale = 1f;
         gm.IsPaused = false;
+        LoadingScreen.Show("正在进入世界...");
+
         AudioManager.Instance?.PlayBGM(AudioManager.BGMType.Battle);
 
         // 关闭大本营及子页面UI (镜像StartDungeon)
@@ -74,6 +81,8 @@ public class WorldManager : MonoBehaviour
             GameUI.Instance.ShowHubMode(false);
             GameUI.Instance.SetHUDVisible(true);
         }
+        LoadingScreen.SetProgress(0.15f);
+        yield return null;
 
         // 清理残留
         SceneRegistry.ClearAll();
@@ -87,9 +96,14 @@ public class WorldManager : MonoBehaviour
             oldDv.SetActive(false);
             Destroy(oldDv);
         }
+        LoadingScreen.SetProgress(0.3f);
+        yield return null;
 
-        // 构建世界
+        // 构建世界 (最重, 单独一帧)
         WorldVisuals.Build();
+        LoadingScreen.SetProgress(0.6f);
+        yield return null;
+
         MistSystem.SpawnForWorld(); // 世界小地图(无迷雾)
 
         // 玩家就位 (出生在指定区传送点)
@@ -122,9 +136,12 @@ public class WorldManager : MonoBehaviour
             CameraFollow.Instance.enabled = true;
             CameraFollow.Instance.SnapToTarget();
         }
+        LoadingScreen.SetProgress(0.8f);
+        yield return null;
 
-        VFXPool.ClearAll();
         VFXPool.PrewarmAll();
+        LoadingScreen.SetProgress(0.92f);
+        yield return null;
 
         if (CombatDirector.Instance != null)
         {
@@ -136,6 +153,10 @@ public class WorldManager : MonoBehaviour
         _zoneRespawnAt.Clear();
         CreateHudButton();
         _spawnerRoutine = StartCoroutine(SpawnerLoop());
+
+        LoadingScreen.SetProgress(1f);
+        yield return null;
+        LoadingScreen.Hide();
 
         GameUI.Instance?.ShowItemPickupToast("进入世界", $"当前位置：{spawnZone.Name} — 靠近光柱激活传送点");
         GameLog.Log($"[World] EnterWorld zone={spawnZone.Index}({spawnZone.Name}) pos={spawnZone.WaypointPos}");
@@ -182,7 +203,9 @@ public class WorldManager : MonoBehaviour
         }
     }
 
-    /// <summary>快速旅行到指定区传送点 (需已发现)</summary>
+    private static bool _teleporting; // 防连点重复传送
+
+    /// <summary>快速旅行到指定区传送点 (需已发现) — 遮罩过渡防瞬间跳变</summary>
     public static void TeleportTo(int zoneIndex)
     {
         var gm = GameManager.Instance;
@@ -193,10 +216,41 @@ public class WorldManager : MonoBehaviour
             GameUI.Instance?.ShowItemPickupToast("传送点未激活", $"先到达 {zone.Name} 的光柱附近");
             return;
         }
+        if (_teleporting) return;
+        _teleporting = true;
+        if (Instance != null)
+            Instance.StartCoroutine(Instance.TeleportCo(zoneIndex));
+        else
+        {
+            // 兜底: 无实例时直接瞬移
+            gm.Player.transform.position = zone.WaypointPos;
+            if (CameraFollow.Instance != null) CameraFollow.Instance.SnapToTarget();
+            GameUI.Instance?.ShowItemPickupToast("传送完成", zone.Name);
+            _teleporting = false;
+        }
+    }
+
+    private System.Collections.IEnumerator TeleportCo(int zoneIndex)
+    {
+        LoadingScreen.Show("正在传送...", 0.9f); // 短途传送用更短遮罩时长
+        GameLog.Log($"[World] Teleport → zone={zoneIndex}");
+        yield return null; // 遮罩渲染一帧
+
+        var gm = GameManager.Instance;
+        var zone = WorldData.Get(zoneIndex);
+        if (gm == null || gm.Player == null)
+        {
+            LoadingScreen.Hide();
+            _teleporting = false;
+            yield break;
+        }
         gm.Player.transform.position = zone.WaypointPos;
         if (CameraFollow.Instance != null) CameraFollow.Instance.SnapToTarget();
+        LoadingScreen.SetProgress(1f);
+        yield return null;
+        LoadingScreen.Hide(); // 显示进度走到1+0.9s后自动收起
+        _teleporting = false;
         GameUI.Instance?.ShowItemPickupToast("传送完成", zone.Name);
-        GameLog.Log($"[World] Teleport → zone={zone.Index}({zone.Name})");
     }
 
     // ===== 区域刷怪 + 传送点发现 主循环 =====
