@@ -146,9 +146,12 @@ public class MistSystem : MonoBehaviour
         var map = DungeonMapData.GetStageMap(theme); // 仅用尺寸(表值固定)
         _halfW = map.mapHalfWidth;
         _halfH = map.mapHalfHeight;
+        // 照亮半径按两半轴几何平均缩放: 非正方形图(30x12/13x30/34x18)不再因minHalf塌陷到4,
+        // 各图解锁范围收敛到6.0~7.5(旧公式4.0~7.5, 面积差3倍); 几何平均仍保证窄井(半宽6.5)不被全亮
+        float geoHalf = Mathf.Sqrt(_halfW * _halfH);
         float minHalf = Mathf.Min(_halfW, _halfH);
-        _revealRadius = Mathf.Clamp(minHalf * 0.35f, 4f, 8f);
-        _campReveal = Mathf.Clamp(minHalf * 0.55f, 6f, 13f);
+        _revealRadius = Mathf.Clamp(geoHalf * 0.45f, 5.5f, 7.5f);
+        _campReveal = Mathf.Clamp(geoHalf * 0.75f, 9f, 12f);
         _nodeMinDist = Mathf.Min(12f, minHalf * 0.55f);
 
         BuildFog();
