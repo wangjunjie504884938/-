@@ -344,30 +344,12 @@ public partial class GameManager
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-125, 22.5f), new Vector2(125, 77.5f),
             new Color(0.2f, 0.6f, 1f, 0.9f), 24, () => gameUI.OnResumeFromPause());
 
-        // 设置按钮 — 齿轮符号(全局统一, 不用中文)
-        var pSettingsObj = new GameObject("SettingsBtn");
-        pSettingsObj.transform.SetParent(pausePanel.transform, false);
-        var psRect = pSettingsObj.AddComponent<RectTransform>();
-        psRect.anchorMin = new Vector2(0.5f, 0.5f); psRect.anchorMax = new Vector2(0.5f, 0.5f);
-        psRect.pivot = new Vector2(0.5f, 0.5f);
-        psRect.offsetMin = new Vector2(-125, -47.5f); psRect.offsetMax = new Vector2(125, 7.5f);
-        var psImg = pSettingsObj.AddComponent<Image>();
-        psImg.color = new Color(0.3f, 0.3f, 0.4f, 0.9f);
-        var psBtn = pSettingsObj.AddComponent<Button>();
-        psBtn.transition = Selectable.Transition.None;
-        psBtn.onClick.AddListener(() => { var s = FindObjectOfType<SettingsUI>(); if (s == null) s = gameObject.AddComponent<SettingsUI>(); s.Show(); });
-        UIHelper.SetupButtonFeedback(psBtn, psImg.color);
-        var psIcon = new GameObject("GearIcon");
-        psIcon.transform.SetParent(pSettingsObj.transform, false);
-        var psIRect = psIcon.AddComponent<RectTransform>();
-        psIRect.anchorMin = Vector2.zero; psIRect.anchorMax = Vector2.one;
-        psIRect.offsetMin = new Vector2(15, 10); psIRect.offsetMax = new Vector2(-15, -10);
-        var psIImg = psIcon.AddComponent<Image>();
-        psIImg.sprite = UIHelper.CreateGearSprite();
-        psIImg.color = Color.white; psIImg.raycastTarget = false;
+        UIHelper.MakeButton(pausePanel.transform, "SettingsBtn", "设置", font,
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-125, -42.5f), new Vector2(125, 12.5f),
+            new Color(0.3f, 0.3f, 0.4f, 0.9f), 24, () => { var s = FindObjectOfType<SettingsUI>(); if (s == null) s = gameObject.AddComponent<SettingsUI>(); s.Show(); });
 
-        UIHelper.MakeButton(pausePanel.transform, "ReturnBtn", "←", font,
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-125, -117.5f), new Vector2(125, -62.5f),
+        UIHelper.MakeButton(pausePanel.transform, "ReturnBtn", "返回大厅", font,
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-125, -107.5f), new Vector2(125, -52.5f),
             new Color(0.7f, 0.2f, 0.2f, 0.9f), 24, () => gameUI.OnReturnToHubFromPause());
 
         gameUI.PausePanel = pausePanel;
