@@ -410,8 +410,8 @@ public partial class CharacterSlotUI : MonoBehaviour
         backLblRect.anchorMin = Vector2.zero; backLblRect.anchorMax = Vector2.one;
         backLblRect.offsetMin = Vector2.zero; backLblRect.offsetMax = Vector2.zero;
         var backLbl = backLblObj.AddComponent<Text>();
-        backLbl.text = "← 返回"; backLbl.alignment = TextAnchor.MiddleCenter;
-        backLbl.fontSize = 18; backLbl.color = UIHelper.Accent; backLbl.font = font;
+        backLbl.text = "←"; backLbl.alignment = TextAnchor.MiddleCenter;
+        backLbl.fontSize = 22; backLbl.color = UIHelper.Accent; backLbl.font = font;
         backLbl.raycastTarget = false;
 
         // Slots container

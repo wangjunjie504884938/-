@@ -312,8 +312,8 @@ public class CharacterSelectUI : MonoBehaviour
         backLRect.anchorMin = Vector2.zero; backLRect.anchorMax = Vector2.one;
         backLRect.offsetMin = Vector2.zero; backLRect.offsetMax = Vector2.zero;
         Text backLText = backLabel.AddComponent<Text>();
-        backLText.text = "← 返回"; backLText.alignment = TextAnchor.MiddleCenter;
-        backLText.fontSize = 18; backLText.color = new Color(0.9f, 0.9f, 0.95f); backLText.font = font;
+        backLText.text = "←"; backLText.alignment = TextAnchor.MiddleCenter;
+        backLText.fontSize = 22; backLText.color = new Color(0.9f, 0.9f, 0.95f); backLText.font = font;
         backLText.raycastTarget = false;
 
         panel.SetActive(false);

@@ -138,7 +138,7 @@ public partial class GameUI : MonoBehaviour
         rt.anchorMin = new Vector2(1, 1);
         rt.anchorMax = new Vector2(1, 1);
         rt.pivot = new Vector2(1, 1);
-        rt.anchoredPosition = new Vector2(-60, -12);
+        rt.anchoredPosition = new Vector2(-12, -12);
         rt.sizeDelta = new Vector2(100, 40);
 
         var img = _autoBattleBtn.AddComponent<Image>();
@@ -668,7 +668,7 @@ public partial class GameUI : MonoBehaviour
         rlRect.anchorMin = Vector2.zero; rlRect.anchorMax = Vector2.one;
         rlRect.offsetMin = Vector2.zero; rlRect.offsetMax = Vector2.zero;
         Text rlText = rlObj.AddComponent<Text>();
-        rlText.text = "返回大厅"; rlText.alignment = TextAnchor.MiddleCenter;
+        rlText.text = "←"; rlText.alignment = TextAnchor.MiddleCenter;
         rlText.fontSize = 24; rlText.color = Color.white; rlText.font = font;
     }
 
@@ -903,7 +903,7 @@ public partial class GameUI : MonoBehaviour
         rlRect.anchorMin = Vector2.zero; rlRect.anchorMax = Vector2.one;
         rlRect.offsetMin = Vector2.zero; rlRect.offsetMax = Vector2.zero;
         Text rlText = rlObj.AddComponent<Text>();
-        rlText.text = "返回大厅"; rlText.alignment = TextAnchor.MiddleCenter;
+        rlText.text = "←"; rlText.alignment = TextAnchor.MiddleCenter;
         rlText.fontSize = 22; rlText.color = new Color(0.15f, 0.1f, 0f); rlText.font = font;
     }
 }

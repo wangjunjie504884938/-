@@ -231,7 +231,7 @@ public class CloudAuthUI : MonoBehaviour
         logoutBtn.GetComponent<Button>().onClick.AddListener(HandleLogoutClick);
 
         // 返回
-        GameObject backBtn = CreateButton(inner.transform, "BackBtn", "← 返回标题", font,
+        GameObject backBtn = CreateButton(inner.transform, "BackBtn", "←", font,
             new Vector2(0, -130), new Vector2(200, 40),
             new Color(0.08f, 0.06f, 0.10f, 0.9f),
             new Color(0.3f, 0.25f, 0.1f, 0.6f));
