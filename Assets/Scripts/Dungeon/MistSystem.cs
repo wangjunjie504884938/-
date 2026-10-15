@@ -83,11 +83,11 @@ public class MistSystem : MonoBehaviour
 
     private Transform Player => GameManager.Instance != null ? GameManager.Instance.Player?.transform : null;
 
-    /// <summary>在当前副本地图上构建迷雾/营地/资源点/小地图 (仅秘境Dungeon状态)</summary>
+    /// <summary>在当前副本地图上构建迷雾/营地/资源点/小地图 (秘境Dungeon与无尽Endless)</summary>
     public static void SpawnForMap()
     {
         var gm = GameManager.Instance;
-        if (gm == null || gm.CurrentState != GameState.Dungeon) return;
+        if (gm == null || (gm.CurrentState != GameState.Dungeon && gm.CurrentState != GameState.Endless)) return;
         if (DungeonVisuals.Instance == null) return;
 
         if (Instance != null)

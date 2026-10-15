@@ -62,7 +62,12 @@ public partial class GameManager
         yield return null;
 
         CreateDungeonVisuals();
-        LoadingScreen.SetProgress(0.6f);
+        LoadingScreen.SetProgress(0.55f);
+        yield return null;
+
+        // 迷雾+小地图 (无尽与秘境一致)
+        MistSystem.SpawnForMap();
+        LoadingScreen.SetProgress(0.65f);
         yield return null;
 
         // ★ 核心安全：确保玩家存在并可见
