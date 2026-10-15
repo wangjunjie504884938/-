@@ -17,6 +17,7 @@ public partial class GameUI : MonoBehaviour
     public Text GoldText;
     public GameObject ShieldBar;
     public GameObject HudSettingsBtn;
+    public GameObject HudPauseBtn;
     public Text MapNameText;
 
     [Header("Game Over")]
@@ -527,6 +528,7 @@ public partial class GameUI : MonoBehaviour
         if (EnemyCountText != null) EnemyCountText.gameObject.SetActive(visible);
         if (GoldText != null) GoldText.gameObject.SetActive(visible);
         if (HudSettingsBtn != null) HudSettingsBtn.SetActive(visible);
+        if (HudPauseBtn != null) HudPauseBtn.SetActive(visible);
         if (_statsPanel != null && !visible) { _statsPanel.SetActive(false); _statsPanelVisible = false; }
         if (ShieldBar != null) ShieldBar.SetActive(false);
         if (!visible && BossHealthPanel != null) BossHealthPanel.SetActive(false);

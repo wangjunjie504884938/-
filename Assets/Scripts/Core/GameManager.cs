@@ -396,6 +396,8 @@ public partial class GameManager : MonoBehaviour
                 {
                     if (!success && !string.IsNullOrEmpty(msg))
                         GameLog.LogWarning($"[Boot] {msg}");
+                    LoadingScreen.SetProgress(1f);
+                    LoadingScreen.Hide(); // 选角加载遮罩收尾 (未显示时为安全no-op)
                     BuildUI();
                     CreateDungeonVisuals();
                     ShowHub();
@@ -405,6 +407,8 @@ public partial class GameManager : MonoBehaviour
             {
                 // fallback: 离线模式
                 RuntimePlayerData.Instance?.RefreshFromCache(LocalSettingsManager.GetCachedStage());
+                LoadingScreen.SetProgress(1f);
+                LoadingScreen.Hide();
                 BuildUI();
                 CreateDungeonVisuals();
                 ShowHub();

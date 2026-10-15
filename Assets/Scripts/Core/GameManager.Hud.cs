@@ -251,15 +251,30 @@ public partial class GameManager
 
         BuildPausePanel(canvasTransform, gameUI, font);
 
-        UIHelper.MakeNavButtons(canvasTransform, font, onBack: () =>
-        {
-            if (!IsPaused) TogglePause();
-        });
-        var navLayer = canvasTransform.Find("_NavLayer");
-        if (navLayer != null) gameUI.NavLayer = navLayer.gameObject;
-
-        var gearBtn = navLayer?.Find("GearBtn");
-        if (gearBtn != null) Destroy(gearBtn.gameObject);
+        // 旧实现这里用MakeNavButtons画全宽56px导航条(←暂停+⚙设置), 会遮挡走位到地图顶部的人物 — 已移除
+        // 暂停入口保留为右上角独立小按钮(设置左侧); 设置按钮本就在右上角
+        var pauseBtnObj = new GameObject("HudPauseBtn");
+        pauseBtnObj.transform.SetParent(canvasTransform, false);
+        var pbRect = pauseBtnObj.AddComponent<RectTransform>();
+        pbRect.anchorMin = new Vector2(1, 1); pbRect.anchorMax = new Vector2(1, 1);
+        pbRect.pivot = new Vector2(1, 1); pbRect.anchoredPosition = new Vector2(-76, -12);
+        pbRect.sizeDelta = new Vector2(52, 30);
+        var pbImg = pauseBtnObj.AddComponent<Image>();
+        pbImg.color = new Color(0.12f, 0.12f, 0.2f, 0.85f);
+        var pauseBtn = pauseBtnObj.AddComponent<Button>();
+        pauseBtn.transition = Selectable.Transition.None;
+        pauseBtn.onClick.AddListener(() => { if (!IsPaused) TogglePause(); });
+        UIHelper.SetupButtonFeedback(pauseBtn, pbImg.color);
+        var pbLblObj = new GameObject("Label");
+        pbLblObj.transform.SetParent(pauseBtnObj.transform, false);
+        var pbLblRect = pbLblObj.AddComponent<RectTransform>();
+        pbLblRect.anchorMin = Vector2.zero; pbLblRect.anchorMax = Vector2.one;
+        pbLblRect.offsetMin = Vector2.zero; pbLblRect.offsetMax = Vector2.zero;
+        var pbLbl = pbLblObj.AddComponent<Text>();
+        pbLbl.text = "暂停"; pbLbl.alignment = TextAnchor.MiddleCenter;
+        pbLbl.fontSize = 15; pbLbl.color = Color.white; pbLbl.font = font;
+        pbLbl.raycastTarget = false;
+        gameUI.HudPauseBtn = pauseBtnObj;
 
         BuildGameOverPanel(canvasTransform, gameUI, font);
 

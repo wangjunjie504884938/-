@@ -351,10 +351,11 @@ public partial class CharacterSlotUI : MonoBehaviour
         if (occupied)
         {
             bool offlineMode = _slots == null;
+            // 统一加载遮罩页 (与冷启动/进秘境一致), 完成回调在GameManager.OnSlotLoaded中Hide
+            LoadingScreen.Show("正在加载角色数据...");
+            LoadingScreen.SetProgress(0.35f);
             if (!offlineMode && CloudSaveManager.Instance != null && CloudSaveManager.Instance.IsLoggedIn)
             {
-                // 显示"加载数据中"遮罩，OnSlotLoaded内部会调用SyncStageFromServer
-                ShowLoadingHint();
                 GameManager.Instance.OnSlotLoaded();
             }
             else
@@ -384,6 +385,34 @@ public partial class CharacterSlotUI : MonoBehaviour
         if (_canvasGroup == null) _canvasGroup = panel.AddComponent<CanvasGroup>();
 
         UIHelper.MakeSubtitle(panel.transform, "— 选择一个角色开始冒险 —", font, 115, 16);
+
+        // 返回按钮 (左上角, 返回标题画面)
+        var backObj = new GameObject("BackBtn");
+        backObj.transform.SetParent(panel.transform, false);
+        var backRect = backObj.AddComponent<RectTransform>();
+        backRect.anchorMin = new Vector2(0, 1); backRect.anchorMax = new Vector2(0, 1);
+        backRect.pivot = new Vector2(0, 1);
+        backRect.anchoredPosition = new Vector2(16, -14);
+        backRect.sizeDelta = new Vector2(86, 36);
+        var backImg = backObj.AddComponent<Image>();
+        backImg.color = new Color(0.08f, 0.06f, 0.12f, 0.9f);
+        var backBtn = backObj.AddComponent<Button>();
+        backBtn.transition = Selectable.Transition.None;
+        UIHelper.SetupButtonFeedback(backBtn, backImg.color);
+        backBtn.onClick.AddListener(() =>
+        {
+            Hide();
+            if (TitleScreen.Instance != null) TitleScreen.Instance.Show();
+        });
+        var backLblObj = new GameObject("Label");
+        backLblObj.transform.SetParent(backObj.transform, false);
+        var backLblRect = backLblObj.AddComponent<RectTransform>();
+        backLblRect.anchorMin = Vector2.zero; backLblRect.anchorMax = Vector2.one;
+        backLblRect.offsetMin = Vector2.zero; backLblRect.offsetMax = Vector2.zero;
+        var backLbl = backLblObj.AddComponent<Text>();
+        backLbl.text = "← 返回"; backLbl.alignment = TextAnchor.MiddleCenter;
+        backLbl.fontSize = 18; backLbl.color = UIHelper.Accent; backLbl.font = font;
+        backLbl.raycastTarget = false;
 
         // Slots container
         GameObject slotsObj = new GameObject("SlotsContainer");
@@ -540,16 +569,6 @@ public partial class CharacterSlotUI : MonoBehaviour
         lText.text = label; lText.alignment = TextAnchor.MiddleCenter;
         lText.fontSize = 18; lText.color = UIHelper.Accent; lText.font = font;
         lText.raycastTarget = false;
-    }
-
-    /// <summary>显示"加载中"提示</summary>
-    private void ShowLoadingHint()
-    {
-        if (_statusText != null)
-        {
-            _statusText.text = "加载数据中...";
-            _statusText.color = UIHelper.Accent;
-        }
     }
 
     /// <summary>异步加载角色槽位预览Sprite</summary>
