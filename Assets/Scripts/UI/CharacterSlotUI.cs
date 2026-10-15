@@ -402,7 +402,10 @@ public partial class CharacterSlotUI : MonoBehaviour
         backBtn.onClick.AddListener(() =>
         {
             Hide();
-            if (TitleScreen.Instance != null) TitleScreen.Instance.Show();
+            // 标题组件可能已被ShowCharacterSelect(创建新角色)等流程销毁 — 缺失时重建(与boot同一挂载点)
+            var ts = TitleScreen.Instance;
+            if (ts == null) ts = GameManager.Instance.gameObject.AddComponent<TitleScreen>();
+            ts.Show();
         });
         var backLblObj = new GameObject("Label");
         backLblObj.transform.SetParent(backObj.transform, false);

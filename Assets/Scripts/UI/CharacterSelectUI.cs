@@ -322,7 +322,10 @@ public class CharacterSelectUI : MonoBehaviour
     private void OnBackClicked()
     {
         Hide();
-        if (CharacterSlotUI.Instance != null) CharacterSlotUI.Instance.Show();
+        // 选角组件可能已被ShowHub清理 — 缺失时重建(与boot同一挂载点)
+        var slot = CharacterSlotUI.Instance;
+        if (slot == null) slot = GameManager.Instance.gameObject.AddComponent<CharacterSlotUI>();
+        slot.Show();
     }
 
     private void BuildNavButtons(Font font)
