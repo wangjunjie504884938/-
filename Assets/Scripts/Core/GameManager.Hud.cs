@@ -176,11 +176,11 @@ public partial class GameManager
         goldRect.pivot = new Vector2(1, 1); goldRect.anchoredPosition = new Vector2(-16, -240);
         goldText.alignment = TextAnchor.MiddleRight;
 
-        // 剩余敌人 (右上角, 设置按钮左侧)
-        var enemyText = gameUI.EnemyCountText = HudSpriteFactory.CreateText(canvasTransform, "EnemyCountText", new Vector2(-170, -22), new Vector2(220, 26), 17, new Color(1f, 0.6f, 0.6f));
+        // 剩余敌人 (右上角, 小地图上方)
+        var enemyText = gameUI.EnemyCountText = HudSpriteFactory.CreateText(canvasTransform, "EnemyCountText", new Vector2(-16, -22), new Vector2(220, 26), 17, new Color(1f, 0.6f, 0.6f));
         var enemyRect = enemyText.GetComponent<RectTransform>();
         enemyRect.anchorMin = new Vector2(1, 1); enemyRect.anchorMax = new Vector2(1, 1);
-        enemyRect.pivot = new Vector2(1, 1); enemyRect.anchoredPosition = new Vector2(-170, -22);
+        enemyRect.pivot = new Vector2(1, 1); enemyRect.anchoredPosition = new Vector2(-16, -22);
         enemyText.alignment = TextAnchor.MiddleRight;
 
         GameObject mapNameObj = new GameObject("MapNameText");
@@ -195,27 +195,36 @@ public partial class GameManager
         mapNameText.raycastTarget = false;
         gameUI.MapNameText = mapNameText;
 
-        // 设置按钮 (右上角)
+        // 设置按钮 (左上角, 齿轮符号, 与返回按钮并排)
         var settingsObj = new GameObject("HudSettingsBtn");
         settingsObj.transform.SetParent(canvasTransform, false);
         var setRect = settingsObj.AddComponent<RectTransform>();
-        setRect.anchorMin = new Vector2(1, 1); setRect.anchorMax = new Vector2(1, 1);
-        setRect.pivot = new Vector2(1, 1); setRect.anchoredPosition = new Vector2(-12, -12);
-        setRect.sizeDelta = new Vector2(52, 30);
+        setRect.anchorMin = new Vector2(0, 1); setRect.anchorMax = new Vector2(0, 1);
+        setRect.pivot = new Vector2(0, 0.5f); setRect.anchoredPosition = new Vector2(60, -30);
+        setRect.sizeDelta = new Vector2(40, 40);
         var setImg = settingsObj.AddComponent<Image>();
-        setImg.color = new Color(0.12f, 0.12f, 0.2f, 0.85f);
+        setImg.color = new Color(0.06f, 0.04f, 0.09f, 0.85f);
+        var setBorder = new GameObject("Border");
+        setBorder.transform.SetParent(settingsObj.transform, false);
+        var setBRect = setBorder.AddComponent<RectTransform>();
+        setBRect.anchorMin = Vector2.zero; setBRect.anchorMax = Vector2.one;
+        setBRect.offsetMin = new Vector2(-1, -1); setBRect.offsetMax = new Vector2(1, 1);
+        var setBImg = setBorder.AddComponent<Image>();
+        setBImg.color = new Color(0.25f, 0.12f, 0.40f, 0.6f); setBImg.raycastTarget = false;
+        setBorder.transform.SetAsFirstSibling();
         var setBtn = settingsObj.AddComponent<Button>();
+        setBtn.transition = Selectable.Transition.None;
         setBtn.onClick.AddListener(() => { UIHelper.EnsureUIManager(); UIManager.Instance.ShowSettings(); });
         UIHelper.SetupButtonFeedback(setBtn, setImg.color);
-        var setLblObj = new GameObject("Label");
-        setLblObj.transform.SetParent(settingsObj.transform, false);
-        var setLblRect = setLblObj.AddComponent<RectTransform>();
-        setLblRect.anchorMin = Vector2.zero; setLblRect.anchorMax = Vector2.one;
-        setLblRect.offsetMin = Vector2.zero; setLblRect.offsetMax = Vector2.zero;
-        var setLbl = setLblObj.AddComponent<Text>();
-        setLbl.text = "设置"; setLbl.alignment = TextAnchor.MiddleCenter;
-        setLbl.fontSize = 15; setLbl.color = Color.white; setLbl.font = font;
-        setLbl.raycastTarget = false;
+        var setIconObj = new GameObject("GearIcon");
+        setIconObj.transform.SetParent(settingsObj.transform, false);
+        var setIRect = setIconObj.AddComponent<RectTransform>();
+        setIRect.anchorMin = Vector2.zero; setIRect.anchorMax = Vector2.one;
+        setIRect.offsetMin = new Vector2(7, 7); setIRect.offsetMax = new Vector2(-7, -7);
+        var setIImg = setIconObj.AddComponent<Image>();
+        setIImg.sprite = UIHelper.CreateGearSprite();
+        setIImg.color = Color.white;
+        setIImg.raycastTarget = false;
         gameUI.HudSettingsBtn = settingsObj;
 
         gameUI.BindBossHealthPanel(canvasTransform.GetComponentInParent<Canvas>());
@@ -251,28 +260,35 @@ public partial class GameManager
 
         BuildPausePanel(canvasTransform, gameUI, font);
 
-        // 旧实现这里用MakeNavButtons画全宽56px导航条(←暂停+⚙设置), 会遮挡走位到地图顶部的人物 — 已移除
-        // 暂停入口保留为右上角独立小按钮(设置左侧); 设置按钮本就在右上角
+        // 返回(暂停)按钮 (左上角, ←符号, 与齿轮并排; 旧全宽导航条已删除避免遮挡地图顶部人物)
         var pauseBtnObj = new GameObject("HudPauseBtn");
         pauseBtnObj.transform.SetParent(canvasTransform, false);
         var pbRect = pauseBtnObj.AddComponent<RectTransform>();
-        pbRect.anchorMin = new Vector2(1, 1); pbRect.anchorMax = new Vector2(1, 1);
-        pbRect.pivot = new Vector2(1, 1); pbRect.anchoredPosition = new Vector2(-76, -12);
-        pbRect.sizeDelta = new Vector2(52, 30);
+        pbRect.anchorMin = new Vector2(0, 1); pbRect.anchorMax = new Vector2(0, 1);
+        pbRect.pivot = new Vector2(0, 0.5f); pbRect.anchoredPosition = new Vector2(12, -30);
+        pbRect.sizeDelta = new Vector2(40, 40);
         var pbImg = pauseBtnObj.AddComponent<Image>();
-        pbImg.color = new Color(0.12f, 0.12f, 0.2f, 0.85f);
+        pbImg.color = new Color(0.06f, 0.04f, 0.09f, 0.85f);
+        var pbBorder = new GameObject("Border");
+        pbBorder.transform.SetParent(pauseBtnObj.transform, false);
+        var pbBRect = pbBorder.AddComponent<RectTransform>();
+        pbBRect.anchorMin = Vector2.zero; pbBRect.anchorMax = Vector2.one;
+        pbBRect.offsetMin = new Vector2(-1, -1); pbBRect.offsetMax = new Vector2(1, 1);
+        var pbBImg = pbBorder.AddComponent<Image>();
+        pbBImg.color = new Color(0.25f, 0.12f, 0.40f, 0.6f); pbBImg.raycastTarget = false;
+        pbBorder.transform.SetAsFirstSibling();
         var pauseBtn = pauseBtnObj.AddComponent<Button>();
         pauseBtn.transition = Selectable.Transition.None;
         pauseBtn.onClick.AddListener(() => { if (!IsPaused) TogglePause(); });
         UIHelper.SetupButtonFeedback(pauseBtn, pbImg.color);
-        var pbLblObj = new GameObject("Label");
+        var pbLblObj = new GameObject("Lbl");
         pbLblObj.transform.SetParent(pauseBtnObj.transform, false);
         var pbLblRect = pbLblObj.AddComponent<RectTransform>();
         pbLblRect.anchorMin = Vector2.zero; pbLblRect.anchorMax = Vector2.one;
         pbLblRect.offsetMin = Vector2.zero; pbLblRect.offsetMax = Vector2.zero;
         var pbLbl = pbLblObj.AddComponent<Text>();
-        pbLbl.text = "暂停"; pbLbl.alignment = TextAnchor.MiddleCenter;
-        pbLbl.fontSize = 15; pbLbl.color = Color.white; pbLbl.font = font;
+        pbLbl.text = "←"; pbLbl.alignment = TextAnchor.MiddleCenter;
+        pbLbl.fontSize = 22; pbLbl.color = Color.white; pbLbl.font = font;
         pbLbl.raycastTarget = false;
         gameUI.HudPauseBtn = pauseBtnObj;
 
