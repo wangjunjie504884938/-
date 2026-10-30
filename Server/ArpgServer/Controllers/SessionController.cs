@@ -1,0 +1,124 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using Arch;
+using ArpgServer.Data;
+using ArpgServer.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace ArpgServer.Controllers;
+
+/// <summary>
+/// 会话与分线 (规划阶段04) — LoginManager 编排的入口。
+/// 客户端登录后调用 session/open 建立权威会话; 断线重连调用 session/reconnect。
+/// 协议版本不兼容 → 426 拒绝并提示升级。
+/// </summary>
+[ApiController]
+public class SessionController : ControllerBase
+{
+    public const int ProtocolVersion = 1;
+
+    private readonly SessionManager _sessions;
+    private readonly ShardManager _shards;
+
+    public SessionController(SessionManager sessions, ShardManager shards)
+    {
+        _sessions = sessions;
+        _shards = shards;
+    }
+
+    public class OpenSessionRequest
+    {
+        public long PlayerId { get; set; }
+        public string ConnectionId { get; set; } = "";
+        public int BuildVersion { get; set; } = ProtocolVersion;
+    }
+
+    /// <summary>建立会话 + 分线分配 (需JWT; 重复登录自动顶替旧会话)</summary>
+    [Authorize]
+    [HttpPost("session/open")]
+    public IActionResult OpenSession([FromBody] OpenSessionRequest req)
+    {
+        if (req.BuildVersion != ProtocolVersion)
+            return StatusCode(426, new { error = $"协议版本不兼容: 客户端{req.BuildVersion} / 服务器{ProtocolVersion}, 请更新游戏", serverVersion = ProtocolVersion });
+
+        var line = _shards.AllocateLine();
+        if (line == null)
+            return StatusCode(503, new { error = "所有分线已满, 请稍后再试" });
+
+        if (!_shards.TryJoin(line.LineId))
+            return StatusCode(503, new { error = "分线加入失败, 请重试" });
+
+        var userId = GetUserId();
+        var session = _sessions.OpenSession(userId, Guid.NewGuid().ToString("N"), line.LineId, "local-node", req.BuildVersion);
+        return Ok(new
+        {
+            success = true,
+            sessionId = session.SessionId,
+            fencingToken = session.FencingToken,
+            lineId = session.LineId,
+            protocolVersion = ProtocolVersion,
+        });
+    }
+
+    /// <summary>断线重连: Detached 租约内恢复, 否则要求重新登录</summary>
+    [Authorize]
+    [HttpPost("session/reconnect")]
+    public IActionResult Reconnect([FromBody] ReconnectRequest req)
+    {
+        var session = _sessions.Reconnect(req.SessionId, Guid.NewGuid().ToString("N"));
+        if (session == null)
+            return Unauthorized(new { error = "会话已过期, 请重新登录" });
+        _shards.TryJoin(session.LineId); // 归还线容量计数
+        return Ok(new
+        {
+            success = true,
+            sessionId = session.SessionId,
+            fencingToken = session.FencingToken,
+            lineId = session.LineId,
+        });
+    }
+
+    public class ReconnectRequest
+    {
+        public string SessionId { get; set; } = "";
+    }
+
+    /// <summary>登出/断线通知: 会话进入 Detached (重连租约) 或直接关闭</summary>
+    [Authorize]
+    [HttpPost("session/close")]
+    public IActionResult Close([FromBody] CloseRequest req)
+    {
+        _sessions.Close(req.SessionId);
+        return Ok(new { success = true });
+    }
+
+    public class CloseRequest
+    {
+        public string SessionId { get; set; } = "";
+    }
+
+    /// <summary>分线状态 (调试/运维: 在线人数与容量)</summary>
+    [HttpGet("session/lines")]
+    public IActionResult Lines()
+    {
+        return Ok(new
+        {
+            lines = _shards.Lines.Select(l => new
+            {
+                l.LineId,
+                l.PlayerCount,
+                l.Capacity,
+                l.Healthy,
+                l.Accepting,
+            }),
+        });
+    }
+
+    private int GetUserId()
+    {
+        var claim = User.FindFirst("UserId") ?? User.FindFirst("sub");
+        return claim != null && int.TryParse(claim.Value, out var id) ? id : 0;
+    }
+}

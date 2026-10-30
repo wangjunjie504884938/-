@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Arch;
 using ArpgServer.Data;
 using ArpgServer.Services;
 
@@ -21,6 +22,10 @@ builder.Services.AddSingleton<RedisCacheService>();
 builder.Services.AddSingleton<PlayerDataService>();
 builder.Services.AddSingleton<CurrencyLedgerService>();
 builder.Services.AddHostedService<SaveQueueService>();
+
+// ========== 1d. 架构阶段04: 会话管理 + 分线管理 ==========
+builder.Services.AddSingleton<SessionManager>();
+builder.Services.AddSingleton<ShardManager>();
 
 // ========== 2. JWT 认证配置 ==========
 builder.Services.AddSingleton<JwtService>();

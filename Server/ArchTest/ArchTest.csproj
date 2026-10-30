@@ -11,6 +11,15 @@
   <ItemGroup>
     <!-- 复用服务器的 Redis 客户端 (版本与 ArpgServer 一致) -->
     <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
+    <!-- Newtonsoft (Arch数据模型) -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 服务器主程序: ShardManager/SessionManager (阶段04会话分线单测) -->
+    <Reference Include="ArpgServer">
+      <HintPath>..\publish\ArpgServer.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>
