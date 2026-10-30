@@ -1,5 +1,6 @@
 using UnityEngine;
 using Mirror;
+using Arch;
 
 namespace ArpgGameServer
 {
@@ -10,6 +11,10 @@ namespace ArpgGameServer
     public class GameNetworkManager : NetworkManager
     {
         public int maxRooms = 50;
+
+        // ====== RPC 限流 (规划阶段05) ======
+        private readonly RpcRateLimiterRegistry _moveLimiter = new(1.0, 30, 5);   // 移动: 30条/秒, 违规5次断开
+        private readonly RpcRateLimiterRegistry _skillLimiter = new(1.0, 15, 3);  // 技能: 15条/秒, 违规3次断开
 
         public override void OnStartServer()
         {
@@ -40,6 +45,8 @@ namespace ArpgGameServer
         public override void OnServerDisconnect(NetworkConnectionToClient conn)
         {
             Debug.Log($"[Network] 玩家断开: connId={conn.connectionId}");
+            _moveLimiter.RemoveConnection(conn.connectionId);
+            _skillLimiter.RemoveConnection(conn.connectionId);
 
             // 从房间中移除
             var player = conn.identity?.GetComponent<NetworkedPlayer>();
@@ -51,9 +58,18 @@ namespace ArpgGameServer
             base.OnServerDisconnect(conn);
         }
 
-        /// <summary>处理移动消息</summary>
+        /// <summary>处理移动消息 — 先限流, 超频直接丢弃 (规划阶段05: 高频RPC不无界排队)</summary>
         private void OnMoveMessage(NetworkConnectionToClient conn, ArpgShared.MoveMessage msg)
         {
+            var verdict = _moveLimiter.OnMessage(conn.connectionId, "Move", Time.unscaledTimeAsDouble);
+            if (verdict == 2)
+            {
+                Debug.LogWarning($"[AntiCheat] connId={conn.connectionId} 移动消息超频达阈值, 断开连接");
+                conn.Disconnect();
+                return;
+            }
+            if (verdict == 1) return; // 超频丢弃
+
             var player = conn.identity?.GetComponent<NetworkedPlayer>();
             if (player != null)
             {
@@ -61,9 +77,18 @@ namespace ArpgGameServer
             }
         }
 
-        /// <summary>处理技能释放消息</summary>
+        /// <summary>处理技能释放消息 — 限流 + 转发</summary>
         private void OnSkillCastMessage(NetworkConnectionToClient conn, ArpgShared.SkillCastMessage msg)
         {
+            var verdict = _skillLimiter.OnMessage(conn.connectionId, "Skill", Time.unscaledTimeAsDouble);
+            if (verdict == 2)
+            {
+                Debug.LogWarning($"[AntiCheat] connId={conn.connectionId} 技能消息超频达阈值, 断开连接");
+                conn.Disconnect();
+                return;
+            }
+            if (verdict == 1) return; // 超频丢弃
+
             var player = conn.identity?.GetComponent<NetworkedPlayer>();
             if (player != null)
             {

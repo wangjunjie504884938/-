@@ -1,5 +1,6 @@
 using UnityEngine;
 using Mirror;
+using Arch;
 using ArpgShared;
 
 namespace ArpgGameServer
@@ -86,33 +87,28 @@ namespace ArpgGameServer
         {
             if (isDead || _isKicked) return;
 
-            float dist = Vector2.Distance(serverPosition, msg.position);
+            float deltaTime = Mathf.Max(0.033f, (float)(System.DateTime.UtcNow - _lastMoveStateChanged).TotalSeconds);
 
-            // 1. 速度验证 — 单帧移动距离不超过 速度×时间×容差
-            float deltaTime = Mathf.Max(0.05f, (float)(System.DateTime.UtcNow - _lastMoveStateChanged).TotalSeconds);
-            float maxMoveDist = moveSpeed * deltaTime + 2f; // 2f为网络延迟容差
+            // 规划阶段05: 服务器权威移动验证 (速度/边界 — 纯逻辑抽至 ServerAuthority 可单测)
+            var verdict = Arch.ServerAuthority.ValidateMove(_lastValidPosition.x, _lastValidPosition.y, msg.position.x, msg.position.y, moveSpeed, deltaTime);
 
-            if (dist > maxMoveDist)
-            {
-                _speedViolationCount++;
-
-                if (_speedViolationCount >= MaxSpeedViolations)
-                {
-                    Debug.LogWarning($"[AntiCheat] {playerName} 移动速度异常{MaxSpeedViolations}次，强制拉回");
-                    // 强制拉回上次合法位置
-                    serverPosition = _lastValidPosition;
-                    transform.position = serverPosition;
-                    _speedViolationCount = 0;
-                }
-                // 未达上限时静默拒绝（不发到当前位置）
-                return;
-            }
-
-            // 2. 地图边界验证
-            if (Mathf.Abs(msg.position.x) > 50f || Mathf.Abs(msg.position.y) > 50f)
+            if (verdict == ServerAuthority.MoveVerdict.OutOfBounds)
             {
                 Debug.LogWarning($"[AntiCheat] {playerName} 超出地图边界");
                 return;
+            }
+
+            if (verdict == ServerAuthority.MoveVerdict.TooFast)
+            {
+                _speedViolationCount++;
+                if (_speedViolationCount >= MaxSpeedViolations)
+                {
+                    Debug.LogWarning($"[AntiCheat] {playerName} 移动速度异常{MaxSpeedViolations}次，强制拉回");
+                    serverPosition = _lastValidPosition;   // 强制拉回上次合法位置 (超速校正)
+                    transform.position = serverPosition;
+                    _speedViolationCount = 0;
+                }
+                return; // 未达上限时静默拒绝
             }
 
             // 通过验证
@@ -132,8 +128,32 @@ namespace ArpgGameServer
         {
             if (isDead || _isKicked) return;
 
-            // 1. 冷却验证 — 攻击间隔不足则拒绝
-            if (Time.time - _lastAttackTime < attackCooldown * 0.9f) // 10%容差
+            // 1. 冷却 + 目标 + 距离验证 — 规划阶段05 (逻辑抽至 ServerAuthority 可单测)
+            NetworkedMonster targetMonster = null;
+            float targetDist = float.MaxValue;
+
+            if (CurrentRoom == null) return;
+
+            foreach (var monster in CurrentRoom.Monsters)
+            {
+                if (monster == null || monster.IsDead) continue;
+                var mState = monster.GetState();
+                float dist = Vector2.Distance(serverPosition, mState.position);
+                if (dist < targetDist)
+                {
+                    targetDist = dist;
+                    targetMonster = monster;
+                }
+            }
+
+            bool hasTarget = targetMonster != null;
+            float sinceLast = Time.time - _lastAttackTime;
+            var verdict = ServerAuthority.ValidateAttack(
+                sinceLast, attackCooldown,
+                hasTarget, hasTarget && !targetMonster.IsDead,
+                targetDist, attackRange);
+
+            if (verdict == ServerAuthority.AttackVerdict.OnCooldown)
             {
                 _skillSpamCount++;
                 if (_skillSpamCount >= MaxSkillSpamCount)
@@ -144,47 +164,31 @@ namespace ArpgGameServer
                 return;
             }
 
-            // 技能连发计数衰减
-            if (Time.time - _lastAttackTime > SkillSpamWindow)
-                _skillSpamCount = 0;
-
             _lastAttackTime = Time.time;
 
-            // 2. 距离验证 — 技能目标必须在攻击范围内
-            if (CurrentRoom == null) return;
-
-            bool hitAny = false;
-            foreach (var monster in CurrentRoom.Monsters)
+            if (verdict != ServerAuthority.AttackVerdict.Ok)
             {
-                if (monster == null || monster.IsDead) continue;
-                var mState = monster.GetState();
-                float dist = Vector2.Distance(serverPosition, mState.position);
-
-                // 攻击距离 + 容差1f（网络延迟）
-                if (dist <= attackRange + 1f)
-                {
-                    hitAny = true;
-
-                    // 3. 伤害计算 — 使用Shared/CombatCalculator统一公式（服务器权威）
-                    int damage = CombatCalculator.CalculateDamage(
-                        attack,           // 服务器存储的攻击力（不信任客户端）
-                        0,                // 怪物防御
-                        1f,               // 技能倍率
-                        critChance);      // 服务器存储的暴击率
-
-                    monster.TakeDamage(damage, playerId);
-                    damageDealt += damage;
-                    Debug.Log($"[Combat] {playerName} → Monster #{monster.monsterId}: {damage}");
-                    break;
-                }
+                Debug.Log($"[AntiCheat] {playerName} 技能判定未通过: {verdict} (可能是延迟)");
+                return;
             }
 
-            // 4. 无效目标 — 攻击范围内没有怪物但客户端声称释放了技能
-            if (!hitAny)
+            // 2. 视线检测 — 服务器 2D Raycast (墙体遮挡则无效; 规划阶段05: 攻击验证视线)
+            if (!ArpgGameServer.ServerAuthorityLOS.HasLineOfSight(serverPosition, targetMonster.serverPosition))
             {
-                // 不造成伤害但也不惩罚（可能是网络延迟导致位置偏差）
-                Debug.Log($"[AntiCheat] {playerName} 技能无目标（可能是延迟）");
+                Debug.LogWarning($"[AntiCheat] {playerName} 无视线攻击被拒绝 (墙后目标)");
+                return;
             }
+
+            // 3. 伤害计算 — 使用Shared/CombatCalculator统一公式（服务器权威）
+            int damage = CombatCalculator.CalculateDamage(
+                attack,           // 服务器存储的攻击力（不信任客户端）
+                0,                // 怪物防御
+                1f,               // 技能倍率
+                critChance);      // 服务器存储的暴击率
+
+            targetMonster.TakeDamage(damage, playerId);
+            damageDealt += damage;
+            Debug.Log($"[Combat] {playerName} → Monster #{targetMonster.monsterId}: {damage}");
         }
 
         /// <summary>玩家受到伤害</summary>
@@ -192,13 +196,8 @@ namespace ArpgGameServer
         {
             if (isDead) return;
 
-            // 伤害上限验证 — 单次伤害不超过最大HP的50%
-            int maxSingleDamage = Mathf.RoundToInt(maxHp * 0.5f);
-            if (damage > maxSingleDamage)
-            {
-                Debug.LogWarning($"[AntiCheat] {playerName} 受到异常伤害 {damage} (上限{maxSingleDamage})，截断");
-                damage = maxSingleDamage;
-            }
+            // 伤害上限验证 — 规划阶段05: 单次伤害不超过最大HP的50% (逻辑抽至 ServerAuthority)
+            damage = ServerAuthority.ClampDamage(damage, maxHp);
 
             currentHp -= damage;
             damageTaken += damage;
