@@ -17,6 +17,11 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 // ========== 1b. Redis 缓存 (游戏配置缓存) ==========
 builder.Services.AddSingleton<RedisCacheService>();
 
+// ========== 1c. 架构阶段03: 玩家数据服务 + 货币账本(Lua原子) + 存档写队列 ==========
+builder.Services.AddSingleton<PlayerDataService>();
+builder.Services.AddSingleton<CurrencyLedgerService>();
+builder.Services.AddHostedService<SaveQueueService>();
+
 // ========== 2. JWT 认证配置 ==========
 builder.Services.AddSingleton<JwtService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -195,6 +200,48 @@ CREATE TABLE IF NOT EXISTS `GuildRequests` (
     catch (Exception ex)
     {
         Console.WriteLine($"[DB] 好友表创建失败(可能已存在): {ex.Message}");
+    }
+
+    // ========== 架构阶段03: 货币流水 + 地牢快照表 ==========
+    try
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) conn.Open();
+        using var cmd = conn.CreateCommand();
+
+        cmd.CommandText = @"
+CREATE TABLE IF NOT EXISTS `currency_ledger` (
+    `Id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `OperationId` VARCHAR(64) NOT NULL,
+    `PlayerId` BIGINT NOT NULL,
+    `Kind` VARCHAR(16) NOT NULL,
+    `Amount` BIGINT NOT NULL,
+    `BalanceAfter` BIGINT NOT NULL,
+    `Reason` VARCHAR(64) DEFAULT '',
+    `OrderId` VARCHAR(64) DEFAULT '',
+    `CreatedAt` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY `UX_Ledger_OperationId` (`OperationId`),
+    INDEX `IX_Ledger_Player_Time` (`PlayerId`, `CreatedAt`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+        cmd.ExecuteNonQuery();
+
+        cmd.CommandText = @"
+CREATE TABLE IF NOT EXISTS `dungeon_snapshots` (
+    `InstanceId` VARCHAR(64) PRIMARY KEY,
+    `PlayerId` BIGINT NOT NULL,
+    `Tier` INT DEFAULT 0,
+    `ConfigVersion` INT DEFAULT 1,
+    `SnapshotJson` LONGTEXT NOT NULL,
+    `SavedAt` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+    INDEX `IX_Snapshots_Player_Time` (`PlayerId`, `SavedAt`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+        cmd.ExecuteNonQuery();
+
+        Console.WriteLine("[DB] currency_ledger / dungeon_snapshots 表已创建/验证");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[DB] 架构阶段03建表失败: {ex.Message}");
     }
 }
 

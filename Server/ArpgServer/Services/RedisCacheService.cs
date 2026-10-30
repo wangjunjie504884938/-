@@ -18,6 +18,9 @@ public class RedisCacheService
 
     public bool IsAvailable => _available;
 
+    /// <summary>原生数据库句柄 — Lua脚本等高级操作用 (IsAvailable=false时为null)</summary>
+    public IDatabase? Database => _available ? _db : null;
+
     public RedisCacheService(IConfiguration config)
     {
         var connStr = config["Redis:ConnectionString"] ?? "localhost:6379";
