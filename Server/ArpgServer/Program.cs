@@ -237,7 +237,25 @@ CREATE TABLE IF NOT EXISTS `dungeon_snapshots` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
         cmd.ExecuteNonQuery();
 
-        Console.WriteLine("[DB] currency_ledger / dungeon_snapshots 表已创建/验证");
+        // 支付订单表 (阶段10支付状态机使用, 阶段03先建表)
+        cmd.CommandText = @"
+CREATE TABLE IF NOT EXISTS `payment_orders` (
+    `Id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `OrderId` VARCHAR(64) NOT NULL,
+    `PlayerId` BIGINT NOT NULL,
+    `ProductId` VARCHAR(64) NOT NULL,
+    `AmountCents` BIGINT NOT NULL,
+    `Currency` VARCHAR(8) DEFAULT 'CNY',
+    `Channel` VARCHAR(16) DEFAULT '',
+    `Status` INT DEFAULT 0,
+    `CreatedAt` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+    `PaidAt` DATETIME(3) NULL,
+    UNIQUE KEY `UX_PaymentOrders_OrderId` (`OrderId`),
+    INDEX `IX_PaymentOrders_Player` (`PlayerId`, `Status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+        cmd.ExecuteNonQuery();
+
+        Console.WriteLine("[DB] currency_ledger / dungeon_snapshots / payment_orders 表已创建/验证");
     }
     catch (Exception ex)
     {

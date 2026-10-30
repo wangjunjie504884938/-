@@ -124,22 +124,29 @@ public class CurrencyLedgerService
         return dict;
     }
 
-    /// <summary>写 MySQL 流水 — INSERT IGNORE (OperationId 唯一键幂等)</summary>
+    /// <summary>写 MySQL 流水 — INSERT IGNORE (OperationId 唯一键幂等); 失败重试3次(指数退避), 仍失败留待对账</summary>
     private async Task WriteLedgerAsync(string operationId, long playerId, string kind, long amount, long balanceAfter, string reason)
     {
-        try
+        for (int attempt = 1; attempt <= 3; attempt++)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await db.Database.ExecuteSqlRawAsync(
-                @"INSERT IGNORE INTO currency_ledger
-                  (`OperationId`, `PlayerId`, `Kind`, `Amount`, `BalanceAfter`, `Reason`, `CreatedAt`)
-                  VALUES ({0}, {1}, {2}, {3}, {4}, {5}, UTC_TIMESTAMP(3))",
-                operationId, playerId, kind, amount, balanceAfter, reason ?? "");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[CurrencyLedger] 流水写入失败 (待对账): op={operationId} {ex.Message}");
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await db.Database.ExecuteSqlRawAsync(
+                    @"INSERT IGNORE INTO currency_ledger
+                      (`OperationId`, `PlayerId`, `Kind`, `Amount`, `BalanceAfter`, `Reason`, `CreatedAt`)
+                      VALUES ({0}, {1}, {2}, {3}, {4}, {5}, UTC_TIMESTAMP(3))",
+                    operationId, playerId, kind, amount, balanceAfter, reason ?? "");
+                return;
+            }
+            catch (Exception ex)
+            {
+                if (attempt == 3)
+                    Console.WriteLine($"[CurrencyLedger] 流水写入失败×3 (待对账补偿): op={operationId} {ex.Message}");
+                else
+                    await Task.Delay(200 * attempt);
+            }
         }
     }
 }

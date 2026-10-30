@@ -111,6 +111,9 @@ public class GameConfigManager : MonoBehaviour
         if (Config != null)
         {
             Config.BuildGlobalDict();
+            // 启动校验 (规划阶段02: ID唯一性/字段完整性/引用关系, 明确报错)
+            foreach (var err in GameConfigValidator.Validate(Config))
+                GameLog.LogError("[GameConfig] 配置校验失败: " + err);
             IsLoaded = true;
             PlayerPrefs.SetString(CacheKey, json);
             PlayerPrefs.Save();

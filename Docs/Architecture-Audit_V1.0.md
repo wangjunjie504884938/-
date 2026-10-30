@@ -83,3 +83,22 @@
 3. 快照分级 P0-P3 已定(规划§8表)
 4. 在线人数/线容量未定 → 阶段04 前必须给出(影响 ShardManager)
 5. 本地 Redis/MySQL 可用性待验证(阶段03前置)
+
+## 9. 补充盘点 (阶段01清单缺口补全, 2026-10-28)
+
+### 9.1 血量(HP)修改入口 — 67处 / 20+文件
+主要责任: `PlayerCombatController.cs` ×14 (玩家受伤/治疗), `EnemyCombatController.cs` ×7 (敌人受伤), `RelicManager.cs` ×6, `PetCompanion.cs` ×6, `StatusEffectManager.cs` ×5, `PlayerProjectile.cs` ×5; 其余散布 GameManager/CombatDirector/BossPattern/LootPickup 等。
+
+### 9.2 背包修改入口 — 13 文件
+`Equipment.cs` ×3 (AddToBackpack/RemoveAt/Unequip), `LocalMailSystem.cs` ×3 (满包转邮箱), `DismantleSystem.cs` ×2, `ForgeUI.cs` ×2, `GameManager.cs` ×2, ShopUI/GachaUI/GuildUI.Tabs/LootPickup/DungeonRewardFlow/CombatDirector/MistSystem/SceneController 各 ×1。
+**唯一容量检查点**: `EquipmentInventory.MaxBackpackSize` (Base50+扩展) — 全部检查都经此属性。
+
+### 9.3 奖励结算入口
+`AchievementManager.cs` ×22 (成就), `DailyTaskUI.cs` ×10 (日常+上报), `DungeonRewardFlow.cs` ×8 (副本奖励流), `GameConstants.cs`/`CloudSaveManager.cs`/`DataSyncService.cs` 等。
+
+### 9.4 场景切换 / 玩家生成销毁
+- 责任脚本: `GameManager.cs` ×10 (CreatePlayer / EnsurePlayerExists@L160 / Destroy×6 / RetryStage@L1172), `GameManager.Endless.cs` ×1, `WorldManager.cs` ×1
+- Mirror 侧: GameNetworkManager 生成 NetworkedPlayer/NetworkedMonster (组队副本)
+
+### 9.5 GameConfigAll 启动校验 (阶段02接线)
+`Cloud/GameConfigValidator.cs`: 职业 classId 唯一+baseHp、技能 (classId,slot) 唯一+引用职业存在、怪物/词缀/符文/圣物类型唯一、装备 rarity 唯一+系数、全局 key 唯一。接入点: `GameConfigManager.ParseAndCache` (BuildGlobalDict 后), 校验失败逐条 LogError (不阻断离线可玩)。
