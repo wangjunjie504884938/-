@@ -32,6 +32,10 @@ builder.Services.AddHostedService<SaveQueueService>();
 builder.Services.AddSingleton<SessionManager>();
 builder.Services.AddSingleton<ShardManager>();
 
+// ========== 1e. 架构阶段11: 节点注册表(Docker动态开线) + 健康检查循环 ==========
+builder.Services.AddSingleton<NodeRegistryService>();
+builder.Services.AddHostedService<NodeHealthProbeService>();
+
 // ========== 2. JWT 认证配置 ==========
 builder.Services.AddSingleton<JwtService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

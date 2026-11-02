@@ -68,6 +68,10 @@ internal static class Program
         if (args.Length > 0 && args[0] == "phase10")
             return await Phase10Test.Run();
 
+        // phase11: 节点注册/健康摘除/重连重分配 E2E (HTTP, 需本地服务器运行)
+        if (args.Length > 0 && args[0] == "phase11")
+            return await Phase11Test.Run();
+
         // Redis 连接串: 从服务器发布目录的 appsettings.json 读取
         var settingsPath = args.Length > 0 ? args[0] : "Server/publish/appsettings.json";
         var settingsJson = File.ReadAllText(settingsPath);

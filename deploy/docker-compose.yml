@@ -1,0 +1,71 @@
+name: arpg
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    volumes:
+      - redis-data:/data
+    networks:
+      - private
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: ${MYSQL_CONNECTION_STRING:?set MYSQL_CONNECTION_STRING in .env}
+      Redis__ConnectionString: ${REDIS_CONNECTION_STRING:?set REDIS_CONNECTION_STRING in .env}
+      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env}
+      Node__Key: ${NODE_KEY:?set NODE_KEY in .env}
+      Gm__Key: ${GM_KEY:?set GM_KEY in .env}
+      Arch__NodeHeartbeatTimeoutSeconds: ${NODE_HEARTBEAT_TIMEOUT_SECONDS:-45}
+      Arch__NodeProbeIntervalSeconds: ${NODE_PROBE_INTERVAL_SECONDS:-15}
+    ports:
+      - "${API_PORT:-5132}:5132"
+    networks:
+      - private
+    restart: unless-stopped
+
+  # Enable only after deploy/game-server/LinuxServer contains a Linux dedicated-server build.
+  # The game-node image must register node identity, lease, version, capacity, and health in Redis.
+  game-line-1:
+    profiles: ["game"]
+    image: arpg-game-node:${BUILD_VERSION:-dev}
+    environment:
+      SERVER_NODE_ID: ${SERVER_NODE_ID}
+      BUILD_VERSION: ${BUILD_VERSION}
+      LINE_ID: ${LINE_ID:-1}
+      LINE_CAPACITY: ${LINE_CAPACITY:-50}
+      REDIS_CONNECTION_STRING: ${REDIS_CONNECTION_STRING:?set REDIS_CONNECTION_STRING in .env}
+      MYSQL_CONNECTION_STRING: ${MYSQL_CONNECTION_STRING:?set MYSQL_CONNECTION_STRING in .env}
+      API_BASE_URL: http://api:5132
+    ports:
+      - "${GAME_PORT:-7777}:7777/udp"
+    networks:
+      - private
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  private:
+    internal: true
+
+volumes:
+  redis-data:

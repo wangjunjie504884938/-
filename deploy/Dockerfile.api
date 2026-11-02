@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY Server/ArpgServer/ArpgServer.csproj Server/ArpgServer/
+RUN dotnet restore Server/ArpgServer/ArpgServer.csproj
+
+COPY Server/ArpgServer/ Server/ArpgServer/
+RUN dotnet publish Server/ArpgServer/ArpgServer.csproj -c Release -o /out --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=build /out/ .
+
+ENV ASPNETCORE_URLS=http://+:5132
+EXPOSE 5132
+ENTRYPOINT ["dotnet", "ArpgServer.dll"]

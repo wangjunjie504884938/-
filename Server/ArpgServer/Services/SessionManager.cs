@@ -114,6 +114,9 @@ namespace Arch
 
         public GameSession Get(string sessionId) => _sessions.TryGetValue(sessionId, out var s) ? s : null;
 
+        /// <summary>全量会话快照 (阶段11节点摘除时遍历归属会话)</summary>
+        public IEnumerable<GameSession> All() => _sessions.Values;
+
         /// <summary>过期清理 (心跳/定时调用): Detached 超过租约期限的会话 Expired</summary>
         public List<string> SweepExpired()
         {
