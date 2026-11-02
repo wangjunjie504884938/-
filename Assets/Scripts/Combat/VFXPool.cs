@@ -13,6 +13,16 @@ public static class VFXPool
     private const int MaxPoolSize = 128;
     private static int _activeCount;
 
+    // ====== 命中率统计 + 重复归还检查 (规划阶段08: 对象池加固) ======
+    private static readonly HashSet<GameObject> _activeObjects = new(); // 池外活跃对象 (重复归还检查)
+    private static long _hits, _misses, _duplicateReturns;
+
+    /// <summary>池命中率 0..1 (命中=从队列复用, 未命中=新建)。监控用, 命中率骤降说明容量不足。</summary>
+    public static double HitRate => (_hits + _misses) == 0 ? 1.0 : (double)_hits / (_hits + _misses);
+
+    /// <summary>当前池外活跃对象数 (与归还次数差值 = 泄漏检测)</summary>
+    public static int ActiveCount => _activeCount;
+
     /// <summary>
     /// Get a pooled GameObject with the required components, or create a new one.
     /// </summary>
@@ -25,6 +35,8 @@ public static class VFXPool
             if (obj != null)
             {
                 if (_poolCounts.ContainsKey(poolKey)) _poolCounts[poolKey]--;
+                _hits++; // 命中率统计 (规划阶段08)
+                _activeObjects.Add(obj);
                 // Reset transform and visual state to avoid stale VFX showing on screen
                 obj.transform.localScale = Vector3.zero;
                 obj.transform.rotation = Quaternion.identity;
@@ -37,8 +49,10 @@ public static class VFXPool
             if (_poolCounts.ContainsKey(poolKey)) _poolCounts[poolKey]--;
         }
 
+        _misses++; // 命中率统计 (规划阶段08)
         var go = new GameObject(poolKey);
         configure(go);
+        _activeObjects.Add(go);
         return go;
     }
 
@@ -62,11 +76,19 @@ public static class VFXPool
 
     /// <summary>
     /// Return a GameObject to the pool for reuse. Disables it instead of destroying.
+    /// 重复归还检查 (规划阶段08): 同一对象二次归还被拒绝并告警 (防队列污染/双引用)。
     /// </summary>
     public static void Return(string poolKey, GameObject obj)
     {
         if (obj == null) return;
         if (_activeCount > 0) _activeCount--;
+
+        // 重复归还检查 (规划阶段08): 活跃集合里没有 = 已归还过或非池对象 → 拒绝
+        if (!_activeObjects.Remove(obj))
+        {
+            Debug.LogWarning($"[VFXPool] {poolKey} 对象重复归还被拒绝 (防状态污染): {obj.name}");
+            return;
+        }
 
         // 重置视觉状态: 隐藏前清零alpha, 避免复用时残留颜色闪现
         var sr = obj.GetComponent<SpriteRenderer>();
