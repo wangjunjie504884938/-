@@ -75,6 +75,9 @@ public class EnemyBrainController : MonoBehaviour
     private Vector3 lastStuckPos;
     private float stuckWiggleDir;
 
+    // AI LOD (规划阶段09): 0=活跃 1=中距离 2=远距离; tick计数用于中距离降频
+    private int _aiLodTick;
+
     public bool IsCharging => isCharging;
     public float ChargeCooldown => chargeCooldown;
     public float SlamCooldown => slamCooldown;
@@ -185,6 +188,26 @@ public class EnemyBrainController : MonoBehaviour
                 PerformTeleport(teleport);
                 teleportCooldown = teleport.TeleportCooldown;
             }
+        }
+
+        // ===== AI LOD 三档 (规划阶段09): 活跃≤15m完整AI / 中距离15-40m降频至1/3tick / 远距离>40m暂停移动攻击只推进冷却 =====
+        // 计时器/冷却按真实时间差推进, LOD切换不清空计时器; 恢复活跃时状态无跳变
+        _aiLodTick++;
+        int lod = distToPlayer <= 15f ? 0 : distToPlayer <= 40f ? 1 : 2;
+
+        if (lod == 2)
+        {
+            if (chargeCooldown > 0) chargeCooldown -= _aiDeltaTime;
+            if (slamCooldown > 0) slamCooldown -= _aiDeltaTime;
+            if (teleportCooldown > 0) teleportCooldown -= _aiDeltaTime;
+            return;
+        }
+        if (lod == 1 && _aiLodTick % 3 != 0)
+        {
+            if (chargeCooldown > 0) chargeCooldown -= _aiDeltaTime;
+            if (slamCooldown > 0) slamCooldown -= _aiDeltaTime;
+            if (teleportCooldown > 0) teleportCooldown -= _aiDeltaTime;
+            return;
         }
 
         switch (enemy.Type)
