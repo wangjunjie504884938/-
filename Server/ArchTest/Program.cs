@@ -48,6 +48,18 @@ internal static class Program
 
     private static async Task<int> Main(string[] args)
     {
+        // phase04: 会话/分线逻辑单测 (无需Redis/MySQL)
+        if (args.Length > 0 && args[0] == "phase04")
+            return Phase04Test.Run();
+
+        // phase05: 服务器权威/限流逻辑单测 (无需Redis/MySQL)
+        if (args.Length > 0 && args[0] == "phase05")
+            return Phase05Test.Run();
+
+        // phase06: 地牢快照 E2E (HTTP, 需本地服务器运行)
+        if (args.Length > 0 && args[0] == "phase06")
+            return await Phase06Test.Run();
+
         // Redis 连接串: 从服务器发布目录的 appsettings.json 读取
         var settingsPath = args.Length > 0 ? args[0] : "Server/publish/appsettings.json";
         var settingsJson = File.ReadAllText(settingsPath);

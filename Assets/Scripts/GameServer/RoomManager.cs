@@ -22,9 +22,12 @@ namespace ArpgGameServer
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
 
-            // 启动房间超时检查循环
-            StartCoroutine(RoomTimeoutLoop());
-        }
+                // 启动房间超时检查循环
+                StartCoroutine(RoomTimeoutLoop());
+
+                // 快照上传器 (规划阶段06) — 由 ServerBootstrapper.Configure
+                SnapshotUploader.Bootstrap(ServerBootstrapper.Instance != null ? ServerBootstrapper.Instance.webApiUrl : "http://localhost:5132");
+            }
 
         /// <summary>房间超时检查 — 每5秒检查一次</summary>
         private System.Collections.IEnumerator RoomTimeoutLoop()
@@ -37,6 +40,28 @@ namespace ArpgGameServer
                 {
                     var room = kvp.Value;
                     if (room.IsClosed) continue;
+
+                    // 快照上传 (规划阶段06) — Fighting 状态按 Tier 间隔捕获; 全员断线时停止(保留最后快照)
+                    if (room.State == GameRoom.RoomState.Fighting && SnapshotUploader.Instance != null)
+                    {
+                        var sinceSnap = (System.DateTime.UtcNow - room.LastSnapshotUtc).TotalSeconds;
+                        if (sinceSnap >= room.SnapshotIntervalSeconds)
+                        {
+                            var snap = RoomSnapshotBuilder.Capture(room, room.SnapshotTier, room.RiftLayer, room.RandomSeed, (float)(System.DateTime.UtcNow - room.CreatedAt).TotalSeconds);
+                            SnapshotUploader.Instance.Enqueue(snap);
+                            room.LastSnapshotUtc = System.DateTime.UtcNow;
+                        }
+
+                        // 断线保留: 全员断开超过5分钟 → 强制结算 (规则: 保留期内可回, 超时按规则结算)
+                        if (room.Players.Count == 0 && room.AllDisconnectedAtUtc.HasValue
+                            && (System.DateTime.UtcNow - room.AllDisconnectedAtUtc.Value).TotalSeconds >= 300)
+                        {
+                            Debug.LogWarning($"[Room:{room.RoomId}] 全员断线超5分钟, 保留最后快照并结算关闭");
+                            room.TransitionTo(GameRoom.RoomState.Settled);
+                            DestroyRoom(room.RoomId);
+                            continue;
+                        }
+                    }
 
                     if (room.CheckTimeout())
                     {
@@ -117,6 +142,7 @@ namespace ArpgGameServer
 
             room.Players.Add(player);
             player.CurrentRoom = room;
+            room.AllDisconnectedAtUtc = null; // 有人回来了, 清除断线保留计时
             Debug.Log($"[Room] 玩家 {player.playerName} 加入房间 {roomId}");
             return true;
         }
@@ -127,10 +153,12 @@ namespace ArpgGameServer
             if (player.CurrentRoom == null) return;
             player.CurrentRoom.Players.Remove(player);
 
-            // 如果房间空了,销毁
+            // 断线保留 (规划阶段06): 移除后房间还有其他成员 → 队友继续战斗;
+            // 房间空了 → 记录断线时间, 保留最后快照5分钟 (期间重连可恢复), 超时由循环结算关闭
             if (player.CurrentRoom.Players.Count == 0)
             {
-                DestroyRoom(player.CurrentRoom.RoomId);
+                player.CurrentRoom.AllDisconnectedAtUtc = System.DateTime.UtcNow;
+                Debug.LogWarning($"[Room:{player.CurrentRoom.RoomId}] 全员断线, 快照保留5分钟 (重连可恢复)");
             }
             player.CurrentRoom = null;
         }
@@ -218,6 +246,17 @@ namespace ArpgGameServer
         public List<NetworkedPlayer> Players = new();
         public List<NetworkedMonster> Monsters = new();
         public bool IsSettled = false;
+
+        // ====== 快照字段 (规划阶段06: 地牢实例与快照) ======
+        public int SnapshotTier;                                          // 0=P0普通(5s) 1=P1精英Boss(3s) 2=P2高难(1s)
+        public System.DateTime LastSnapshotUtc = System.DateTime.MinValue; // 上次快照时间
+        public System.DateTime? AllDisconnectedAtUtc;                     // 全员断线时刻 (5分钟保留计时)
+        public List<string> RewardFlags = new();                          // 已发奖励标记 (幂等结算)
+        public int RiftLayer = 1;                                         // 秘境层数
+        public int RandomSeed;                                            // 地图随机种子 (重建一致性)
+
+        /// <summary>快照间隔秒 — 按 Tier 分级: P0=5s / P1=3s / P2=1s (规划阶段06)</summary>
+        public int SnapshotIntervalSeconds => SnapshotTier switch { 1 => 3, 2 => 1, _ => 5 };
 
         public RoomState State { get; private set; } = RoomState.Waiting;
         public System.DateTime StateChangedAt { get; private set; } = System.DateTime.UtcNow;
