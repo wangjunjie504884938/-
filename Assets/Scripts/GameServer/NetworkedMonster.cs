@@ -91,6 +91,8 @@ namespace ArpgGameServer
                 Vector2 dir = (nearestPlayer.serverPosition - serverPosition).normalized;
                 serverPosition += dir * _moveSpeed * Time.deltaTime * 5f; // 加速追赶
                 transform.position = serverPosition;
+                // AOI 网格同步 (规划阶段07) — 怪物位置进空间索引
+                CurrentRoom_GameRoom?.GridMove(monsterId, serverPosition);
             }
             // 攻击
             else if (Time.time - _lastAttackTime > _attackCooldown)

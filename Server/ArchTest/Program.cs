@@ -60,6 +60,10 @@ internal static class Program
         if (args.Length > 0 && args[0] == "phase06")
             return await Phase06Test.Run();
 
+        // phase07: AOI 空间网格单测 (无需Redis/MySQL)
+        if (args.Length > 0 && args[0] == "phase07")
+            return Phase07Test.Run();
+
         // Redis 连接串: 从服务器发布目录的 appsettings.json 读取
         var settingsPath = args.Length > 0 ? args[0] : "Server/publish/appsettings.json";
         var settingsJson = File.ReadAllText(settingsPath);

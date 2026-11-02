@@ -96,19 +96,30 @@ namespace ArpgGameServer
             }
         }
 
-        /// <summary>状态快照广播 — 每秒10次(100ms间隔)</summary>
+        /// <summary>状态快照广播 — 15Hz + AOI兴趣过滤 (规划阶段07: 每连接只收其视野内实体, AOI外不持续发坐标)</summary>
         private System.Collections.IEnumerator SnapshotLoop()
         {
+            var interval = new WaitForSeconds(1f / 15f); // 15Hz
             while (true)
             {
-                yield return new WaitForSeconds(0.1f);
+                yield return interval;
 
-                if (RoomManager.Instance != null)
+                if (RoomManager.Instance == null) continue;
+
+                // 每连接AOI过滤: 以该连接玩家的位置为观察者, 只发其视野内实体
+                foreach (var conn in NetworkServer.connections.Values)
                 {
-                    var snapshot = RoomManager.Instance.BuildSnapshot();
-                    NetworkServer.SendToAll(snapshot);
+                    if (conn == null || !conn.isReady) continue;
+                    var observer = conn.identity?.GetComponent<NetworkedPlayer>();
+                    if (observer == null || observer.CurrentRoom == null) continue;
+
+                    var snapshot = observer.CurrentRoom.BuildSnapshotFor(observer.playerId, observer.serverPosition, AoiRadius);
+                    conn.Send(snapshot);
                 }
             }
         }
+
+        /// <summary>AOI 兴趣半径 (米) — 超出此范围的实体状态不发给该观察者</summary>
+        public const float AoiRadius = 25f;
     }
 }

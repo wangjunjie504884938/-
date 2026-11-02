@@ -103,8 +103,7 @@ namespace ArpgGameServer
             // 初始化副本怪物
             SpawnDungeonMonsters(room);
 
-            return room;
-        }
+            return room;        }
 
         /// <summary>销毁房间</summary>
         public void DestroyRoom(string roomId)
@@ -143,6 +142,7 @@ namespace ArpgGameServer
             room.Players.Add(player);
             player.CurrentRoom = room;
             room.AllDisconnectedAtUtc = null; // 有人回来了, 清除断线保留计时
+            room.GridMove(player.playerId, player.serverPosition); // AOI 网格同步
             Debug.Log($"[Room] 玩家 {player.playerName} 加入房间 {roomId}");
             return true;
         }
@@ -175,6 +175,7 @@ namespace ArpgGameServer
                 var monster = monsterObj.AddComponent<NetworkedMonster>();
                 monster.Initialize(i, Random.Range(0, 3), 30 + room.DungeonId * 5, pos, room.DungeonId + 1);
                 room.Monsters.Add(monster);
+                room.GridMove(i, pos); // AOI 网格同步 (规划阶段07)
             }
 
             // Boss
@@ -183,6 +184,7 @@ namespace ArpgGameServer
             var boss = bossObj.AddComponent<NetworkedMonster>();
             boss.Initialize(999, 3, 500 + room.DungeonId * 100, new Vector2(0, 8f), room.DungeonId + 1);
             room.Monsters.Add(boss);
+            room.GridMove(999, new Vector2(0, 8f)); // AOI 网格同步
         }
 
         /// <summary>构建状态快照</summary>
@@ -255,8 +257,47 @@ namespace ArpgGameServer
         public int RiftLayer = 1;                                         // 秘境层数
         public int RandomSeed;                                            // 地图随机种子 (重建一致性)
 
+        // ====== AOI 空间网格 (规划阶段07) — 实体兴趣过滤查询 ======
+        public readonly Arch.SpatialGrid Grid = new(20f);                 // 格子20米
+
+        /// <summary>实体进网格 (玩家加入/怪物生成后调用)</summary>
+        public void GridMove(long id, Vector2 pos) => Grid.Move(id, pos.x, pos.y);
+
         /// <summary>快照间隔秒 — 按 Tier 分级: P0=5s / P1=3s / P2=1s (规划阶段06)</summary>
         public int SnapshotIntervalSeconds => SnapshotTier switch { 1 => 3, 2 => 1, _ => 5 };
+
+        /// <summary>按观察者构建 AOI 过滤快照 (规划阶段07: AOI外实体不进入消息; 观察者自己永远可见)</summary>
+        public StateSnapshotMessage BuildSnapshotFor(long observerPlayerId, Vector2 observerPos, float aoiRadius)
+        {
+            var visibleIds = Grid.QueryCircle(observerPos.x, observerPos.y, aoiRadius);
+
+            var snapshot = new StateSnapshotMessage
+            {
+                timestamp = (float)System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000f,
+            };
+            var players = new List<PlayerState>();
+            var monsters = new List<MonsterState>();
+
+            // 玩家: 观察者自己永远可见; 其他玩家需在AOI内
+            foreach (var p in Players)
+            {
+                if (p == null) continue;
+                if (p.playerId == observerPlayerId || visibleIds.Contains(p.playerId))
+                    players.Add(p.GetState());
+            }
+
+            // 怪物: AOI内且存活
+            foreach (var m in Monsters)
+            {
+                if (m == null || m.IsDead) continue;
+                if (visibleIds.Contains(m.monsterId))
+                    monsters.Add(m.GetState());
+            }
+
+            snapshot.players = players.ToArray();
+            snapshot.monsters = monsters.ToArray();
+            return snapshot;
+        }
 
         public RoomState State { get; private set; } = RoomState.Waiting;
         public System.DateTime StateChangedAt { get; private set; } = System.DateTime.UtcNow;

@@ -2,29 +2,41 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
+/// <summary>
+/// 背包 — 水墨暗色新版（背包页签，外壳共用 ShopBagShell）
+/// 确认对话框见 EquipUI.Dialogs.cs (partial)
+/// </summary>
 public partial class EquipUI : MonoBehaviour
 {
     public static EquipUI Instance { get; private set; }
 
     private GameObject panel;
-    private GameObject confirmDialog;
+    private GameObject confirmDialog;   // Dialogs partial 使用
     private Coroutine showRoutine;
+    private ShopBagShell.Refs shell;
 
-    // 暗青蓝配色
+    private GameObject gridRoot;
+    private Text pageText;
+    private Text countText;
+    private Text sortLbl, filterLbl;
 
-    private RectTransform leftContainer;
-    private RectTransform rightContainer;
-
-    private const int ItemsPerPage = 10;
+    private const int CellsPerPage = 16;
     private int bpPage;
-    private readonly HashSet<int> selectedBpIndices = new();
-    private int sortMode = 0; // 0=默认, 1=品质降序, 2=品质升序
+    private readonly HashSet<int> selectedBpIndices = new(); // Dialogs partial 引用
+    private int sortMode = 0;   // 0=默认, 1=品质降序, 2=品质升序
     private int filterMode = 0; // 0=全部, 1=武器, 2=护甲, 3=饰品
 
     private static readonly string[] SlotIcons = { "武器", "防具", "饰品" };
     private static readonly string[] SlotTags = { "[武器]", "[护甲]", "[饰品]" };
-
     private static string SlotPrefix(EquipSlotType type) => $"<size=14><color=#aaa>{SlotIcons[(int)type]}{SlotTags[(int)type]}</color></size> ";
+
+    private static readonly string[] SortLabels = { "排序:默认", "排序:品质↓", "排序:品质↑" };
+    private static readonly string[] FilterLabels = { "筛选:全部", "筛选:武器", "筛选:护甲", "筛选:饰品" };
+
+    // 背包网格（相对 GridRoot 中心 (20,-18)，格 104px，4 行；GridRoot=面板内缩 左30 右30 顶20 底20）
+    private static readonly float[] ColX = { 48f, 163f, 278f, 393f };
+    private static readonly float[] RowY = { 180f, 57f, -66f, -189f };
+    private const float CellSize = 104f;
 
     private void Awake()
     {
@@ -35,15 +47,9 @@ public partial class EquipUI : MonoBehaviour
     public void Show()
     {
         if (panel == null) BuildUI();
-        UIHelper.SetupTopBar("背包", () =>
-        {
-            if (GameManager.Instance?.Player?.Stats != null) GameManager.Instance.Player.Stats.Save();
-            Hide();
-            UIHelper.EnsureUIManager();
-            UIManager.Instance.ShowHub();
-        });
+        ShopBagShell.CloseSlotMenu();
+        TopNavBar.Instance?.HideBar();
         bpPage = 0;
-        selectedBpIndices.Clear();
         panel.SetActive(true);
         if (showRoutine != null) StopCoroutine(showRoutine);
         showRoutine = StartCoroutine(UIHelper.FadeIn(panel, 0.2f));
@@ -53,6 +59,7 @@ public partial class EquipUI : MonoBehaviour
 
     public void Hide()
     {
+        ShopBagShell.CloseSlotMenu();
         HideConfirmDialog();
         if (panel != null)
         {
@@ -63,293 +70,119 @@ public partial class EquipUI : MonoBehaviour
 
     private void BuildUI()
     {
+        Font font = GameManager.GetUIFont();
         Canvas canvas = GameManager.EnsureCanvas();
 
         // === Root Panel ===
-        panel = UiPrefabLoader.TryLoad("EquipPanel", canvas);
-        if (panel == null)
         panel = new GameObject("EquipPanel");
         panel.transform.SetParent(canvas.transform, false);
         RectTransform panelRect = panel.AddComponent<RectTransform>();
         panelRect.anchorMin = Vector2.zero; panelRect.anchorMax = Vector2.one;
         panelRect.offsetMin = Vector2.zero; panelRect.offsetMax = Vector2.zero;
-        Image bg = panel.AddComponent<Image>();
-        bg.color = UIHelper.BgDark;
-        bg.raycastTarget = false;
+        panel.AddComponent<CanvasGroup>();
 
-        // === Top nav bar ===
+        shell = ShopBagShell.Build(panel, font, false,
+            onClose: () =>
+            {
+                var st = GameManager.Instance?.Player?.Stats;
+                if (st != null) st.Save();
+                Hide();
+                UIHelper.ReturnFromPanel();
+            },
+            openOtherTab: () =>
+            {
+                ShopBagShell.CloseSlotMenu();
+                HideConfirmDialog();
+                UIHelper.EnsureUIManager();
+                UIManager.Instance.ShowShop();
+            });
+        shell.OnEquippedChanged = RefreshDisplay;
 
-        // === Left Container (Equipped) — 38% width, between header & footer ===
-        GameObject leftPanel = new GameObject("LeftContainer");
-        leftPanel.transform.SetParent(panel.transform, false);
-        leftContainer = leftPanel.AddComponent<RectTransform>();
-        leftContainer.anchorMin = new Vector2(0, 0); leftContainer.anchorMax = new Vector2(0.38f, 1);
-        leftContainer.offsetMin = new Vector2(10, 10);
-        leftContainer.offsetMax = new Vector2(-5, -64);
+        // === 工具行（网格上方 y=246）===
+        Color toolBg = new Color(0.10f, 0.07f, 0.16f, 0.92f);
+        var sortBtn = MakeToolBtn(panel.transform, "BagSortBtn", SortLabels[sortMode], font,
+            new Vector2(73, 235), new Vector2(80, 25), toolBg, 14, () =>
+            {
+                sortMode = (sortMode + 1) % 3; bpPage = 0;
+                if (sortLbl != null) sortLbl.text = SortLabels[sortMode];
+                RefreshDisplay();
+            });
+        sortLbl = sortBtn.GetComponentInChildren<Text>();
 
-        // === Right Container (Backpack) — 62% width, between header & footer ===
-        GameObject rightPanel = new GameObject("RightContainer");
-        rightPanel.transform.SetParent(panel.transform, false);
-        rightContainer = rightPanel.AddComponent<RectTransform>();
-        rightContainer.anchorMin = new Vector2(0.38f, 0); rightContainer.anchorMax = new Vector2(1, 1);
-        rightContainer.offsetMin = new Vector2(5, 10);
-        rightContainer.offsetMax = new Vector2(-10, -64);
+        var filterBtn = MakeToolBtn(panel.transform, "BagFilterBtn", FilterLabels[filterMode], font,
+            new Vector2(153, 235), new Vector2(80, 25), toolBg, 14, () =>
+            {
+                filterMode = (filterMode + 1) % 4; bpPage = 0;
+                if (filterLbl != null) filterLbl.text = FilterLabels[filterMode];
+                RefreshDisplay();
+            });
+        filterLbl = filterBtn.GetComponentInChildren<Text>();
+
+        MakeToolBtn(panel.transform, "BagDismantleCommonBtn", "分解普通", font,
+            new Vector2(233, 235), new Vector2(80, 25), toolBg, 14, DismantleAllCommon);
+        MakeToolBtn(panel.transform, "BagEquipBestBtn", "装备最优", font,
+            new Vector2(313, 235), new Vector2(80, 25), toolBg, 14, EquipBestItems);
+        MakeToolBtn(panel.transform, "BagExpandBtn", "扩展背包", font,
+            new Vector2(-100, 235), new Vector2(110, 25), toolBg, 14, ExpandBackpack);
+
+        var prevBtn = MakeToolBtn(panel.transform, "BagPrevBtn", "◀", font,
+            new Vector2(420, 235), new Vector2(25, 25), toolBg, 15, () => { if (bpPage > 0) { bpPage--; RefreshDisplay(); } });
+        var nextBtn = MakeToolBtn(panel.transform, "BagNextBtn", "▶", font,
+            new Vector2(487, 235), new Vector2(25, 25), toolBg, 15, () => { bpPage++; RefreshDisplay(); });
+
+        var pageObj = new GameObject("BagPageText");
+        pageObj.transform.SetParent(panel.transform, false);
+        var pR = pageObj.AddComponent<RectTransform>();
+        pR.anchorMin = new Vector2(0.5f, 0.5f); pR.anchorMax = new Vector2(0.5f, 0.5f);
+        pR.anchoredPosition = new Vector2(455, 235);
+        pR.sizeDelta = new Vector2(45, 25);
+        pageText = pageObj.AddComponent<Text>();
+        pageText.alignment = TextAnchor.MiddleCenter;
+        pageText.fontSize = 14; pageText.color = UIHelper.TextSecondary; pageText.font = font;
+        pageText.raycastTarget = false;
+
+        var cntObj = new GameObject("BagCountText");
+        cntObj.transform.SetParent(panel.transform, false);
+        var cR = cntObj.AddComponent<RectTransform>();
+        cR.anchorMin = new Vector2(0.5f, 0.5f); cR.anchorMax = new Vector2(0.5f, 0.5f);
+        cR.anchoredPosition = new Vector2(-20, 235);
+        cR.sizeDelta = new Vector2(60, 25);
+        countText = cntObj.AddComponent<Text>();
+        countText.alignment = TextAnchor.MiddleCenter;
+        countText.fontSize = 14; countText.color = UIHelper.TextDim; countText.font = font;
+        countText.raycastTarget = false;
+
+        // === 网格根（面板 1100x800 内缩 左30 右30 顶20 底20 → 1040x760，整体右移15下移5）===
+        gridRoot = new GameObject("BagGridRoot");
+        gridRoot.transform.SetParent(panel.transform, false);
+        var gr = gridRoot.AddComponent<RectTransform>();
+        gr.anchorMin = new Vector2(0.5f, 0.5f); gr.anchorMax = new Vector2(0.5f, 0.5f);
+        gr.anchoredPosition = new Vector2(35, -23);
+        gr.sizeDelta = new Vector2(1040, 760);
 
         panel.SetActive(false);
     }
 
+    private GameObject MakeToolBtn(Transform parent, string name, string text, Font font,
+        Vector2 center, Vector2 size, Color bg, int fontSize, System.Action onClick)
+    {
+        var go = ShopBagShell.MakeSprite(parent, name, null, center, size, raycast: true);
+        go.GetComponent<Image>().color = bg;
+        var b = go.AddComponent<Button>();
+        b.transition = Selectable.Transition.None;
+        b.onClick.AddListener(() => onClick());
+        ShopBagShell.MakeText(go.transform, name + "Label", text, fontSize, UIHelper.TextSecondary, font, Vector2.zero, size);
+        return go;
+    }
+
     private void RefreshDisplay()
     {
-        ClearChildren(leftContainer);
-        ClearChildren(rightContainer);
-
+        ShopBagShell.ClearChildren(gridRoot);
         Font font = GameManager.GetUIFont();
         var inv = GameManager.Instance?.Player?.Inventory;
-        if (inv == null) return;
+        if (inv == null || gridRoot == null) return;
 
-        TopNavBar.Instance?.RefreshCurrency();
-
-        BuildEquippedSection(font, inv);
-        BuildBackpackSection(font, inv);
-    }
-
-    private void ClearChildren(RectTransform container)
-    {
-        var list = new List<GameObject>();
-        foreach (Transform child in container) list.Add(child.gameObject);
-        foreach (var go in list) Destroy(go);
-    }
-
-    // ================================================================
-    //  Left: Equipped Items
-    // ================================================================
-    private void BuildEquippedSection(Font font, EquipmentInventory inv)
-    {
-        float h = leftContainer.rect.height;
-        if (h <= 0) h = 945f;
-
-        float pad = 8f;
-        float labelH = 28f;
-        float gap = 6f;
-        float maxSlotH = 130f;
-        float naturalH = (h - labelH - pad * 2 - gap * 2) / 3f;
-        float slotH = Mathf.Min(naturalH, maxSlotH);
-
-        // Section label
-        MakeSectionLabel(leftContainer.gameObject, "EqLabel", "已装备",
-            UIHelper.Accent, font, 20, pad);
-
-        string[] slotNames = { "武 器", "护 甲", "饰 品" };
-        string[] slotIcons = { "武器", "防具", "饰品" };
-
-        for (int i = 0; i < inv.Equipped.Count; i++)
-        {
-            int idx = i;
-            var slot = inv.Equipped[i];
-            float yOff = pad + labelH + i * (slotH + gap);
-
-            // Slot background
-            GameObject slotObj = new GameObject("EquipSlot_" + i);
-            slotObj.transform.SetParent(leftContainer, false);
-            RectTransform sRect = slotObj.AddComponent<RectTransform>();
-            sRect.anchorMin = new Vector2(0, 1); sRect.anchorMax = new Vector2(1, 1);
-            sRect.pivot = new Vector2(0, 1);
-            sRect.anchoredPosition = new Vector2(pad, -yOff);
-            sRect.sizeDelta = new Vector2(-pad * 2, slotH);
-            Image sImg = slotObj.AddComponent<Image>();
-            sImg.color = UIHelper.CardBg;
-
-            // Slot type header
-            GameObject headerObj = new GameObject("Header");
-            headerObj.transform.SetParent(slotObj.transform, false);
-            RectTransform hdrRect = headerObj.AddComponent<RectTransform>();
-            hdrRect.anchorMin = new Vector2(0, 0.7f); hdrRect.anchorMax = new Vector2(1, 1);
-            hdrRect.offsetMin = new Vector2(10, 0); hdrRect.offsetMax = new Vector2(-10, -3);
-            Text hdrText = headerObj.AddComponent<Text>();
-            hdrText.text = $"{slotIcons[i]} {slotNames[i]}";
-            hdrText.alignment = TextAnchor.MiddleLeft;
-            hdrText.fontSize = 20; hdrText.color = new Color(0.7f, 0.7f, 0.8f); hdrText.font = font;
-
-            if (slot.Item != null)
-            {
-                MakeRarityBar(slotObj, ItemData.GetRarityColor(slot.Item.Rarity));
-
-                // Item info
-                GameObject infoObj = new GameObject("ItemInfo");
-                infoObj.transform.SetParent(slotObj.transform, false);
-                RectTransform iRect = infoObj.AddComponent<RectTransform>();
-                iRect.anchorMin = new Vector2(0, 0); iRect.anchorMax = new Vector2(0.65f, 0.7f);
-                iRect.offsetMin = new Vector2(15, 5); iRect.offsetMax = new Vector2(-5, -2);
-                Text iText = infoObj.AddComponent<Text>();
-                string eqUpgradeTag = slot.Item.UpgradeLevel > 0 ? $" <color=#8C55C0>+{slot.Item.UpgradeLevel}</color>" : "";
-                string affixStr = slot.Item.GetAffixDisplayString();
-                iText.text = $"{slot.Item.Name}{eqUpgradeTag}\n<size=15>{slot.Item.GetStatSummary()}</size>" + (string.IsNullOrEmpty(affixStr) ? "" : $"\n<size=13><color=#88CCFF>{affixStr}</color></size>");
-                iText.alignment = TextAnchor.MiddleLeft;
-                iText.fontSize = 19; iText.color = ItemData.GetRarityColor(slot.Item.Rarity);
-                iText.font = font; iText.supportRichText = true;
-
-                // Unequip button
-                GameObject ueObj = new GameObject("UnequipBtn");
-                ueObj.transform.SetParent(slotObj.transform, false);
-                RectTransform ueRect = ueObj.AddComponent<RectTransform>();
-                ueRect.anchorMin = new Vector2(0.65f, 0.40f); ueRect.anchorMax = new Vector2(0.95f, 0.65f);
-                ueRect.offsetMin = new Vector2(2, 0); ueRect.offsetMax = new Vector2(-4, 0);
-                Image ueImg = ueObj.AddComponent<Image>();
-                ueImg.color = UIHelper.BtnUnequip;
-                Button ueBtn = ueObj.AddComponent<Button>();
-                ueBtn.onClick.AddListener(() =>
-                {
-                    if (inv.Backpack.Count >= EquipmentInventory.MaxBackpackSize)
-                    {
-                        if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast("提示", "背包已满，无法卸下装备");
-                        return;
-                    }
-                    inv.Unequip(inv.Equipped[idx].SlotType);
-                    GameManager.Instance.Player.Stats.Save();
-                    RefreshDisplay();
-                });
-                MakeLabel(ueObj, "卸 下", 20, Color.white, font);
-
-                // Upgrade button
-                var item = slot.Item;
-                bool canUpgrade = item.UpgradeLevel < EquipmentItem.MaxUpgradeLevel;
-                GameObject upObj = new GameObject("UpgradeBtn");
-                upObj.transform.SetParent(slotObj.transform, false);
-                RectTransform upRect = upObj.AddComponent<RectTransform>();
-                upRect.anchorMin = new Vector2(0.65f, 0.10f); upRect.anchorMax = new Vector2(0.95f, 0.35f);
-                upRect.offsetMin = Vector2.zero; upRect.offsetMax = Vector2.zero;
-                Image upImg = upObj.AddComponent<Image>();
-                upImg.color = canUpgrade ? UIHelper.BtnUpgrade : UIHelper.CardBg;
-                Button upBtn = upObj.AddComponent<Button>();
-                upBtn.interactable = canUpgrade;
-                upBtn.onClick.AddListener(() => TryUpgradeItem(inv.Equipped[idx].Item, inv));
-                int goldCost = item.GetUpgradeCost();
-                int fragCost = DismantleSystem.FragmentYield[(int)item.Rarity] / 2 + 1;
-                string upLabel = canUpgrade ? $"+{item.UpgradeLevel + 1}" : "MAX";
-                MakeLabel(upObj, canUpgrade ? $"升级 {upLabel}\n<color=#88CCFF>{fragCost} {goldCost}</color>" : "已满级", 14, Color.white, font);
-            }
-            else
-            {
-                // Empty slot
-                GameObject emptyObj = new GameObject("Empty");
-                emptyObj.transform.SetParent(slotObj.transform, false);
-                RectTransform eRect = emptyObj.AddComponent<RectTransform>();
-                eRect.anchorMin = new Vector2(0, 0); eRect.anchorMax = new Vector2(1, 0.7f);
-                eRect.offsetMin = new Vector2(15, 5); eRect.offsetMax = new Vector2(-10, -2);
-                Text eText = emptyObj.AddComponent<Text>();
-                eText.text = "空"; eText.alignment = TextAnchor.MiddleLeft;
-                eText.fontSize = 19; eText.color = new Color(0.35f, 0.35f, 0.4f); eText.font = font;
-            }
-        }
-
-        // === Set Bonuses Display ===
-        string setBonusText = SetBonusData.GetActiveBonusDisplay(inv.Equipped);
-        if (!string.IsNullOrEmpty(setBonusText))
-        {
-            GameObject setObj = new GameObject("SetBonusDisplay");
-            setObj.transform.SetParent(leftContainer, false);
-            RectTransform setRect = setObj.AddComponent<RectTransform>();
-            setRect.anchorMin = new Vector2(0, 0); setRect.anchorMax = new Vector2(1, 0);
-            setRect.pivot = new Vector2(0.5f, 0);
-            setRect.anchoredPosition = new Vector2(0, 10);
-            setRect.sizeDelta = new Vector2(-20, 60);
-            Text setText = setObj.AddComponent<Text>();
-            setText.text = setBonusText;
-            setText.alignment = TextAnchor.UpperLeft;
-            setText.fontSize = 14; setText.color = Color.white;
-            setText.font = font; setText.supportRichText = true;
-        }
-    }
-
-    // ================================================================
-    //  Right: Backpack Items + Pagination
-    // ================================================================
-    private void BuildBackpackSection(Font font, EquipmentInventory inv)
-    {
-        float h = rightContainer.rect.height;
-        if (h <= 0) h = 945f;
-
-        float pad = 8f;
-        float labelH = 28f;
-        float sortRowH = 32f;
-        float pageRowH = 36f;
-        float itemGap = 3f;
-        float itemAreaH = h - labelH - sortRowH - pageRowH - pad * 3;
-        float itemH = (itemAreaH - (ItemsPerPage - 1) * itemGap) / ItemsPerPage;
-
-        // Section label
-        GameObject bpLabel = new GameObject("BpLabel");
-        bpLabel.transform.SetParent(rightContainer, false);
-        RectTransform bpLRect = bpLabel.AddComponent<RectTransform>();
-        bpLRect.anchorMin = new Vector2(0, 1); bpLRect.anchorMax = new Vector2(1, 1);
-        bpLRect.pivot = new Vector2(0.5f, 1);
-        bpLRect.anchoredPosition = new Vector2(0, -pad);
-        bpLRect.sizeDelta = new Vector2(0, labelH);
-        Text bpLText = bpLabel.AddComponent<Text>();
-        string sortLabel = sortMode switch { 1 => "品质↓", 2 => "品质↑", _ => "默认" };
-        string filterLabel = filterMode switch { 1 => "武器", 2 => "护甲", 3 => "饰品", _ => "全部" };
-        bpLText.text = $"背 包 ({inv.Backpack.Count}/{EquipmentInventory.MaxBackpackSize}) | 排序:{sortLabel} 筛选:{filterLabel}";
-        bpLText.alignment = TextAnchor.MiddleCenter;
-        bpLText.fontSize = 18; bpLText.color = Color.white; bpLText.font = font;
-
-        // 排序/筛选按钮行
-        var btnRow = new GameObject("SortFilterRow");
-        btnRow.transform.SetParent(rightContainer, false);
-        var btnRowRT = btnRow.AddComponent<RectTransform>();
-        btnRowRT.anchorMin = new Vector2(0, 1); btnRowRT.anchorMax = new Vector2(1, 1);
-        btnRowRT.pivot = new Vector2(0.5f, 1);
-        btnRowRT.anchoredPosition = new Vector2(0, -pad - labelH);
-        btnRowRT.sizeDelta = new Vector2(0, 28);
-
-        // 排序按钮
-        var sortBtnObj = new GameObject("SortBtn");
-        sortBtnObj.transform.SetParent(btnRow.transform, false);
-        var sortRT = sortBtnObj.AddComponent<RectTransform>();
-        sortRT.anchorMin = new Vector2(0.02f, 0); sortRT.anchorMax = new Vector2(0.25f, 1);
-        sortRT.offsetMin = Vector2.zero; sortRT.offsetMax = Vector2.zero;
-        var sortImg = sortBtnObj.AddComponent<Image>();
-        sortImg.color = new Color(0.12f, 0.10f, 0.18f, 0.9f);
-        var sortBtn = sortBtnObj.AddComponent<Button>();
-        sortBtn.onClick.AddListener(() => { sortMode = (sortMode + 1) % 3; bpPage = 0; selectedBpIndices.Clear(); RefreshDisplay(); });
-        MakeLabel(sortBtnObj, "排序", 14, Color.white, font);
-
-        // 筛选按钮
-        var filterBtnObj = new GameObject("FilterBtn");
-        filterBtnObj.transform.SetParent(btnRow.transform, false);
-        var filterRT = filterBtnObj.AddComponent<RectTransform>();
-        filterRT.anchorMin = new Vector2(0.27f, 0); filterRT.anchorMax = new Vector2(0.50f, 1);
-        filterRT.offsetMin = Vector2.zero; filterRT.offsetMax = Vector2.zero;
-        var filterImg = filterBtnObj.AddComponent<Image>();
-        filterImg.color = new Color(0.10f, 0.12f, 0.16f, 0.9f);
-        var filterBtn = filterBtnObj.AddComponent<Button>();
-        filterBtn.onClick.AddListener(() => { filterMode = (filterMode + 1) % 4; bpPage = 0; selectedBpIndices.Clear(); RefreshDisplay(); });
-        MakeLabel(filterBtnObj, "筛选", 14, Color.white, font);
-
-        // 一键分解普通
-        var dismantleBtnObj = new GameObject("DismantleCommonBtn");
-        dismantleBtnObj.transform.SetParent(btnRow.transform, false);
-        var dismantleRT = dismantleBtnObj.AddComponent<RectTransform>();
-        dismantleRT.anchorMin = new Vector2(0.52f, 0); dismantleRT.anchorMax = new Vector2(0.75f, 1);
-        dismantleRT.offsetMin = Vector2.zero; dismantleRT.offsetMax = Vector2.zero;
-        var dismantleImg = dismantleBtnObj.AddComponent<Image>();
-        dismantleImg.color = new Color(0.18f, 0.12f, 0.06f, 0.9f);
-        var dismantleBtn = dismantleBtnObj.AddComponent<Button>();
-        dismantleBtn.onClick.AddListener(DismantleAllCommon);
-        MakeLabel(dismantleBtnObj, "分解普通", 13, Color.white, font);
-
-        // 一键装备最优
-        var bestBtnObj = new GameObject("EquipBestBtn");
-        bestBtnObj.transform.SetParent(btnRow.transform, false);
-        var bestRT = bestBtnObj.AddComponent<RectTransform>();
-        bestRT.anchorMin = new Vector2(0.77f, 0); bestRT.anchorMax = new Vector2(1f, 1);
-        bestRT.offsetMin = Vector2.zero; bestRT.offsetMax = Vector2.zero;
-        var bestImg = bestBtnObj.AddComponent<Image>();
-        bestImg.color = new Color(0.06f, 0.14f, 0.10f, 0.9f);
-        var bestBtn = bestBtnObj.AddComponent<Button>();
-        bestBtn.onClick.AddListener(EquipBestItems);
-        MakeLabel(bestBtnObj, "装备最优", 13, Color.white, font);
-
-        // Build filtered+sorted item list
+        // 过滤 + 排序
         var displayItems = new List<(int origIdx, EquipmentItem item)>();
         for (int i = 0; i < inv.Backpack.Count; i++)
         {
@@ -361,314 +194,164 @@ public partial class EquipUI : MonoBehaviour
         else if (sortMode == 2) displayItems.Sort((a, b) => a.item.Rarity.CompareTo(b.item.Rarity));
 
         int totalItems = displayItems.Count;
-        int totalPages = Mathf.Max(1, Mathf.CeilToInt(totalItems / (float)ItemsPerPage));
+        int totalPages = Mathf.Max(1, Mathf.CeilToInt(totalItems / (float)CellsPerPage));
         bpPage = Mathf.Clamp(bpPage, 0, totalPages - 1);
+        int startIdx = bpPage * CellsPerPage;
 
-        // Item rows
-        int startIdx = bpPage * ItemsPerPage;
-        int endIdx = Mathf.Min(startIdx + ItemsPerPage, totalItems);
-
-        for (int i = startIdx; i < endIdx; i++)
+        for (int i = 0; i < CellsPerPage; i++)
         {
-            int origIdx = displayItems[i].origIdx;
-            var item = displayItems[i].item;
-            int idx = origIdx;
-            float yOff = pad + labelH + sortRowH + (i - startIdx) * (itemH + itemGap);
+            int col = i % 4, row = i / 4;
+            var center = new Vector2(ColX[col], RowY[row]);
+            int abs = startIdx + i;
 
-            GameObject bpObj = new GameObject("Backpack_" + i);
-            bpObj.transform.SetParent(rightContainer, false);
-            RectTransform bRect = bpObj.AddComponent<RectTransform>();
-            bRect.anchorMin = new Vector2(0, 1); bRect.anchorMax = new Vector2(1, 1);
-            bRect.pivot = new Vector2(0, 1);
-            bRect.anchoredPosition = new Vector2(pad, -yOff);
-            bRect.sizeDelta = new Vector2(-pad * 2, itemH);
-            Image bImg = bpObj.AddComponent<Image>();
-            bImg.color = UIHelper.CardBg;
+            if (abs < totalItems)
+            {
+                int origIdx = displayItems[abs].origIdx;
+                var item = displayItems[abs].item;
 
-            MakeRarityBar(bpObj, ItemData.GetRarityColor(item.Rarity));
+                var cell = ShopBagShell.MakeSprite(gridRoot.transform, "BagCell_" + i,
+                    ShopBagShell.FrameName(item.Rarity), center, new Vector2(CellSize, CellSize));
+                cell.GetComponent<Image>().raycastTarget = true;
+                var btn = cell.AddComponent<Button>();
+                btn.transition = Selectable.Transition.None;
+                int idx = origIdx;
+                btn.onClick.AddListener(() => ShowItemMenu(idx));
 
-            // 多选复选框 — 使用原始背包索引idx保持一致性
-            bool isSelected = selectedBpIndices.Contains(idx);
-            GameObject chkObj = new GameObject("CheckBox");
-            chkObj.transform.SetParent(bpObj.transform, false);
-            RectTransform chkRect = chkObj.AddComponent<RectTransform>();
-            chkRect.anchorMin = new Vector2(0, 0.08f); chkRect.anchorMax = new Vector2(0.05f, 0.92f);
-            chkRect.offsetMin = new Vector2(2, 0); chkRect.offsetMax = new Vector2(-2, 0);
-            Image chkImg = chkObj.AddComponent<Image>();
-            chkImg.color = isSelected ? new Color(0.2f, 0.5f, 0.2f, 0.9f) : new Color(0.1f, 0.1f, 0.12f, 0.7f);
-            Button chkBtn = chkObj.AddComponent<Button>();
-            chkBtn.onClick.AddListener(() => { if (selectedBpIndices.Contains(idx)) selectedBpIndices.Remove(idx); else selectedBpIndices.Add(idx); RefreshDisplay(); });
-            MakeLabel(chkObj, isSelected ? "✓" : "", 16, Color.white, font);
+                string lvlTag = item.UpgradeLevel > 0 ? $" <color=#C088FF>+{item.UpgradeLevel}</color>" : "";
+                var nameT = ShopBagShell.MakeText(cell.transform, "BagCellName_" + i, ShopBagShell.StripRarityPrefix(item.Name) + lvlTag, 15, Color.white, font,
+                    new Vector2(0, 4), new Vector2(96, 54), TextAnchor.UpperCenter, outline: true);
+                nameT.supportRichText = true;
 
-            // Item info
-            GameObject infoObj = new GameObject("Info");
-            infoObj.transform.SetParent(bpObj.transform, false);
-            RectTransform iRect = infoObj.AddComponent<RectTransform>();
-            iRect.anchorMin = new Vector2(0.05f, 0); iRect.anchorMax = new Vector2(0.36f, 1);
-            iRect.offsetMin = new Vector2(14, 3); iRect.offsetMax = new Vector2(-5, -3);
-            Text iText = infoObj.AddComponent<Text>();
-            string upgradeTag = item.UpgradeLevel > 0 ? $" <size=13><color=#8C55C0>+{item.UpgradeLevel}</color></size>" : "";
-            string affixStr = item.GetAffixDisplayString();
-            iText.text = $"{SlotPrefix(item.SlotType)}{item.Name}{upgradeTag}\n<size=14><color=#aaa>{item.GetStatSummary()}</color></size>" + (string.IsNullOrEmpty(affixStr) ? "" : $"\n<size=12><color=#88CCFF>{affixStr}</color></size>");
-            iText.alignment = TextAnchor.MiddleLeft; iText.fontSize = 16;
-            iText.color = ItemData.GetRarityColor(item.Rarity);
-            iText.font = font; iText.supportRichText = true;
-
-            // Slot occupied check
-            var equippedSlot = inv.Equipped.Find(s => s.SlotType == item.SlotType);
-            bool slotOccupied = equippedSlot != null && !equippedSlot.IsEmpty;
-
-            // Upgrade button
-            bool canUpgrade = item.UpgradeLevel < EquipmentItem.MaxUpgradeLevel;
-            GameObject upgObj = new GameObject("UpgradeBtn");
-            upgObj.transform.SetParent(bpObj.transform, false);
-            RectTransform upgRect = upgObj.AddComponent<RectTransform>();
-            upgRect.anchorMin = new Vector2(0.36f, 0.08f); upgRect.anchorMax = new Vector2(0.48f, 0.92f);
-            upgRect.offsetMin = new Vector2(2, 0); upgRect.offsetMax = new Vector2(-2, 0);
-            Image upgImg = upgObj.AddComponent<Image>();
-            upgImg.color = canUpgrade ? UIHelper.BtnUpgrade : new Color(0.10f, 0.06f, 0.14f, 0.5f);
-            Button upgBtn = upgObj.AddComponent<Button>();
-            upgBtn.interactable = canUpgrade;
-            if (canUpgrade)
-                upgBtn.onClick.AddListener(() => ShowUpgradeConfirm(idx));
-            MakeLabel(upgObj, canUpgrade ? $"强化{item.UpgradeLevel}→{item.UpgradeLevel + 1}" : "满级", 12, Color.white, font);
-
-            // Equip / Replace button
-            GameObject eqObj = new GameObject("EquipBtn");
-            eqObj.transform.SetParent(bpObj.transform, false);
-            RectTransform eqRect = eqObj.AddComponent<RectTransform>();
-            eqRect.anchorMin = new Vector2(0.48f, 0.08f); eqRect.anchorMax = new Vector2(0.62f, 0.92f);
-            eqRect.offsetMin = new Vector2(2, 0); eqRect.offsetMax = new Vector2(-2, 0);
-            Image eqImg = eqObj.AddComponent<Image>();
-            eqImg.color = slotOccupied ? UIHelper.BtnReplace : UIHelper.BtnEquip;
-            Button eqBtn = eqObj.AddComponent<Button>();
-            if (slotOccupied)
-                eqBtn.onClick.AddListener(() => ShowReplaceConfirm(idx));
+                int cmp = CompareToEquipped(item);
+                if (cmp != 0)
+                    ShopBagShell.MakeSprite(cell.transform, "BagCellHint_" + i, cmp > 0 ? "UpHint" : "DownHint",
+                        new Vector2(34, -34), new Vector2(30, 38));
+            }
             else
-                eqBtn.onClick.AddListener(() => { selectedBpIndices.Clear(); inv.Equip(inv.Backpack[idx]); GameManager.Instance.Player.Stats.Save(); RefreshDisplay(); });
-            MakeLabel(eqObj, slotOccupied ? "替换" : "装备", 13, Color.white, font);
-
-            // Sell button
-            GameObject sellObj = new GameObject("SellBtn");
-            sellObj.transform.SetParent(bpObj.transform, false);
-            RectTransform sellRect = sellObj.AddComponent<RectTransform>();
-            sellRect.anchorMin = new Vector2(0.62f, 0.08f); sellRect.anchorMax = new Vector2(0.74f, 0.92f);
-            sellRect.offsetMin = new Vector2(2, 0); sellRect.offsetMax = new Vector2(-2, 0);
-            Image sellImg = sellObj.AddComponent<Image>();
-            sellImg.color = UIHelper.BtnSell;
-            Button sellBtn = sellObj.AddComponent<Button>();
-            sellBtn.onClick.AddListener(() => ShowSellConfirm(idx));
-            MakeLabel(sellObj, "卖出", 13, Color.white, font);
-
-            // Dismantle button
-            int dismantleYield = DismantleSystem.GetFragmentYield(item);
-            GameObject dmdObj = new GameObject("DismantleBtn");
-            dmdObj.transform.SetParent(bpObj.transform, false);
-            RectTransform dmdRect = dmdObj.AddComponent<RectTransform>();
-            dmdRect.anchorMin = new Vector2(0.74f, 0.08f); dmdRect.anchorMax = new Vector2(0.86f, 0.92f);
-            dmdRect.offsetMin = new Vector2(2, 0); dmdRect.offsetMax = new Vector2(-2, 0);
-            Image dmdImg = dmdObj.AddComponent<Image>();
-            dmdImg.color = new Color(0.15f, 0.35f, 0.5f, 0.9f);
-            Button dmdBtn = dmdObj.AddComponent<Button>();
-            dmdBtn.onClick.AddListener(() => ShowDismantleConfirm(idx));
-            MakeLabel(dmdObj, $"分解+{dismantleYield}", 11, new Color(0.6f, 0.85f, 1f), font);
-
-            // Price label
-            GameObject priceObj = new GameObject("PriceLabel");
-            priceObj.transform.SetParent(bpObj.transform, false);
-            RectTransform priceRect = priceObj.AddComponent<RectTransform>();
-            priceRect.anchorMin = new Vector2(0.86f, 0.08f); priceRect.anchorMax = new Vector2(1f, 0.92f);
-            priceRect.offsetMin = new Vector2(2, 0); priceRect.offsetMax = new Vector2(-6, 0);
-            Text priceText = priceObj.AddComponent<Text>();
-            priceText.text = $"{item.SellPrice}金"; priceText.alignment = TextAnchor.MiddleCenter;
-            priceText.fontSize = 14; priceText.color = UIHelper.Accent; priceText.font = font;
+            {
+                var cell = ShopBagShell.MakeSprite(gridRoot.transform, "BagCell_" + i, "SlotEmpty_Bag",
+                    center, new Vector2(CellSize, CellSize));
+                cell.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.55f);
+            }
         }
 
-        // 批量出售 + Pagination — 合并到底部行
-        BuildPaginationWithBulkSell(rightContainer.gameObject, font, totalPages, inv);
-
+        if (pageText != null) pageText.text = $"{bpPage + 1}/{totalPages}";
+        if (countText != null) countText.text = $"{inv.Backpack.Count}/{EquipmentInventory.MaxBackpackSize}";
+        ShopBagShell.RefreshEquipSlots(shell);
     }
 
-    private void BuildPaginationWithBulkSell(GameObject parent, Font font, int totalPages, EquipmentInventory inv)
+    private int CompareToEquipped(EquipmentItem item)
     {
-        float pad = 8f;
-        float pageRowH = 36f;
-
-        GameObject pageRow = new GameObject("PageRow");
-        pageRow.transform.SetParent(parent.transform, false);
-        RectTransform prRect = pageRow.AddComponent<RectTransform>();
-        prRect.anchorMin = new Vector2(0, 0); prRect.anchorMax = new Vector2(1, 0);
-        prRect.pivot = new Vector2(0, 0);
-        prRect.anchoredPosition = new Vector2(pad, pad);
-        prRect.sizeDelta = new Vector2(-pad * 2, pageRowH);
-
-        // Prev page
-        GameObject prevObj = new GameObject("PrevPageBtn");
-        prevObj.transform.SetParent(pageRow.transform, false);
-        RectTransform prevRect = prevObj.AddComponent<RectTransform>();
-        prevRect.anchorMin = new Vector2(0, 0); prevRect.anchorMax = new Vector2(0.15f, 1);
-        prevRect.offsetMin = new Vector2(0, 3); prevRect.offsetMax = new Vector2(-3, -3);
-        Image prevImg = prevObj.AddComponent<Image>();
-        prevImg.color = bpPage > 0 ? new Color(0.14f, 0.08f, 0.20f, 0.9f) : new Color(0.10f, 0.06f, 0.14f, 0.5f);
-        Button prevBtn = prevObj.AddComponent<Button>();
-        prevBtn.interactable = bpPage > 0;
-        prevBtn.onClick.AddListener(() => { bpPage--; RefreshDisplay(); });
-        MakeLabel(prevObj, "◀", 17, Color.white, font);
-
-        // Page text
-        GameObject ptObj = new GameObject("PageText");
-        ptObj.transform.SetParent(pageRow.transform, false);
-        RectTransform ptRect = ptObj.AddComponent<RectTransform>();
-        ptRect.anchorMin = new Vector2(0.15f, 0); ptRect.anchorMax = new Vector2(0.35f, 1);
-        ptRect.offsetMin = new Vector2(3, 3); ptRect.offsetMax = new Vector2(-3, -3);
-        Text ptText = ptObj.AddComponent<Text>();
-        ptText.text = $"{bpPage + 1}/{totalPages}";
-        ptText.alignment = TextAnchor.MiddleCenter;
-        ptText.fontSize = 17; ptText.color = new Color(0.8f, 0.8f, 0.85f); ptText.font = font;
-
-        // 批量出售按钮
-        int totalSellPrice = 0;
-        foreach (var selIdx in selectedBpIndices)
-        {
-            if (selIdx >= 0 && selIdx < inv.Backpack.Count)
-                totalSellPrice += inv.Backpack[selIdx].SellPrice;
-        }
-        GameObject bulkSellObj = new GameObject("BulkSellBtn");
-        bulkSellObj.transform.SetParent(pageRow.transform, false);
-        RectTransform bsRect = bulkSellObj.AddComponent<RectTransform>();
-        bsRect.anchorMin = new Vector2(0.36f, 0); bsRect.anchorMax = new Vector2(0.66f, 1);
-        bsRect.offsetMin = new Vector2(3, 3); bsRect.offsetMax = new Vector2(-3, -3);
-        Image bsImg = bulkSellObj.AddComponent<Image>();
-        bsImg.color = selectedBpIndices.Count > 0 ? UIHelper.BtnSell : new Color(0.1f, 0.06f, 0.14f, 0.5f);
-        Button bsBtn = bulkSellObj.AddComponent<Button>();
-        bsBtn.interactable = selectedBpIndices.Count > 0;
-        bsBtn.onClick.AddListener(BulkSellSelected);
-        MakeLabel(bulkSellObj, selectedBpIndices.Count > 0 ? $"出售({selectedBpIndices.Count})◆{totalSellPrice}" : "未选中", 13, Color.white, font);
-
-        // Bulk Dismantle button
-        int totalFragments = 0;
-        foreach (var selIdx in selectedBpIndices)
-        {
-            if (selIdx >= 0 && selIdx < inv.Backpack.Count)
-                totalFragments += DismantleSystem.GetFragmentYield(inv.Backpack[selIdx]);
-        }
-        GameObject bulkDmdObj = new GameObject("BulkDismantleBtn");
-        bulkDmdObj.transform.SetParent(pageRow.transform, false);
-        RectTransform bdRect = bulkDmdObj.AddComponent<RectTransform>();
-        bdRect.anchorMin = new Vector2(0.67f, 0); bdRect.anchorMax = new Vector2(0.84f, 1);
-        bdRect.offsetMin = new Vector2(3, 3); bdRect.offsetMax = new Vector2(-3, -3);
-        Image bdImg = bulkDmdObj.AddComponent<Image>();
-        bdImg.color = selectedBpIndices.Count > 0 ? new Color(0.15f, 0.35f, 0.5f, 0.9f) : new Color(0.1f, 0.06f, 0.14f, 0.5f);
-        Button bdBtn = bulkDmdObj.AddComponent<Button>();
-        bdBtn.interactable = selectedBpIndices.Count > 0;
-        bdBtn.onClick.AddListener(BulkDismantleSelected);
-        MakeLabel(bulkDmdObj, selectedBpIndices.Count > 0 ? $"分解({selectedBpIndices.Count})◆{totalFragments}" : "未选中", 13, new Color(0.6f, 0.85f, 1f), font);
-
-        // Next page
-        GameObject nextObj = new GameObject("NextPageBtn");
-        nextObj.transform.SetParent(pageRow.transform, false);
-        RectTransform nextRect = nextObj.AddComponent<RectTransform>();
-        nextRect.anchorMin = new Vector2(0.85f, 0); nextRect.anchorMax = new Vector2(1f, 1);
-        nextRect.offsetMin = new Vector2(3, 3); nextRect.offsetMax = new Vector2(0, -3);
-        Image nextImg = nextObj.AddComponent<Image>();
-        nextImg.color = bpPage < totalPages - 1 ? new Color(0.14f, 0.08f, 0.20f, 0.9f) : new Color(0.10f, 0.06f, 0.14f, 0.5f);
-        Button nextBtn = nextObj.AddComponent<Button>();
-        nextBtn.interactable = bpPage < totalPages - 1;
-        nextBtn.onClick.AddListener(() => { bpPage++; RefreshDisplay(); });
-        MakeLabel(nextObj, "▶", 17, Color.white, font);
+        var inv = GameManager.Instance != null ? GameManager.Instance.Player?.Inventory : null;
+        if (inv == null) return 0;
+        var slot = inv.Equipped[(int)item.SlotType];
+        if (slot == null || slot.IsEmpty) return 1;
+        var eq = slot.Item;
+        if (item.Rarity != eq.Rarity) return item.Rarity.CompareTo(eq.Rarity);
+        int a = item.AttackBonus + item.DefenseBonus + item.HpBonus / 5;
+        int b = eq.AttackBonus + eq.DefenseBonus + eq.HpBonus / 5;
+        return a.CompareTo(b);
     }
 
     // ================================================================
-    //  Helper methods
+    //  背包格点击 — 操作菜单（装备/替换 | 强化 | 取消 / 卖出 | 分解）
     // ================================================================
-    private void MakeSectionLabel(GameObject parent, string name, string text, Color color, Font font, int fontSize, float topPad)
+    private void ShowItemMenu(int origIdx)
     {
-        GameObject obj = new GameObject(name);
-        obj.transform.SetParent(parent.transform, false);
-        RectTransform rect = obj.AddComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0, 1); rect.anchorMax = new Vector2(1, 1);
-        rect.pivot = new Vector2(0.5f, 1);
-        rect.anchoredPosition = new Vector2(0, -topPad);
-        rect.sizeDelta = new Vector2(0, 28);
-        Text t = obj.AddComponent<Text>();
-        t.text = text; t.alignment = TextAnchor.MiddleCenter;
-        t.fontSize = fontSize; t.color = color; t.font = font;
-    }
+        var inv = GameManager.Instance?.Player?.Inventory;
+        if (inv == null || origIdx < 0 || origIdx >= inv.Backpack.Count) return;
+        var item = inv.Backpack[origIdx];
+        HideConfirmDialog();
 
-    private void MakeRarityBar(GameObject parent, Color color)
-    {
-        GameObject obj = new GameObject("RarityBar");
-        obj.transform.SetParent(parent.transform, false);
-        RectTransform r = obj.AddComponent<RectTransform>();
-        r.anchorMin = new Vector2(0, 0); r.anchorMax = new Vector2(0, 1);
-        r.pivot = new Vector2(0, 0.5f);
-        r.sizeDelta = new Vector2(4, 0);
-        Image img = obj.AddComponent<Image>();
-        img.color = color;
-    }
+        Font font = GameManager.GetUIFont();
+        Canvas canvas = GameManager.EnsureCanvas();
 
-    private Text MakeLabel(GameObject parent, string text, int fontSize, Color color, Font font)
-    {
-        GameObject label = new GameObject("L");
-        label.transform.SetParent(parent.transform, false);
-        RectTransform rect = label.AddComponent<RectTransform>();
-        rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero; rect.offsetMax = Vector2.zero;
-        Text t = label.AddComponent<Text>();
-        t.text = text; t.alignment = TextAnchor.MiddleCenter;
-        t.fontSize = fontSize; t.color = color; t.font = font;
-        t.supportRichText = true;
-        return t;
-    }
+        confirmDialog = CreateDialogBase(canvas, "背包操作", 380);
+        var box = confirmDialog.transform.Find("DialogBox").gameObject;
 
-    // ================================================================
-    //  Equipment Upgrade
-    // ================================================================
-    private void TryUpgradeItem(EquipmentItem item, EquipmentInventory inv)
-    {
-        if (item == null || item.UpgradeLevel >= EquipmentItem.MaxUpgradeLevel) return;
+        var infoObj = new GameObject("MenuItemInfo");
+        infoObj.transform.SetParent(box.transform, false);
+        var iRect = infoObj.AddComponent<RectTransform>();
+        iRect.anchorMin = new Vector2(0.06f, 0.52f); iRect.anchorMax = new Vector2(0.94f, 0.82f);
+        iRect.offsetMin = Vector2.zero; iRect.offsetMax = Vector2.zero;
+        var iTxt = infoObj.AddComponent<Text>();
+        string affixStr = item.GetAffixDisplayString();
+        iTxt.text = $"{SlotPrefix(item.SlotType)}{ShopBagShell.StripRarityPrefix(item.Name)}{(item.UpgradeLevel > 0 ? $" <color=#8C55C0>+{item.UpgradeLevel}</color>" : "")}\n<size=14><color=#aaa>{item.GetStatSummary()}</color></size>" + (string.IsNullOrEmpty(affixStr) ? "" : $"\n<size=12><color=#88CCFF>{affixStr}</color></size>");
+        iTxt.alignment = TextAnchor.MiddleCenter;
+        iTxt.fontSize = 17; iTxt.color = ItemData.GetRarityColor(item.Rarity);
+        iTxt.font = font; iTxt.supportRichText = true;
 
-        int goldCost = item.GetUpgradeCost();
-        int fragCost = DismantleSystem.FragmentYield[(int)item.Rarity] / 2 + 1;
+        var equippedSlot = inv.Equipped.Find(s => s.SlotType == item.SlotType);
+        bool slotOccupied = equippedSlot != null && !equippedSlot.IsEmpty;
+        bool canUpgrade = item.UpgradeLevel < EquipmentItem.MaxUpgradeLevel;
 
-        var player = GameManager.Instance?.Player;
-        if (player == null) return;
+        // 行1: 装备/替换 + 强化 + 取消
+        ShopBagShell.MakeMenuBtn(box.transform, "MenuEquipBtn", slotOccupied ? "替 换" : "装 备", font,
+            new Vector2(-150, -78), new Vector2(130, 46),
+            slotOccupied ? UIHelper.BtnReplace : UIHelper.BtnEquip, () =>
+            {
+                HideConfirmDialog();
+                if (slotOccupied)
+                {
+                    ShowReplaceConfirm(origIdx);
+                }
+                else
+                {
+                    selectedBpIndices.Clear();
+                    inv.Equip(inv.Backpack[origIdx]);
+                    GameManager.Instance.Player.Stats.Save();
+                    RefreshDisplay();
+                }
+            });
+        ShopBagShell.MakeMenuBtn(box.transform, "MenuUpgradeBtn", "强 化", font,
+            new Vector2(0, -78), new Vector2(130, 46),
+            canUpgrade ? UIHelper.BtnUpgrade : new Color(0.20f, 0.20f, 0.20f, 0.6f),
+            canUpgrade ? (System.Action)(() => { HideConfirmDialog(); ShowUpgradeConfirm(origIdx); }) : null);
+        ShopBagShell.MakeMenuBtn(box.transform, "MenuCancelBtn", "取 消", font,
+            new Vector2(150, -78), new Vector2(130, 46),
+            new Color(0.10f, 0.07f, 0.14f, 0.9f), () => HideConfirmDialog());
 
-        if (player.Stats.Gold < goldCost)
-        {
-            if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast("提示", "金币不足");
-            return;
-        }
-        if (DismantleSystem.Fragments < fragCost)
-        {
-            if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast("提示", $"碎片不足, 需要{fragCost}个");
-            return;
-        }
-
-        // Consume resources
-        player.Stats.SpendGold(goldCost);
-        DismantleSystem.Fragments -= fragCost;
-
-        // Upgrade item
-        item.Upgrade();
-        inv.RecalculateStats();
-        player.Stats.Save();
-
-        if (GameUI.Instance != null)
-            GameUI.Instance.ShowItemPickupToast("升级成功", $"{item.Name} +{item.UpgradeLevel}");
-
-        RefreshDisplay();
+        // 行2: 卖出 + 分解
+        ShopBagShell.MakeMenuBtn(box.transform, "MenuSellBtn", $"卖出 {item.SellPrice}金", font,
+            new Vector2(-75, -140), new Vector2(150, 46),
+            UIHelper.BtnSell, () => { HideConfirmDialog(); ShowSellConfirm(origIdx); });
+        int dYield = DismantleSystem.GetFragmentYield(item);
+        int dLife = DismantleSystem.GetLifeYield(item);
+        string dLabel = dLife > 0 ? $"分解 +{dYield} +{dLife}寿元" : $"分解 +{dYield}";
+        ShopBagShell.MakeMenuBtn(box.transform, "MenuDismantleBtn", dLabel, font,
+            new Vector2(75, -140), new Vector2(150, 46),
+            new Color(0.15f, 0.35f, 0.5f, 0.9f), () => { HideConfirmDialog(); ShowDismantleConfirm(origIdx); });
     }
 
     // ================================================================
     //  Quick Actions: Dismantle All Common + Equip Best
     // ================================================================
+    /// <summary>背包扩展: 位面币购买+10格 (上限+50) — 经济规范: 位面币消耗/仓库扩展</summary>
+    private void ExpandBackpack()
+    {
+        int times = PlayerPrefs.GetInt("ARPG_BagExpand", 0);
+        if (times >= EquipmentInventory.BagExpandMaxTimes)
+        {
+            if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast("提示", "背包已扩展至上限 (+50格)");
+            return;
+        }
+        if (!CurrencyWallet.TrySpendPlane(EquipmentInventory.BagExpandPrice))
+        {
+            if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast("位面币不足", $"扩展背包需要 {EquipmentInventory.BagExpandPrice} 位面币");
+            return;
+        }
+        PlayerPrefs.SetInt("ARPG_BagExpand", times + 1);
+        PlayerPrefs.Save();
+        if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast("背包扩展", $"背包容量 +10 (当前 {EquipmentInventory.MaxBackpackSize} 格)");
+        RefreshDisplay();
+    }
+
     private void DismantleAllCommon()
     {
         var inv = GameManager.Instance?.Player?.Inventory;
         if (inv == null) return;
 
-        var indices = new System.Collections.Generic.List<int>();
+        var indices = new List<int>();
         for (int i = inv.Backpack.Count - 1; i >= 0; i--)
         {
             if (inv.Backpack[i].Rarity == ItemRarity.Common)
@@ -749,54 +432,20 @@ public partial class EquipUI : MonoBehaviour
     }
 
     // ================================================================
-    //  Bulk Sell
+    //  Helper methods
     // ================================================================
-    private void BulkSellSelected()
+    private Text MakeLabel(GameObject parent, string text, int fontSize, Color color, Font font)
     {
-        var inv = GameManager.Instance?.Player?.Inventory;
-        if (inv == null || selectedBpIndices.Count == 0) return;
-
-        int totalGold = 0;
-        int sold = 0;
-        // Sort descending so removal doesn't shift indices
-        var sorted = new List<int>(selectedBpIndices);
-        sorted.Sort((a, b) => b.CompareTo(a));
-        foreach (var idx in sorted)
-        {
-            if (idx < 0 || idx >= inv.Backpack.Count) continue;
-            totalGold += inv.Backpack[idx].SellPrice;
-            inv.Backpack.RemoveAt(idx);
-            sold++;
-        }
-
-        if (sold > 0 && GameManager.Instance?.Player != null)
-        {
-            GameManager.Instance.Player.Stats.AddGold(totalGold);
-            GameManager.Instance.Player.Stats.Save();
-            inv.RecalculateStats();
-                        GameLog.Log($"[EquipUI] 批量出售 {sold} 件装备, 获得 {totalGold} 金币");
-        }
-
-        selectedBpIndices.Clear();
-        RefreshDisplay();
-    }
-
-    // ================================================================
-    //  Bulk Dismantle
-    // ================================================================
-    private void BulkDismantleSelected()
-    {
-        var inv = GameManager.Instance?.Player?.Inventory;
-        if (inv == null || selectedBpIndices.Count == 0) return;
-
-        int totalFragments = DismantleSystem.DismantleBatch(inv, new List<int>(selectedBpIndices));
-        if (totalFragments > 0 && GameManager.Instance?.Player != null)
-        {
-            GameManager.Instance.Player.Stats.Save();
-            if (GameUI.Instance != null) GameUI.Instance.ShowItemPickupToast("批量分解", $"获得 {totalFragments} 分解碎片");
-        }
-        selectedBpIndices.Clear();
-        RefreshDisplay();
+        GameObject label = new GameObject("L");
+        label.transform.SetParent(parent.transform, false);
+        RectTransform rect = label.AddComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero; rect.offsetMax = Vector2.zero;
+        Text t = label.AddComponent<Text>();
+        t.text = text; t.alignment = TextAnchor.MiddleCenter;
+        t.fontSize = fontSize; t.color = color; t.font = font;
+        t.supportRichText = true;
+        return t;
     }
 
     // ==== Confirm dialogs — moved to EquipUI.Dialogs.cs (partial class) ====
@@ -804,6 +453,7 @@ public partial class EquipUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        ShopBagShell.CloseSlotMenu();
         HideConfirmDialog();
         if (panel != null) Destroy(panel);
         if (Instance == this) Instance = null;

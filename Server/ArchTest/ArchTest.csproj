@@ -16,9 +16,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 服务器主程序: ShardManager/SessionManager (阶段04会话分线单测) -->
+    <!-- 服务器WebAPI主程序: SessionManager/ShardManager (阶段04) + Unity编译的Arch程序集: RpcRateLimiter/ServerAuthority (阶段05) -->
     <Reference Include="ArpgServer">
       <HintPath>..\publish\ArpgServer.dll</HintPath>
+    </Reference>
+    <Reference Include="Arch">
+      <HintPath>..\Library\ScriptAssemblies\Arch.dll</HintPath>
+    </Reference>
+    <!-- UnityEngine (Arch程序集依赖) -->
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>D:\unity\2022.3.62t8\Editor\Data\Managed\UnityEngine\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
   </ItemGroup>
 

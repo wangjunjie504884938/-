@@ -14,8 +14,14 @@ namespace ArpgGameServer
         public string webApiUrl = "http://localhost:5132";
         public int maxRooms = 50;
 
+        /// <summary>单例 — 供快照上传器等读取 webApiUrl</summary>
+        public static ServerBootstrapper Instance { get; private set; }
+
         private void Awake()
         {
+            if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+            Instance = this;
+
             // 解析命令行参数
             string[] args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)

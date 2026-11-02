@@ -117,6 +117,8 @@ namespace ArpgGameServer
             serverVelocity = msg.velocity;
             _lastValidPosition = serverPosition;
             transform.position = serverPosition;
+            // AOI 网格同步 (规划阶段07) — 玩家位置进空间索引
+            CurrentRoom?.GridMove(playerId, serverPosition);
         }
 
         private System.DateTime _lastMoveStateChanged = System.DateTime.UtcNow;

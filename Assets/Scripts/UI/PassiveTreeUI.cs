@@ -74,6 +74,11 @@ public class PassiveTreeUI : MonoBehaviour
         int points = player.Stats.SkillPoints;
         _pointsText = UIHelper.MakeSubtitle(panel.transform, $"可用技能点: {points}", font, 110, 16);
 
+        // 洗点: 消耗寿元币退还全部已分配被动点 (经济规范: 寿元币消耗/洗点)
+        UIHelper.MakeButton(panel.transform, "RespecBtn", "洗点 (20寿元)", font,
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 148), new Vector2(160, 34),
+            new Color(0.5f, 0.3f, 0.7f, 0.9f), 16, OnRespecClicked);
+
         // === 精确布局 ===
         float scrollTop = -236f, scrollH = 600f;
         float detailTop = -240f, detailH = 600f;
@@ -275,9 +280,31 @@ public class PassiveTreeUI : MonoBehaviour
         panel.SetActive(false);
     }
 
-    private void OnNodeClick(int nodeId)
+    /// <summary>洗点: 消耗20寿元币, 退还全部已分配被动点并清空节点 (经济规范: 寿元币消耗/洗点)</summary>
+    private void OnRespecClicked()
     {
         var player = GameManager.Instance?.Player;
+        if (player == null) return;
+        int spent = player.Stats.Progress.PassiveNodeIds.Count;
+        if (spent == 0)
+        {
+            _detailText.text = "没有已分配的被动节点";
+            return;
+        }
+        if (!CurrencyWallet.TrySpendLife(20))
+        {
+            _detailText.text = "<color=#FF6644>寿元币不足 (洗点需要 20)</color>";
+            return;
+        }
+        player.Stats.SkillPoints += spent;
+        player.Stats.Progress.PassiveNodeIds.Clear();
+        player.Stats.RecalculatePassiveTree();
+        player.Stats.Save();
+        Show(); // 重建面板刷新节点状态
+    }
+
+    private void OnNodeClick(int nodeId)
+    {        var player = GameManager.Instance?.Player;
         if (player == null) return;
 
         var nodes = PassiveTree.Nodes;
