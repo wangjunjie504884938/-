@@ -16,12 +16,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 服务器WebAPI主程序: SessionManager/ShardManager (阶段04) + Unity编译的Arch程序集: RpcRateLimiter/ServerAuthority (阶段05) -->
+    <!-- 服务器WebAPI主程序: SessionManager/ShardManager (阶段04) + Arch数据模型/RpcRateLimiter/ServerAuthority (csproj Compile Include共享源码, 单一类型来源避免CS0433二义) -->
     <Reference Include="ArpgServer">
       <HintPath>..\publish\ArpgServer.dll</HintPath>
-    </Reference>
-    <Reference Include="Arch">
-      <HintPath>..\Library\ScriptAssemblies\Arch.dll</HintPath>
     </Reference>
     <!-- UnityEngine (Arch程序集依赖) -->
     <Reference Include="UnityEngine.CoreModule">

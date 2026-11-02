@@ -6,7 +6,12 @@ using Arch;
 using ArpgServer.Data;
 using ArpgServer.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+// ContentRoot固定为exe目录: 默认是CWD, CWD不对时appsettings.json加载不到 → 连接串为空 → MySQL连localhost失败
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+});
 
 // ========== 1. EF Core + MySQL ==========
 builder.Services.AddDbContext<AppDbContext>(opt =>
@@ -57,6 +62,9 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpClient(); // 用于TeamController向Game Server发HTTP请求
 
 var app = builder.Build();
+
+// ========== 阶段10: 启动时清理过期文件日志 (14天保留期) ==========
+ArpgServer.Services.FileLoggerService.CleanupOldLogs();
 
 // ========== 4. 自动建库建表 ==========
 // EnsureCreated 只能创建全新数据库; 已有数据库不会新增表
@@ -281,5 +289,6 @@ if (app.Environment.IsDevelopment())
 app.Urls.Add("http://0.0.0.0:5132");
 
 app.MapControllers();
+app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 
 app.Run();
