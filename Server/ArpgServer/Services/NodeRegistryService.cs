@@ -148,6 +148,7 @@ public class NodeRegistryService
             if (session.ServerNodeId == node.NodeId && session.State == SessionState.Active)
             {
                 _sessions.Detach(session.SessionId);
+                _shards.Leave(session.LineId); // 死线计数释放, 节点重注册后线从0开始
                 detached++;
             }
         }

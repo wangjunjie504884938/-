@@ -114,6 +114,10 @@ namespace Arch
 
         public GameSession Get(string sessionId) => _sessions.TryGetValue(sessionId, out var s) ? s : null;
 
+        /// <summary>按玩家查当前会话 (重复登录顶替时释放旧线容量用)</summary>
+        public GameSession GetByPlayer(long playerId)
+            => _playerIndex.TryGetValue(playerId, out var sid) && _sessions.TryGetValue(sid, out var s) ? s : null;
+
         /// <summary>全量会话快照 (阶段11节点摘除时遍历归属会话)</summary>
         public IEnumerable<GameSession> All() => _sessions.Values;
 

@@ -54,6 +54,11 @@ public class SessionController : ControllerBase
             return StatusCode(503, new { error = "分线加入失败, 请重试" });
 
         var userId = GetUserId();
+
+        // 重复登录顶替: 旧会话占用的线容量先释放 (否则计数只涨不跌撑满线)
+        var old = _sessions.GetByPlayer(userId);
+        if (old != null) _shards.Leave(old.LineId);
+
         var session = _sessions.OpenSession(userId, Guid.NewGuid().ToString("N"), line.LineId, line.ServerNodeId ?? "local-node", req.BuildVersion);
         var node = line.ServerNodeId != null ? _nodes.Get(line.ServerNodeId) : null;
         return Ok(new
@@ -133,12 +138,14 @@ public class SessionController : ControllerBase
         public string SessionId { get; set; } = "";
     }
 
-    /// <summary>登出/断线通知: 会话进入 Detached (重连租约) 或直接关闭</summary>
+    /// <summary>登出/断线通知: 会话关闭 + 分线容量释放 (仅Active占用者; 已被节点摘除释放的Detached会话不重复扣)</summary>
     [Authorize]
     [HttpPost("session/close")]
     public IActionResult Close([FromBody] CloseRequest req)
     {
+        var s = _sessions.Get(req.SessionId);
         _sessions.Close(req.SessionId);
+        if (s != null && s.State == SessionState.Active) _shards.Leave(s.LineId);
         return Ok(new { success = true });
     }
 

@@ -72,6 +72,10 @@ internal static class Program
         if (args.Length > 0 && args[0] == "phase11")
             return await Phase11Test.Run();
 
+        // loadhttp: 阶段12 HTTP层压测 (loadhttp [baseUrl] [bots] [seconds])
+        if (args.Length > 0 && args[0] == "loadhttp")
+            return await LoadTestHttp.Run(args);
+
         // Redis 连接串: 从服务器发布目录的 appsettings.json 读取
         var settingsPath = args.Length > 0 ? args[0] : "Server/publish/appsettings.json";
         var settingsJson = File.ReadAllText(settingsPath);
