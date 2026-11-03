@@ -2,7 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Arch;
+using ArpgServer.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace ArpgServer.Services;
@@ -36,13 +39,15 @@ public class NodeRegistryService
     private readonly ShardManager _shards;
     private readonly SessionManager _sessions;
     private readonly RedisCacheService _redis;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly TimeSpan _heartbeatTimeout;
 
-    public NodeRegistryService(ShardManager shards, SessionManager sessions, RedisCacheService redis, IConfiguration config)
+    public NodeRegistryService(ShardManager shards, SessionManager sessions, RedisCacheService redis, IServiceScopeFactory scopeFactory, IConfiguration config)
     {
         _shards = shards;
         _sessions = sessions;
         _redis = redis;
+        _scopeFactory = scopeFactory;
         _heartbeatTimeout = TimeSpan.FromSeconds(config.GetValue("Arch:NodeHeartbeatTimeoutSeconds", 45));
     }
 
@@ -87,6 +92,11 @@ public class NodeRegistryService
         }
 
         Heartbeat(nodeId, node.Load, true);
+        _ = RegistryDbAsync(
+            @"INSERT INTO server_registry (`NodeId`,`Host`,`MirrorPort`,`HttpPort`,`Capacity`,`BuildVersion`,`Healthy`,`Accepting`,`Load`,`LineId`,`RegisteredAt`,`LastHeartbeat`,`RemovedAt`)
+              VALUES ({0},{1},{2},{3},{4},{5},1,1,0,{6},UTC_TIMESTAMP(3),UTC_TIMESTAMP(3),NULL)
+              ON DUPLICATE KEY UPDATE `Host`={1},`MirrorPort`={2},`HttpPort`={3},`Capacity`={4},`BuildVersion`={5},`Healthy`=1,`Accepting`=1,`RemovedAt`=NULL,`LastHeartbeat`=UTC_TIMESTAMP(3)",
+            nodeId, host, mirrorPort, httpPort, capacity, buildVersion, node.LineId);
         return node.LineId;
     }
 
@@ -97,6 +107,9 @@ public class NodeRegistryService
         node.Load = load;
         node.Accepting = accepting;
         node.LastHeartbeatUtc = DateTime.UtcNow;
+        _ = RegistryDbAsync(
+            @"UPDATE server_registry SET `Load`={1}, `Accepting`={2}, `Healthy`=1, `LastHeartbeat`=UTC_TIMESTAMP(3) WHERE `NodeId`={0}",
+            nodeId, load, accepting);
 
         var wasDown = !node.Healthy;
         node.Healthy = true;
@@ -111,6 +124,9 @@ public class NodeRegistryService
     {
         if (!_nodes.TryRemove(nodeId, out var node)) return false;
         TakeLineDown(node, reason: "deregistered");
+        _ = RegistryDbAsync(
+            @"UPDATE server_registry SET `RemovedAt`=UTC_TIMESTAMP(3), `Healthy`=0 WHERE `NodeId`={0}",
+            nodeId);
         return true;
     }
 
@@ -133,10 +149,30 @@ public class NodeRegistryService
                 node.Healthy = false;
                 node.Accepting = false;
                 TakeLineDown(node, reason: $"heartbeat timeout >{timeout.TotalSeconds}s");
+                _ = RegistryDbAsync(
+                    @"UPDATE server_registry SET `Healthy`=0, `Accepting`=0 WHERE `NodeId`={0}",
+                    node.NodeId);
                 unhealthy.Add(node.NodeId);
             }
         }
         return unhealthy;
+    }
+
+    /// <summary>
+    /// server_registry 持久化写通 (规划4.1) — fire-and-forget: DB 故障不影响内存注册表权威。
+    /// </summary>
+    private async Task RegistryDbAsync(string sql, params object[] args)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.ExecuteSqlRawAsync(sql, args);
+        }
+        catch (Exception ex)
+        {
+            FileLoggerService.Log("NODE", "registry_db", $"write failed: {ex.Message}");
+        }
     }
 
     /// <summary>线下线 + 该节点所有 Active 会话转 Detached (重连租约内可被重分配 — 状态交接入口)</summary>

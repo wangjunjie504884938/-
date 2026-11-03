@@ -272,7 +272,42 @@ CREATE TABLE IF NOT EXISTS `payment_orders` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
         cmd.ExecuteNonQuery();
 
-        Console.WriteLine("[DB] currency_ledger / dungeon_snapshots / payment_orders 表已创建/验证");
+        // ========== 架构阶段11: 节点注册表 (规划4.1 server_registry — 节点生命周期持久化, 供审计/多实例协调) ==========
+        cmd.CommandText = @"
+CREATE TABLE IF NOT EXISTS `server_registry` (
+    `NodeId` VARCHAR(64) PRIMARY KEY,
+    `Host` VARCHAR(64) NOT NULL,
+    `MirrorPort` INT NOT NULL,
+    `HttpPort` INT NOT NULL DEFAULT 0,
+    `Capacity` INT NOT NULL DEFAULT 50,
+    `BuildVersion` INT NOT NULL DEFAULT 0,
+    `Healthy` TINYINT(1) NOT NULL DEFAULT 1,
+    `Accepting` TINYINT(1) NOT NULL DEFAULT 1,
+    `Load` INT NOT NULL DEFAULT 0,
+    `LineId` INT NOT NULL DEFAULT 0,
+    `RegisteredAt` DATETIME(3) NOT NULL,
+    `LastHeartbeat` DATETIME(3) NOT NULL,
+    `RemovedAt` DATETIME(3) NULL,
+    INDEX `IX_Registry_Healthy` (`Healthy`, `LastHeartbeat`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+        cmd.ExecuteNonQuery();
+
+        // ========== 架构阶段12: player_data 统一存档blob表 (规划4.1) ==========
+        // 与规划差异: 规划为 player_id 单列主键, 本项目多角色槽位需 (player_id, slot) 复合主键
+        // 双写策略: SaveQueue 落库成功后同步写本表 (data_blob=SaveJson, data_version=DataVersion); 读取仍走 PlayerSave 列 (过渡期权威)
+        cmd.CommandText = @"
+CREATE TABLE IF NOT EXISTS `player_data` (
+    `player_id` BIGINT NOT NULL,
+    `slot` INT NOT NULL DEFAULT 0,
+    `data_blob` LONGTEXT NOT NULL,
+    `data_version` BIGINT NOT NULL DEFAULT 1,
+    `updated_at` DATETIME(3) NOT NULL,
+    PRIMARY KEY (`player_id`, `slot`),
+    INDEX `IX_PlayerData_Updated` (`updated_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+        cmd.ExecuteNonQuery();
+
+        Console.WriteLine("[DB] currency_ledger / dungeon_snapshots / payment_orders / server_registry / player_data 表已创建/验证");
     }
     catch (Exception ex)
     {

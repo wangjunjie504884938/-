@@ -155,6 +155,18 @@ public class SaveQueueService : BackgroundService
                     // 规划4.2: save_version 键 = 玩家当前持久化版本标记
                     try { await _redis.Database.StringSetAsync($"player:{{{job.UserId}}}:save_version", newVersion.ToString()); }
                     catch { /* save_version为辅助标记, 失败不影响存档 */ }
+                    // 规划4.1: player_data 统一blob表双写 (data_blob=SaveJson; 读取过渡期仍以PlayerSave列权威)
+                    try
+                    {
+                        await db.Database.ExecuteSqlInterpolatedAsync(
+                            $@"INSERT INTO player_data (`player_id`, `slot`, `data_blob`, `data_version`, `updated_at`)
+                               VALUES ({job.UserId}, {job.Slot}, {job.SaveJson}, {newVersion}, UTC_TIMESTAMP(3))
+                               ON DUPLICATE KEY UPDATE `data_blob`={job.SaveJson}, `data_version`={newVersion}, `updated_at`=UTC_TIMESTAMP(3)");
+                    }
+                    catch (Exception ex2)
+                    {
+                        _logger.LogWarning("[SaveQueue] player_data双写失败(不影响PlayerSave权威): saveId={Id} {Msg}", job.SaveId, ex2.Message);
+                    }
                 }
             }
             catch (Exception ex)
