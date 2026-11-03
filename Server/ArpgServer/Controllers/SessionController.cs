@@ -23,12 +23,14 @@ public class SessionController : ControllerBase
     private readonly SessionManager _sessions;
     private readonly ShardManager _shards;
     private readonly NodeRegistryService _nodes;
+    private readonly RedisCacheService _redis;
 
-    public SessionController(SessionManager sessions, ShardManager shards, NodeRegistryService nodes)
+    public SessionController(SessionManager sessions, ShardManager shards, NodeRegistryService nodes, RedisCacheService redis)
     {
         _sessions = sessions;
         _shards = shards;
         _nodes = nodes;
+        _redis = redis;
     }
 
     public class OpenSessionRequest
@@ -61,6 +63,7 @@ public class SessionController : ControllerBase
 
         var session = _sessions.OpenSession(userId, Guid.NewGuid().ToString("N"), line.LineId, line.ServerNodeId ?? "local-node", req.BuildVersion);
         var node = line.ServerNodeId != null ? _nodes.Get(line.ServerNodeId) : null;
+        _ = SessionRedisWriter.WriteAsync(_redis, session); // 规划4.2: player:{id}:session 镜像
         return Ok(new
         {
             success = true,
@@ -120,6 +123,7 @@ public class SessionController : ControllerBase
         }
 
         var node = session.ServerNodeId != null ? _nodes.Get(session.ServerNodeId) : null;
+        _ = SessionRedisWriter.WriteAsync(_redis, session); // 规划4.2: 重连后镜像更新
         return Ok(new
         {
             success = true,
@@ -146,6 +150,7 @@ public class SessionController : ControllerBase
         var s = _sessions.Get(req.SessionId);
         _sessions.Close(req.SessionId);
         if (s != null && s.State == SessionState.Active) _shards.Leave(s.LineId);
+        if (s != null) _ = SessionRedisWriter.DeleteAsync(_redis, s.PlayerId); // 规划4.2: 会话镜像删除
         return Ok(new { success = true });
     }
 

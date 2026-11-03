@@ -35,12 +35,14 @@ public class NodeRegistryService
     private readonly ConcurrentDictionary<string, GameNode> _nodes = new();
     private readonly ShardManager _shards;
     private readonly SessionManager _sessions;
+    private readonly RedisCacheService _redis;
     private readonly TimeSpan _heartbeatTimeout;
 
-    public NodeRegistryService(ShardManager shards, SessionManager sessions, IConfiguration config)
+    public NodeRegistryService(ShardManager shards, SessionManager sessions, RedisCacheService redis, IConfiguration config)
     {
         _shards = shards;
         _sessions = sessions;
+        _redis = redis;
         _heartbeatTimeout = TimeSpan.FromSeconds(config.GetValue("Arch:NodeHeartbeatTimeoutSeconds", 45));
     }
 
@@ -149,6 +151,7 @@ public class NodeRegistryService
             {
                 _sessions.Detach(session.SessionId);
                 _shards.Leave(session.LineId); // 死线计数释放, 节点重注册后线从0开始
+                _ = SessionRedisWriter.WriteAsync(_redis, session); // 规划4.2: 会话镜像更新为Detached
                 detached++;
             }
         }

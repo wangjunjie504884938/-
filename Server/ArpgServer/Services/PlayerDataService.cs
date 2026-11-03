@@ -39,7 +39,8 @@ public class PlayerDataService
         public int Gold;
     }
 
-    private static string CacheKey(int userId, int slot) => $"player:save:{userId}:{slot}";
+    // 键命名 (规划4.2): player:{userId}:data:{slot} — {userId} hash tag 集群安全 (纯缓存, 30分钟TTL)
+    private static string CacheKey(int userId, int slot) => $"player:{{{userId}}}:data:{slot}";
     private SemaphoreSlim KeyLock(string key) => _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
 
     /// <summary>加载玩家存档快照 (Redis命中 → MySQL回填; 并发冷加载只查一次库)</summary>
@@ -148,8 +149,12 @@ public class SaveQueueService : BackgroundService
                     _logger.LogWarning("[SaveQueue] 版本冲突丢弃: saveId={Id} expected={V} source={S}", job.SaveId, job.ExpectedVersion, job.Source);
                 else
                 {
-                    // 失效Redis缓存, 下次LoadPlayerAsync回填新版本
-                    await _redis.RemoveAsync($"player:save:{job.UserId}:{job.Slot}");
+                    var newVersion = job.ExpectedVersion + 1;
+                    // 失效Redis缓存 (键: player:{userId}:data:{slot}), 下次LoadPlayerAsync回填新版本
+                    await _redis.RemoveAsync($"player:{{{job.UserId}}}:data:{job.Slot}");
+                    // 规划4.2: save_version 键 = 玩家当前持久化版本标记
+                    try { await _redis.Database.StringSetAsync($"player:{{{job.UserId}}}:save_version", newVersion.ToString()); }
+                    catch { /* save_version为辅助标记, 失败不影响存档 */ }
                 }
             }
             catch (Exception ex)

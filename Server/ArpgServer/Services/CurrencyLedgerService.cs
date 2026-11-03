@@ -7,9 +7,11 @@ namespace ArpgServer.Services;
 
 /// <summary>
 /// 货币账本服务 (规划阶段03) — Lua 原子扣款 + OperationId 幂等 + currency_ledger 流水。
-/// Redis = 实时账本 (HASH: Arpg:player:{id}:currency, 字段=Gold/Life/Plane/Fragments);
+/// Redis = 实时账本 (HASH: player:{id}:currency, 字段=Gold/Life/Plane/Fragments);
 /// MySQL currency_ledger = 持久化流水 (对账/审计); 余额权威迁移在后续阶段完成。
 /// 同一 OperationId 重复请求返回首次结果 (幂等)。
+/// 键命名 (规划4.2): player:{id}:currency + player:{id}:currency:operation:{opId} —
+/// {id} 为 hash tag, Redis Cluster 下 Lua 双键落在同一 slot; 旧无tag键首次触达时惰性迁移。
 /// </summary>
 public class CurrencyLedgerService
 {
@@ -18,13 +20,19 @@ public class CurrencyLedgerService
 
     /// <summary>
     /// 原子货币操作 Lua 脚本:
-    /// KEYS[1]=余额HASH  KEYS[2]=操作幂等键  ARGV[1]=币种  ARGV[2]=金额(负=扣)  ARGV[3]=幂等键TTL秒
+    /// KEYS[1]=余额HASH(tagged)  KEYS[2]=操作幂等键(tagged, 同slot)  KEYS[3]=旧无tag余额键(一次性惰性迁移)  ARGV[1]=币种  ARGV[2]=金额(负=扣)  ARGV[3]=幂等键TTL秒
+    /// 0) 旧键存在且新键不存在 → 迁移余额到新键 (集群改造过渡; 单节点执行)
     /// 1) 幂等键已存在 → 直接返回首次结果
     /// 2) 余额+负金额 < 0 → 失败(insufficient)
     /// 3) HSET 新余额 + 记录幂等结果
     /// </summary>
     public const string LuaAtomic =
         """
+        if redis.call('EXISTS', KEYS[1]) == 0 and redis.call('EXISTS', KEYS[3]) == 1 then
+            local vals = redis.call('HGETALL', KEYS[3])
+            for i = 1, #vals, 2 do redis.call('HSET', KEYS[1], vals[i], vals[i+1]) end
+            redis.call('DEL', KEYS[3])
+        end
         if redis.call('EXISTS', KEYS[2]) == 1 then
             local bal = redis.call('HGET', KEYS[2], 'balanceAfter')
             return cjson.encode({ success = true, repeated = true, balanceAfter = tonumber(bal) })
@@ -48,8 +56,9 @@ public class CurrencyLedgerService
         _scopeFactory = scopeFactory;
     }
 
-    private string BalanceKey(long playerId) => $"player:{playerId}:currency";
-    private string OpKey(string operationId) => $"cur:op:{operationId}";
+    private string BalanceKey(long playerId) => $"player:{{{playerId}}}:currency";
+    private string OpKey(long playerId, string operationId) => $"player:{{{playerId}}}:currency:operation:{operationId}";
+    private string LegacyBalanceKey(long playerId) => $"player:{playerId}:currency";
 
     public class CurrencyResult
     {
@@ -75,7 +84,7 @@ public class CurrencyLedgerService
 
             var redisResult = (RedisValue)await db.ScriptEvaluateAsync(
                 LuaAtomic,
-                new RedisKey[] { BalanceKey(playerId), OpKey(operationId) },
+                new RedisKey[] { BalanceKey(playerId), OpKey(playerId, operationId), LegacyBalanceKey(playerId) },
                 new RedisValue[] { kind, amount, 604800 });
 
             var parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(redisResult.ToString());
@@ -112,13 +121,25 @@ public class CurrencyLedgerService
         return result;
     }
 
-    /// <summary>读取实时余额 (Redis 账本; 未初始化返回 0)</summary>
+    /// <summary>读取实时余额 (Redis 账本; 未初始化返回 0; 首次触达惰性迁移旧无tag键)</summary>
     public async Task<Dictionary<string, long>> GetBalancesAsync(long playerId)
     {
         var dict = new Dictionary<string, long>();
         var db = _redis.Database;
         if (db == null) return dict;
+
         var entries = await db.HashGetAllAsync(BalanceKey(playerId));
+        if (entries.Length == 0)
+        {
+            // 惰性迁移: 旧无tag键 → 新tag键 (过渡期一次性; 集群环境需在单节点期完成迁移)
+            var legacy = await db.HashGetAllAsync(LegacyBalanceKey(playerId));
+            if (legacy.Length > 0)
+            {
+                await db.HashSetAsync(BalanceKey(playerId), legacy);
+                await db.KeyDeleteAsync(LegacyBalanceKey(playerId));
+                entries = await db.HashGetAllAsync(BalanceKey(playerId));
+            }
+        }
         foreach (var e in entries)
             if (long.TryParse(e.Value.ToString(), out var v)) dict[e.Name.ToString()] = v;
         return dict;

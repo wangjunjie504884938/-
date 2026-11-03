@@ -24,12 +24,14 @@ public class PaymentController : ControllerBase
     private readonly AppDbContext _db;
     private readonly CurrencyLedgerService _ledger;
     private readonly IConfiguration _config;
+    private readonly RedisCacheService _redis;
 
-    public PaymentController(AppDbContext db, CurrencyLedgerService ledger, IConfiguration config)
+    public PaymentController(AppDbContext db, CurrencyLedgerService ledger, IConfiguration config, RedisCacheService redis)
     {
         _db = db;
         _ledger = ledger;
         _config = config;
+        _redis = redis;
     }
 
     public class CreateRequest
@@ -70,6 +72,10 @@ public class PaymentController : ControllerBase
         await _db.Database.ExecuteSqlInterpolatedAsync($@"
 INSERT INTO payment_orders (`OrderId`, `PlayerId`, `ProductId`, `AmountCents`, `Currency`, `Channel`, `Status`, `CreatedAt`)
 VALUES ({orderId}, {req.PlayerId}, {req.ProductId}, {product.cents}, 'CNY', {req.Channel}, 0, UTC_TIMESTAMP(3))");
+
+        // 规划4.2: payment:order:{orderId} 状态镜像 (权威=MySQL Status列)
+        try { await _redis.Database.StringSetAsync($"payment:order:{orderId}", "created", TimeSpan.FromDays(7)); }
+        catch { }
 
         FileLoggerService.Log("PAY", orderId, $"create player={req.PlayerId} product={req.ProductId} cents={product.cents}");
         return Ok(new { success = true, orderId, amountCents = product.cents, sign, planeCoins = product.planeCoins });
@@ -122,6 +128,8 @@ VALUES ({orderId}, {req.PlayerId}, {req.ProductId}, {product.cents}, 'CNY', {req
         }
 
         FileLoggerService.Log("PAY", req.OrderId, $"paid player={req.PlayerId} plane={product.planeCoins}");
+        try { await _redis.Database.StringSetAsync($"payment:order:{req.OrderId}", "paid", TimeSpan.FromDays(7)); }
+        catch { }
         return Ok(new { success = true, repeated = false, planeCoins = product.planeCoins, balance = result.BalanceAfter });
     }
 

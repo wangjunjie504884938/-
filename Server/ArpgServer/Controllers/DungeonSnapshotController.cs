@@ -56,7 +56,9 @@ public class DungeonSnapshotController : ControllerBase
         public string State { get; set; } = "Fighting";     // Fighting/Settled
     }
 
-    private static string HotKey(string instanceId) => $"dungeon:snapshot:{instanceId}";
+    // 键命名 (规划4.2): dungeon:{instanceId}:snapshot — {instanceId} hash tag 集群安全; 旧键(dungeon:snapshot:{id})惰性回读过渡
+    private static string HotKey(string instanceId) => $"dungeon:{{{instanceId}}}:snapshot";
+    private static string LegacyHotKey(string instanceId) => $"dungeon:snapshot:{instanceId}";
 
     /// <summary>保存快照 — Redis 热态 (TTL=保留期+60s) + MySQL upsert (灾备)。幂等: 同 InstanceId 覆盖。</summary>
     [HttpPost("dungeon/snapshot/save")]
@@ -120,6 +122,17 @@ ON DUPLICATE KEY UPDATE `SnapshotJson` = {snapshotJson}, `Tier` = {req.Tier},
                 return Ok(new { found = true, source = "redis", snapshot = hot });
         }
 
+        // 旧键回读 (键规范化过渡期; TTL 360s 内自然消亡)
+        var legacyRaw = _redis.IsAvailable && _redis.Database != null
+            ? await _redis.Database.StringGetAsync(LegacyHotKey(instanceId))
+            : (RedisValue?)null;
+        if (legacyRaw.HasValue && !legacyRaw.Value.IsNull)
+        {
+            var hot = JsonSerializer.Deserialize<JsonElement>(legacyRaw.Value.ToString());
+            if (hot.ValueKind != JsonValueKind.Undefined)
+                return Ok(new { found = true, source = "redis_legacy", snapshot = hot });
+        }
+
         var rows = await _db.Database
             .SqlQuery<string>($"SELECT SnapshotJson FROM dungeon_snapshots WHERE InstanceId = {instanceId}")
             .ToListAsync();
@@ -147,11 +160,19 @@ ON DUPLICATE KEY UPDATE `SnapshotJson` = {snapshotJson}, `Tier` = {req.Tier},
         if (string.IsNullOrEmpty(req.InstanceId) || string.IsNullOrEmpty(req.RewardFlag))
             return BadRequest(new { error = "InstanceId/RewardFlag required" });
 
-        // Redis 幂等claim (SET NX): 7天TTL
-        var claimKey = $"dungeon:settled:{req.InstanceId}:{req.RewardFlag}";
+        // Redis 幂等claim (SET NX): 7天TTL — 键规范化(规划4.2)带instanceId hash tag; 旧键双查防部署过渡期重复结算
+        var claimKey = $"dungeon:{{{req.InstanceId}}}:settled:{req.RewardFlag}";
+        var legacyClaimKey = $"dungeon:settled:{req.InstanceId}:{req.RewardFlag}";
         var claimed = await _redis.Database.StringSetAsync(claimKey, "1", TimeSpan.FromDays(7), When.NotExists);
         if (!claimed)
             return Ok(new { success = true, repeated = true, rewardGold = 0 });
+        var legacyClaimed = await _redis.Database.StringGetAsync(legacyClaimKey);
+        if (legacyClaimed.HasValue && !legacyClaimed.IsNull)
+        {
+            // 旧claim已存在 = 曾结算过 — 把新claim键也占住并按幂等返回
+            await _redis.Database.StringSetAsync(claimKey, "1", TimeSpan.FromDays(7));
+            return Ok(new { success = true, repeated = true, rewardGold = 0 });
+        }
 
         // MySQL 侧快照标记 (RewardFlagsJson 数组追加) — 持久化幂等兜底
         var row = await LoadRow(req.InstanceId);
@@ -181,11 +202,12 @@ WHERE InstanceId = {req.InstanceId}");
         return Ok(new { success = true, repeated = false, rewardGold = req.RewardGold, credited = result.Success });
     }
 
-    /// <summary>清理快照 (结算/超时后调用) — Redis + MySQL</summary>
+    /// <summary>清理快照 (结算/超时后调用) — Redis (新旧键双删) + MySQL</summary>
     [HttpDelete("dungeon/snapshot")]
     public async Task<IActionResult> Delete([FromQuery] string instanceId)
     {
         await _redis.Database.KeyDeleteAsync(HotKey(instanceId));
+        await _redis.Database.KeyDeleteAsync(LegacyHotKey(instanceId));
         var rows = await _db.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM dungeon_snapshots WHERE InstanceId = {instanceId}");
         return Ok(new { success = true, deleted = rows });
