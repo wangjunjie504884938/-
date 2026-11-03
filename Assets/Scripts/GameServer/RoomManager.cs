@@ -163,28 +163,34 @@ namespace ArpgGameServer
             player.CurrentRoom = null;
         }
 
-        /// <summary>生成副本怪物</summary>
-        private void SpawnDungeonMonsters(GameRoom room)
+        /// <summary>生成副本怪物 (阶段12压测公开重载: idBase供补生成批次偏移, 避免AOI网格键冲突)</summary>
+        public void SpawnDungeonMonstersPublic(GameRoom room, int idBase = 0)
         {
             int monsterCount = 10 + room.DungeonId * 3;
             for (int i = 0; i < monsterCount; i++)
             {
                 var pos = new Vector2(Random.Range(-8f, 8f), Random.Range(-5f, 5f));
-                var monsterObj = new GameObject($"Monster_{i}");
+                var monsterObj = new GameObject($"Monster_{idBase + i}");
                 monsterObj.transform.position = pos;
                 var monster = monsterObj.AddComponent<NetworkedMonster>();
-                monster.Initialize(i, Random.Range(0, 3), 30 + room.DungeonId * 5, pos, room.DungeonId + 1);
+                monster.Initialize(idBase + i, Random.Range(0, 3), 30 + room.DungeonId * 5, pos, room.DungeonId + 1);
                 room.Monsters.Add(monster);
-                room.GridMove(i, pos); // AOI 网格同步 (规划阶段07)
+                room.GridMove(idBase + i, pos); // AOI 网格同步 (规划阶段07)
             }
 
             // Boss
-            var bossObj = new GameObject("Boss");
+            var bossObj = new GameObject($"Boss_{idBase}");
             bossObj.transform.position = new Vector2(0, 8f);
             var boss = bossObj.AddComponent<NetworkedMonster>();
-            boss.Initialize(999, 3, 500 + room.DungeonId * 100, new Vector2(0, 8f), room.DungeonId + 1);
+            boss.Initialize(idBase + 999, 3, 500 + room.DungeonId * 100, new Vector2(0, 8f), room.DungeonId + 1);
             room.Monsters.Add(boss);
-            room.GridMove(999, new Vector2(0, 8f)); // AOI 网格同步
+            room.GridMove(idBase + 999, new Vector2(0, 8f)); // AOI 网格同步
+        }
+
+        /// <summary>生成副本怪物</summary>
+        private void SpawnDungeonMonsters(GameRoom room)
+        {
+            SpawnDungeonMonstersPublic(room, 0);
         }
 
         /// <summary>构建状态快照</summary>
