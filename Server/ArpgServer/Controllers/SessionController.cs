@@ -46,9 +46,9 @@ public class SessionController : ControllerBase
         if (req.BuildVersion != ProtocolVersion)
             return StatusCode(426, new { error = $"协议版本不兼容: 客户端{req.BuildVersion} / 服务器{ProtocolVersion}, 请更新游戏", serverVersion = ProtocolVersion });
 
-        var line = _shards.AllocateLine();
+        var line = _shards.AllocateLine(req.BuildVersion);
         if (line == null)
-            return StatusCode(503, new { error = "所有分线已满, 请稍后再试" });
+            return StatusCode(503, new { error = "所有分线已满或无版本兼容节点, 请稍后再试" });
 
         if (!_shards.TryJoin(line.LineId))
             return StatusCode(503, new { error = "分线加入失败, 请重试" });
@@ -89,7 +89,7 @@ public class SessionController : ControllerBase
         LineData newLine = null;
         if (needMove)
         {
-            newLine = _shards.AllocateLine();
+            newLine = _shards.AllocateLine(existing.BuildVersion);
             if (newLine == null)
                 return StatusCode(503, new { error = "原节点已故障且暂无健康分线可接管, 请稍后重试" });
             if (!_shards.TryJoin(newLine.LineId))

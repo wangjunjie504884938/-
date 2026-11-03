@@ -83,9 +83,14 @@ internal static class Phase11Test
 
     public static async Task<int> Run()
     {
+        // 每次运行用唯一节点ID — 测试可重复执行, 不被上一轮残留的节点/线状态污染
+        var nodeAId = "node-a-" + Guid.NewGuid().ToString("N")[..8];
+        var nodeBId = "node-b-" + Guid.NewGuid().ToString("N")[..8];
+        var nodeCId = "node-c-" + Guid.NewGuid().ToString("N")[..8];
+
         // ---------- 1. 节点注册 (A先注册, 让它比B老3秒以上供超时判定) ----------
         var (regA, regABody) = await HttpAsync("POST", "http://localhost:5132/api/node/register", null,
-            JsonSerializer.Serialize(new { nodeId = "node-a", host = "10.0.0.1", mirrorPort = 7801, httpPort = 7802, capacity = 3, buildVersion = 1 }),
+            JsonSerializer.Serialize(new { nodeId = nodeAId, host = "10.0.0.1", mirrorPort = 7801, httpPort = 7802, capacity = 3, buildVersion = 1 }),
             NodeKey);
         Check("节点A注册", regA == 200 && regABody.Contains("lineId"), regABody.Length > 80 ? regABody[..80] : regABody);
         var lineA = Json(regABody).GetProperty("lineId").GetInt32();
@@ -93,13 +98,20 @@ internal static class Phase11Test
         await Task.Delay(3200); // A的心跳年龄拉开 (后面用1秒超时判定摘除)
 
         var (regB, regBBody) = await HttpAsync("POST", "http://localhost:5132/api/node/register", null,
-            JsonSerializer.Serialize(new { nodeId = "node-b", host = "10.0.0.2", mirrorPort = 7802, httpPort = 7803, capacity = 3, buildVersion = 1 }),
+            JsonSerializer.Serialize(new { nodeId = nodeBId, host = "10.0.0.2", mirrorPort = 7802, httpPort = 7803, capacity = 3, buildVersion = 1 }),
             NodeKey);
         Check("节点B注册", regB == 200 && regBBody.Contains("lineId"), regBBody.Length > 80 ? regBBody[..80] : regBBody);
         var lineB = Json(regBBody).GetProperty("lineId").GetInt32();
         Check("A/B绑定不同线", lineA != lineB && lineA >= 100 && lineB >= 100, $"lineA={lineA} lineB={lineB}");
 
-        // ---------- 2. 容量调度: 4用户按最少人数优先+LineId升序分布 ----------
+        // 版本兼容 (规划阶段11): v2节点对v1客户端不可见 — 4个开局都不应落在线C上
+        var (regC, regCBody) = await HttpAsync("POST", "http://localhost:5132/api/node/register", null,
+            JsonSerializer.Serialize(new { nodeId = nodeCId, host = "10.0.0.3", mirrorPort = 7803, capacity = 3, buildVersion = 2 }),
+            NodeKey);
+        var lineC = Json(regCBody).GetProperty("lineId").GetInt32();
+        Check("v2节点C注册", regC == 200 && lineC > lineB, $"status={regC} line={lineC}");
+
+        // ---------- 2. 容量调度: 4用户按最少人数优先+LineId升序分布 (v1客户端只见v1线) ----------
         var users = new[] { "warrior1", "mage1", "priest1", "assassin1" };
         var sessions = new List<UserSession>();
         foreach (var u in users)
@@ -118,10 +130,12 @@ internal static class Phase11Test
         Check("开局返回节点地址", sWarrior.NodeHost == "10.0.0.1" || sMage.NodeHost == "10.0.0.2",
             $"warrior={sWarrior.NodeHost}:{sWarrior.NodePort} mage={sMage.NodeHost}:{sMage.NodePort}");
 
-        // ---------- 3. 故障摘除: node-a 心跳超时 (probe用1秒超时; 先心跳B刷新年龄, 只让A过期) ----------
+        // ---------- 3. 故障摘除: node-a 心跳超时 (probe用1秒超时; 先心跳B/C刷新年龄, 只让A过期) ----------
         var (hbb, _) = await HttpAsync("POST", "http://localhost:5132/api/node/heartbeat", null,
-            JsonSerializer.Serialize(new { nodeId = "node-b", load = 2, accepting = true }), NodeKey);
+            JsonSerializer.Serialize(new { nodeId = nodeBId, load = 2, accepting = true }), NodeKey);
         Check("node-b心跳刷新", hbb == 200, $"status={hbb}");
+        await HttpAsync("POST", "http://localhost:5132/api/node/heartbeat", null,
+            JsonSerializer.Serialize(new { nodeId = nodeCId, load = 0, accepting = true }), NodeKey);
 
         var (probe, probeBody) = await HttpAsync("POST", "http://localhost:5132/api/node/probe", null,
             JsonSerializer.Serialize(new { timeoutSeconds = 1 }), GmKey);
@@ -152,7 +166,7 @@ internal static class Phase11Test
 
         // ---------- 5. 心跳恢复: node-a恢复 → 线重新接收 ----------
         var (hb, hbBody) = await HttpAsync("POST", "http://localhost:5132/api/node/heartbeat", null,
-            JsonSerializer.Serialize(new { nodeId = "node-a", load = 0, accepting = true }), NodeKey);
+            JsonSerializer.Serialize(new { nodeId = nodeAId, load = 0, accepting = true }), NodeKey);
         var hbHealthy = hb == 200 && Json(hbBody).GetProperty("healthy").GetBoolean();
         Check("node-a心跳恢复", hbHealthy, $"status={hb} {hbBody[..Math.Min(60, hbBody.Length)]}");
 
@@ -162,9 +176,9 @@ internal static class Phase11Test
 
         // ---------- 6. 优雅注销: B注销后不可见 ----------
         var (dereg, _) = await HttpAsync("POST", "http://localhost:5132/api/node/deregister", null,
-            JsonSerializer.Serialize(new { nodeId = "node-b" }), NodeKey);
+            JsonSerializer.Serialize(new { nodeId = nodeBId }), NodeKey);
         var (list2, list2Body) = await HttpAsync("GET", "http://localhost:5132/api/node/list", null, null);
-        Check("node-b优雅注销", dereg == 200 && !list2Body.Contains("node-b"), $"status={dereg}");
+        Check("node-b优雅注销", dereg == 200 && !list2Body.Contains(nodeBId), $"status={dereg}");
 
         // ---------- 7. 无密钥拒绝 ----------
         var (noKey, _) = await HttpAsync("POST", "http://localhost:5132/api/node/register", null,

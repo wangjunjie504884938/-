@@ -73,14 +73,14 @@ public class NodeRegistryService
 
         if (node.LineId == 0)
         {
-            var line = _shards.AddLineForNode(nodeId, capacity);
+            var line = _shards.AddLineForNode(nodeId, capacity, buildVersion);
             node.LineId = line.LineId;
-            FileLoggerService.Log("NODE", nodeId, $"registered host={host} mirror={mirrorPort} capacity={capacity} line={line.LineId}");
+            FileLoggerService.Log("NODE", nodeId, $"registered host={host} mirror={mirrorPort} capacity={capacity} version={buildVersion} line={line.LineId}");
         }
         else
         {
             var line = _shards.Get(node.LineId);
-            if (line != null) line.Capacity = capacity;
+            if (line != null) { line.Capacity = capacity; line.BuildVersion = buildVersion; }
             FileLoggerService.Log("NODE", nodeId, $"re-registered line={node.LineId}");
         }
 

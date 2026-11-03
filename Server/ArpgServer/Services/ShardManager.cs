@@ -27,11 +27,15 @@ namespace ArpgServer.Services
 
         public LineData Get(int lineId) => _lines.TryGetValue(lineId, out var l) ? l : null;
 
-        /// <summary>分配最少人数可用线; 全满/全不健康返回 null (触发阶段11动态开线)</summary>
-        public LineData AllocateLine()
+        /// <summary>
+        /// 分配最少人数可用线; 全满/全不健康返回 null (触发阶段11动态开线)。
+        /// 版本兼容 (规划阶段11): 线携带节点 BuildVersion, 0=兼容所有版本, 否则必须与客户端版本一致。
+        /// </summary>
+        public LineData AllocateLine(int buildVersion = 0)
         {
             return _lines.Values
                 .Where(l => l.Healthy && l.Accepting && l.PlayerCount < l.Capacity)
+                .Where(l => buildVersion == 0 || l.BuildVersion == 0 || l.BuildVersion == buildVersion)
                 .OrderBy(l => l.PlayerCount)
                 .ThenBy(l => l.LineId)
                 .FirstOrDefault();
@@ -70,8 +74,8 @@ namespace ArpgServer.Services
             return _lines.GetOrAdd(lineId, id => new LineData { LineId = id, Capacity = capacity });
         }
 
-        /// <summary>节点注册开线 (阶段11): 自动分配动态 LineId 并绑定节点</summary>
-        public LineData AddLineForNode(string serverNodeId, int capacity = DefaultLineCapacity)
+        /// <summary>节点注册开线 (阶段11): 自动分配动态 LineId 并绑定节点与构建版本</summary>
+        public LineData AddLineForNode(string serverNodeId, int capacity = DefaultLineCapacity, int buildVersion = 0)
         {
             var id = Interlocked.Increment(ref _nextDynamicLineId);
             return _lines.GetOrAdd(id, i => new LineData
@@ -79,6 +83,7 @@ namespace ArpgServer.Services
                 LineId = i,
                 Capacity = capacity,
                 ServerNodeId = serverNodeId,
+                BuildVersion = buildVersion,
             });
         }
     }
