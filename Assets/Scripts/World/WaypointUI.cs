@@ -45,6 +45,8 @@ public class WaypointUI : MonoBehaviour
             go.AddComponent<WaypointUI>();
         }
         Instance?.BuildPanel();
+        // 世界页面导航栏: 返回+设置+四货币 (用户要求把导航上的返回和设置还给世界页面)
+        UIHelper.SetupTopBar("世界地图", () => Hide());
     }
 
     public static void Hide()
@@ -55,6 +57,11 @@ public class WaypointUI : MonoBehaviour
             Instance._panel = null;
         }
         if (Instance != null) Instance._curDot = null;
+        // 世界内关闭世界地图弹窗 → 恢复世界导航条(返回=退出世界); 非世界场景(大本营入口) → 收起导航
+        if (WorldManager.Active)
+            UIHelper.SetupTopBar("世界", () => WorldManager.ExitWorld());
+        else
+            TopNavBar.Instance?.HideBar();
     }
 
     // 当前区图标呼吸动效 (面板打开时)

@@ -305,6 +305,32 @@ public static class UIHelper
         EnsureTopNavBar().Setup(title, onBack);
     }
 
+    /// <summary>面板返回按钮统一路由: 大厅流程回Hub; 世界内恢复世界导航条; 副本/无尽仅收起导航栏(HUD world无导航), 不打断战斗</summary>
+    public static void ReturnFromPanel()
+    {
+        var gm = GameManager.Instance;
+        bool inCombat = gm != null && (gm.CurrentState == GameState.Dungeon
+                                       || gm.CurrentState == GameState.Endless
+                                       || gm.InWorld);
+        if (inCombat)
+        {
+            if (WorldManager.Active)
+            {
+                // 世界视图有自己的导航条(返回=退出世界) — 弹窗关闭后必须恢复, 否则导航被吞 (用户反馈: 世界点其他弹窗再点X导航消失)
+                SetupTopBar("世界", () => WorldManager.ExitWorld());
+            }
+            else
+            {
+                TopNavBar.Instance?.HideBar();
+            }
+        }
+        else
+        {
+            EnsureUIManager();
+            UIManager.Instance.ShowHub();
+        }
+    }
+
     /// <summary>程序化齿轮纹理(8齿) — cached to avoid repeated allocation</summary>
     private static Sprite _gearSprite;
     public static Sprite CreateGearSprite()
