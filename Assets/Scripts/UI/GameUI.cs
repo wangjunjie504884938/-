@@ -508,6 +508,7 @@ public partial class GameUI : MonoBehaviour
     /// </summary>
     public void SetHUDVisible(bool visible)
     {
+        InGameHud.SetVisibleFromFlow(visible); // 新版HUD漏斗 (InGameHud.Show自带GameUI旧元素隐藏)
         SetHUDVisibleInternal(visible);
     }
 
