@@ -367,6 +367,7 @@ public partial class CharacterSlotUI : MonoBehaviour
         }
         else
         {
+            // 创建新角色: 第一步先选职业 (性别+起名在下一步)
             PlayerProgressData.ClearSave();
             GameManager.Instance.ShowCharacterSelect();
         }

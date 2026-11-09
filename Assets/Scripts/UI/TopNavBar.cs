@@ -12,7 +12,7 @@ public class TopNavBar : MonoBehaviour
 
     private GameObject _bar;
     private Text _titleText;
-    private Text _currencyText;
+    private readonly Text[] _navCurrencyTexts = new Text[3];
     private GameObject _backBtn;
     private System.Action _backAction;
 
@@ -22,7 +22,7 @@ public class TopNavBar : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        BuildBar();
+        CurrencyWallet.OnChanged += RefreshCurrency;   // 寿元/位面余额变动自动刷新
     }
 
     private void BuildBar()
@@ -137,24 +137,86 @@ public class TopNavBar : MonoBehaviour
         _titleText.fontSize = 24; _titleText.color = UIHelper.Accent; _titleText.font = font;
         _titleText.raycastTarget = false;
 
-        // 金币+碎片 (右侧)
-        var currencyObj = new GameObject("Currency");
-        currencyObj.transform.SetParent(_bar.transform, false);
-        var curR = currencyObj.AddComponent<RectTransform>();
-        curR.anchorMin = new Vector2(0.5f, 0); curR.anchorMax = new Vector2(1, 1);
-        curR.offsetMin = new Vector2(0, 0); curR.offsetMax = new Vector2(-12, 0);
-        _currencyText = currencyObj.AddComponent<Text>();
-        _currencyText.alignment = TextAnchor.MiddleRight;
-        _currencyText.fontSize = 18; _currencyText.color = UIHelper.Accent; _currencyText.font = font;
-        _currencyText.raycastTarget = false;
-        _currencyText.supportRichText = true;
+        // 寿元币/位面币/游戏币 图标+数量槽 (右侧) + 充值加号 — 样式对齐HUD货币槽 (用户要求加到导航上)
+        var row = new GameObject("CurrencyRow");
+        row.transform.SetParent(_bar.transform, false);
+        var rowR = row.AddComponent<RectTransform>();
+        rowR.anchorMin = new Vector2(1, 0.5f); rowR.anchorMax = new Vector2(1, 0.5f);
+        rowR.pivot = new Vector2(1f, 0.5f);
+        rowR.anchoredPosition = new Vector2(-48, 0);
+        rowR.sizeDelta = new Vector2(540, 44);
+
+        string[][] curDefs =
+        {
+            new[] { "游戏币", "HudCoinGold" },
+            new[] { "寿元币", "HudCoinLife" },
+            new[] { "位面币", "HudCoinPlane" },
+        };
+        float[] groupCx = { -180f, 0f, 180f };
+        for (int i = 0; i < 3; i++)
+        {
+            var g = new GameObject("NavCur_" + curDefs[i][0]);
+            g.transform.SetParent(row.transform, false);
+            var gR = g.AddComponent<RectTransform>();
+            gR.anchorMin = new Vector2(0.5f, 0.5f); gR.anchorMax = new Vector2(0.5f, 0.5f);
+            gR.anchoredPosition = new Vector2(groupCx[i], 0);
+            gR.sizeDelta = new Vector2(170, 44);
+
+            var icon = new GameObject("Icon");
+            icon.transform.SetParent(g.transform, false);
+            var iR = icon.AddComponent<RectTransform>();
+            iR.anchorMin = new Vector2(0f, 0.5f); iR.anchorMax = new Vector2(0f, 0.5f);
+            iR.anchoredPosition = new Vector2(20, 0);
+            iR.sizeDelta = new Vector2(38, 38);
+            var iImg = icon.AddComponent<Image>();
+            iImg.sprite = HudSprite(curDefs[i][1]);
+            iImg.raycastTarget = false;
+
+            var boxObj = new GameObject("AmountBox");
+            boxObj.transform.SetParent(g.transform, false);
+            var bR = boxObj.AddComponent<RectTransform>();
+            bR.anchorMin = new Vector2(0f, 0.5f); bR.anchorMax = new Vector2(0f, 0.5f);
+            bR.anchoredPosition = new Vector2(115, 0);
+            bR.sizeDelta = new Vector2(110, 34);
+            var bImg = boxObj.AddComponent<Image>();
+            bImg.sprite = HudSprite("HudAmountBox");
+            bImg.raycastTarget = false;
+
+            var tObj = new GameObject("AmountText");
+            tObj.transform.SetParent(boxObj.transform, false);
+            var tR = tObj.AddComponent<RectTransform>();
+            tR.anchorMin = Vector2.zero; tR.anchorMax = Vector2.one;
+            tR.offsetMin = new Vector2(4, 0); tR.offsetMax = new Vector2(-4, 0);
+            var t = tObj.AddComponent<Text>();
+            t.alignment = TextAnchor.MiddleCenter;
+            t.fontSize = 19; t.color = Color.white; t.font = font;
+            t.raycastTarget = false;
+            _navCurrencyTexts[i] = t;
+        }
+
+        // 充值加号 (货币行尾 → 充值中心)
+        var plusObj = new GameObject("RechargePlus");
+        plusObj.transform.SetParent(_bar.transform, false);
+        var plusR = plusObj.AddComponent<RectTransform>();
+        plusR.anchorMin = new Vector2(1, 0.5f); plusR.anchorMax = new Vector2(1, 0.5f);
+        plusR.anchoredPosition = new Vector2(-22, 0);
+        plusR.sizeDelta = new Vector2(36, 40);
+        var plusImg = plusObj.AddComponent<Image>();
+        plusImg.sprite = HudSprite("HudPlus");
+        var plusBtn = plusObj.AddComponent<Button>();
+        plusBtn.transition = Selectable.Transition.None;
+        UIHelper.SetupButtonFeedback(plusBtn, Color.white);
+        plusBtn.onClick.AddListener(() => UIManager.Instance.ShowRecharge());
 
         _bar.SetActive(false);
     }
 
+    private static Sprite HudSprite(string name) => Resources.Load<Sprite>($"Sprites/Hud/{name}");
+
     /// <summary>设置导航栏: 标题 + 返回回调</summary>
     public void Setup(string title, System.Action onBack = null)
     {
+        if (_bar == null) BuildBar();   // 惰性构建 — 四货币重构后BuildBar调用点丢失导致导航栏整体消失
         if (_bar == null) return;
         _bar.SetActive(true);
         _bar.transform.SetAsLastSibling();
@@ -180,13 +242,13 @@ public class TopNavBar : MonoBehaviour
             _titleText.text = title;
     }
 
-    /// <summary>刷新金币+碎片显示</summary>
+    /// <summary>刷新导航货币槽: 游戏币/寿元币/位面币</summary>
     public void RefreshCurrency()
     {
-        if (_currencyText == null) return;
         int gold = GameManager.Instance?.Player?.Stats?.Gold ?? 0;
-        int frags = DismantleSystem.Fragments;
-        _currencyText.text = $"<color=#FFCC44>金币</color> {UIStringBuilderPool.FormatNumber(gold)}    <color=#88CCFF>碎片</color> {UIStringBuilderPool.FormatNumber(frags)}";
+        if (_navCurrencyTexts[0] != null) _navCurrencyTexts[0].text = UIStringBuilderPool.FormatNumber(gold);
+        if (_navCurrencyTexts[1] != null) _navCurrencyTexts[1].text = CurrencyWallet.LifeCoins.ToString();
+        if (_navCurrencyTexts[2] != null) _navCurrencyTexts[2].text = CurrencyWallet.PlaneCoins.ToString();
     }
 
     /// <summary>隐藏导航栏(标题画面/选角等)</summary>
@@ -197,6 +259,7 @@ public class TopNavBar : MonoBehaviour
 
     private void OnDestroy()
     {
+        CurrencyWallet.OnChanged -= RefreshCurrency;
         if (Instance == this) Instance = null;
     }
 }

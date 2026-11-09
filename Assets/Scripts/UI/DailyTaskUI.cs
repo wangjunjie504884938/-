@@ -494,7 +494,8 @@ public partial class DailyTaskUI : MonoBehaviour
                     {
                         var player = GameManager.Instance?.Player;
                         if (player != null) player.Stats.AddGold(resp.rewardGold);
-                                    GameLog.Log($"[DailyTask] 领取奖励: {resp.rewardGold}金币");
+                        CurrencyWallet.AddLifeOrPlane("Life", 5); // 经济规范: 日常任务产出寿元
+                                    GameLog.Log($"[DailyTask] 领取奖励: {resp.rewardGold}金币 +5寿元");
                         yield return LoadData();
                         yield break;
                     }
@@ -514,12 +515,13 @@ public partial class DailyTaskUI : MonoBehaviour
             {
                 var player = GameManager.Instance?.Player;
                 if (player != null) player.Stats.AddGold(task.rewardGold);
+                CurrencyWallet.AddLifeOrPlane("Life", 5); // 经济规范: 日常任务产出寿元
 
                 task.claimed = true;
                 DailyTaskData.MarkTaskClaimed(task.taskType);
 
                 RefreshUI();
-                            GameLog.Log($"[DailyTask] 本地领取奖励: {task.rewardGold}金币");
+                            GameLog.Log($"[DailyTask] 本地领取奖励: {task.rewardGold}金币 +5寿元");
             }
         }
     }
@@ -604,6 +606,35 @@ public partial class DailyTaskUI : MonoBehaviour
     {
         if (Instance == null) return;
         Instance.StartCoroutine(Instance.Co_ReportProgress(taskType, amount));
+    }
+
+    private bool _quietBooted;
+
+    /// <summary>静默启动: 不打开面板也在后台拉取今日任务 (供HUD任务栏使用)</summary>
+    public static void BootQuiet()
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+        if (Instance == null) gm.gameObject.AddComponent<DailyTaskUI>();
+        if (Instance == null || Instance._quietBooted) return;
+        Instance._quietBooted = true;
+        Instance.StartCoroutine(Instance.LoadData());
+    }
+
+    /// <summary>任务栏日常任务行: "击杀敌人 (12/50)" + 领取标记</summary>
+    public static string[] GetDailyQuestLines()
+    {
+        var inst = Instance;
+        if (inst == null || inst.taskList == null || inst.taskList.Count == 0) return null;
+        var lines = new string[inst.taskList.Count];
+        for (int i = 0; i < inst.taskList.Count; i++)
+        {
+            var t = inst.taskList[i];
+            int typeIdx = Mathf.Clamp(t.taskType, 0, TaskTypeNames.Length - 1);
+            string mark = t.claimed ? " ✔" : (t.currentValue >= t.targetValue ? " 【可领取】" : "");
+            lines[i] = $"{TaskTypeNames[typeIdx]} ({t.currentValue}/{t.targetValue}){mark}";
+        }
+        return lines;
     }
 
     private IEnumerator Co_ReportProgress(int taskType, int amount)

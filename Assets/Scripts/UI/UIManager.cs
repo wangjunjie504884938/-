@@ -16,7 +16,7 @@ public class UIManager : MonoBehaviour
         "EquipPanel", "StageSelectPanel", "SettingsPanel",
         "CharacterSelectPanel", "CharacterSlotPanel", "TitleScreenPanel",
         "DailyTaskPanel", "GachaPanel", "LeaderboardPanel", "MailPanel",
-        "FragmentShopPanel", "BossCodexPanel", "DailyChallengePanel", "AchievementPanel", "PassiveTreePanel", "ForgePanel", "SeasonPassPanel", "AsyncPvpPanel", "GuildPanel"
+        "FragmentShopPanel", "BossCodexPanel", "DailyChallengePanel", "AchievementPanel", "PassiveTreePanel", "ForgePanel", "SeasonPassPanel", "AsyncPvpPanel", "GuildPanel", "CharacterDetailPanel", "InfoPanel", "RechargePanel"
     };
 
     private void Awake()
@@ -55,6 +55,9 @@ public class UIManager : MonoBehaviour
         if (keepPanel != "SeasonPass")      SeasonPassUI.Instance?.Hide();
         if (keepPanel != "AsyncPvp")        AsyncPvpUI.Instance?.Hide();
         if (keepPanel != "Guild")           GuildUI.Instance?.Hide();
+        if (keepPanel != "CharacterDetail") CharacterDetailUI.Instance?.Hide();
+        if (keepPanel != "Info") InfoUI.Instance?.Hide();
+        if (keepPanel != "Recharge") RechargeUI.Instance?.Hide();
 
         // 安全网：直接在 Canvas 上按名称隐藏，防止 Instance 已 null 但面板残留
         Canvas canvas = FindObjectOfType<Canvas>();
@@ -218,5 +221,36 @@ public class UIManager : MonoBehaviour
         HideAllExcept("Friend");
         if (FriendUI.Instance == null) GameManager.Instance.gameObject.AddComponent<FriendUI>();
         FriendUI.Instance.Show();
+    }
+
+    /// <summary>角色详情面板 (体系页+属性页, HUD左上头像点击入口)</summary>
+    public void ShowCharacterDetail()
+    {
+        HideAllExcept("CharacterDetail");
+        if (CharacterDetailUI.Instance == null) GameManager.Instance.gameObject.AddComponent<CharacterDetailUI>();
+        CharacterDetailUI.Instance.Show();
+    }
+
+    /// <summary>信息窗口 (综合/好友, 局内HUD人像按钮入口)</summary>
+    public void ShowInfo()
+    {
+        HideAllExcept("Info");
+        if (InfoUI.Instance == null) GameManager.Instance.gameObject.AddComponent<InfoUI>();
+        InfoUI.Instance.Show();
+    }
+
+    /// <summary>打开信息窗口并定位到指定好友的聊天 (Hub好友行入口, 名字可带"  Lv.X"后缀)</summary>
+    public void ShowInfo(string friendName)
+    {
+        ShowInfo();
+        InfoUI.Instance?.OpenFriendChat(friendName);
+    }
+
+    /// <summary>充值中心 (寿元币/位面币礼包模拟充值, HUD加号入口)</summary>
+    public void ShowRecharge()
+    {
+        HideAllExcept("Recharge");
+        if (RechargeUI.Instance == null) GameManager.Instance.gameObject.AddComponent<RechargeUI>();
+        RechargeUI.Instance.Show();
     }
 }

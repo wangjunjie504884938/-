@@ -168,8 +168,8 @@ public partial class HubUI
             string chatName = fName;
             rowBtn.onClick.AddListener(() =>
             {
-                if (ChatPopupUI.Instance == null) gameObject.AddComponent<ChatPopupUI>();
-                ChatPopupUI.Instance.Show(chatName);
+                UIHelper.EnsureUIManager();
+                UIManager.Instance.ShowInfo(chatName);
             });
 
             // 在线状态圆点

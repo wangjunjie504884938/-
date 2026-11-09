@@ -48,7 +48,7 @@ public class StageSelectUI : MonoBehaviour
         animTime += Time.deltaTime;
 
         // 可挑战层呼吸 + 锁定层红字脉冲
-        int cleared = RuntimePlayerData.Instance?.HighestStage ?? -1;
+        int cleared = RiftProgress.HighestCleared;
         for (int i = 0; i < stageButtons.Count && i < VisibleRows; i++)
         {
             int layerIndex = _cardLayers[i] - 1;
@@ -81,8 +81,7 @@ public class StageSelectUI : MonoBehaviour
     {
         if (panel == null) BuildUI();
         UIHelper.SetupTopBar("秘境挑战", () => { Hide(); UIHelper.EnsureUIManager(); UIManager.Instance.ShowHub(); });
-        int challenge = (RuntimePlayerData.Instance?.HighestStage ?? -1) + 2; // 1-based可挑战层
-        _windowStart = Mathf.Max(1, challenge - 3);
+        _windowStart = 1;   // 秘境共11层, 单页展示 (不循环, 无翻页)
         UpdateLayerCards();
         panel.SetActive(true);
         if (showRoutine != null) StopCoroutine(showRoutine);
@@ -235,14 +234,19 @@ public class StageSelectUI : MonoBehaviour
 
     private void UpdateLayerCards()
     {
-        int cleared = RuntimePlayerData.Instance?.HighestStage ?? -1; // 0-based已通关最高层
+        int cleared = RiftProgress.HighestCleared; // 0-based已通关最高层(秘境独立进度, 共11层)
         if (_bestLayerText != null)
-            _bestLayerText.text = cleared >= 0 ? $"最高通关层数: {cleared + 1}" : "尚未通关 — 从第1层开始挑战";
+            _bestLayerText.text = cleared >= DungeonMapData.TotalMaps - 1
+                ? "秘境已全部通关！"
+                : (cleared >= 0 ? $"最高通关层数: {cleared + 1}" : "尚未通关 — 从第1层开始挑战");
 
         for (int i = 0; i < stageButtons.Count && i < VisibleRows; i++)
         {
             int layer = _windowStart + i;
             _cardLayers[i] = layer;
+            var btnObj = stageButtons[i];
+            if (layer > DungeonMapData.TotalMaps) { btnObj.SetActive(false); continue; }   // 超出11层: 无此层
+            btnObj.SetActive(true);
             int layerIndex = layer - 1;
             var theme = Stages[GameManager.RiftLayerToTheme(layer - 1)];
 
@@ -281,13 +285,11 @@ public class StageSelectUI : MonoBehaviour
 
     private void PageShift(int delta)
     {
-        int challenge = (RuntimePlayerData.Instance?.HighestStage ?? -1) + 2;
-        int maxStart = Mathf.Max(1, challenge);
-        _windowStart = Mathf.Clamp(_windowStart + delta, 1, maxStart);
+        // 秘境共11层, 单页展示 — 无翻页
         UpdateLayerCards();
     }
 
-    /// <summary>秘境层显示名 — 主题按11图循环 (秘境1-22层每图出现两次)</summary>
+    /// <summary>秘境层显示名 — 共11层, 每张地图一层 (不循环)</summary>
     public static string GetLayerName(int layer1Based)
     {
         var t = Stages[GameManager.RiftLayerToTheme(layer1Based - 1)];
@@ -302,8 +304,9 @@ public class StageSelectUI : MonoBehaviour
 
     private void OnStageSelected(int stageIndex)
     {
-        // Don't allow selecting locked stages (秘境层数: 首通解锁下一层)
-        int cleared = RuntimePlayerData.Instance?.HighestStage ?? -1;
+        // 秘境共11层(不循环) + 首通解锁下一层
+        if (stageIndex >= DungeonMapData.TotalMaps) return;
+        int cleared = RiftProgress.HighestCleared;
         if (stageIndex > cleared + 1) return;
 
         // 弹出选择：单人 / 组队

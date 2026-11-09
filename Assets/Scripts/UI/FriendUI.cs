@@ -48,6 +48,7 @@ public partial class FriendUI : MonoBehaviour
     [System.Serializable]
     public struct FriendRequestData
     {
+        public int requestId;   // 服务器申请Id (>0时同意/拒绝走服务器API)
         public string fromName;
         public int fromLevel;
         public int fromClass;

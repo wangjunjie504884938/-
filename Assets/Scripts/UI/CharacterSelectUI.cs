@@ -2,20 +2,29 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
+/// <summary>
+/// 职业选择页 (创建新角色第一步) — 设计图素材版:
+/// 全屏背景(支持滑动手势切换职业) + 中央立绘(头顶职业名) + 底部Hint(点击查看属性 ClassStatsPopup) + 确认
+/// 确认后进入性别+起名页 (GenderSelectUI, 第二步)
+/// </summary>
 public class CharacterSelectUI : MonoBehaviour
 {
     public static CharacterSelectUI Instance { get; private set; }
 
+    private static readonly HeroClass[] ClassOrder = { HeroClass.Warrior, HeroClass.Mage, HeroClass.Priest };
+    private static readonly string[] ClassNames = { "勇士", "方士", "祝由" };
+    private const float SlideDist = 260f;   // 滑动动画位移(像素)
+    private const float SlideDur = 0.12f;   // 滑动动画时长(秒)
+
     private GameObject panel;
-    private HeroClass selectedClass = HeroClass.Warrior;
-    private Text classNameText;
-    private Text classDescText;
-    private Text statText;
-    private Text skillText;
-    private Image[] classCards = new Image[3];
-    private Image[] classIcons = new Image[3];
-    private bool confirmed;
-    private GameObject _namePopup;
+    private int _classIdx;
+    private Image _previewImg;
+    private Text _classNameText;
+    private RectTransform _content;
+    private bool _sliding;
+
+    private int PrevIdx => (_classIdx + ClassOrder.Length - 1) % ClassOrder.Length;
+    private int NextIdx => (_classIdx + 1) % ClassOrder.Length;
 
     private void Awake()
     {
@@ -25,13 +34,12 @@ public class CharacterSelectUI : MonoBehaviour
 
     public void Show()
     {
-        confirmed = false;
         if (panel == null) BuildUI();
         // 选择角色页面不显示金币碎片
         if (TopNavBar.Instance != null) TopNavBar.Instance.HideBar();
         panel.SetActive(true);
         StartCoroutine(UIHelper.FadeIn(panel, 0.2f));
-        UpdateDisplay();
+        RefreshClassVisual();
     }
 
     public void Hide()
@@ -39,284 +47,58 @@ public class CharacterSelectUI : MonoBehaviour
         if (panel != null) panel.SetActive(false);
     }
 
-    public HeroClass? GetSelectedClass()
+    private void ToggleClass(int idx)
     {
-        return confirmed ? selectedClass : null;
+        _classIdx = Mathf.Clamp(idx, 0, ClassOrder.Length - 1);
+        RefreshClassVisual();
     }
 
-    private void BuildUI()
+    /// <summary>
+    /// 滑动切换到指定职业: 内容先跳到侧位(fromRight=内容从右侧进入)并换职业, 再滑回原位
+    /// 单段 jump-swap-tween, _sliding 防抖
+    /// </summary>
+    private void SlideTo(int idx, bool fromRight)
     {
-        Font font = GameManager.GetUIFont();
-        Canvas canvas = GameManager.EnsureCanvas();
+        if (_sliding || idx == _classIdx) return;
+        // 属性面板打开时不滑动 (避免误切换面板背后的职业)
+        var popup = panel != null ? panel.transform.Find("ClassStatsPopup") : null;
+        if (popup != null && popup.gameObject.activeSelf) return;
+        if (_content == null) { ToggleClass(idx); return; }
+        StartCoroutine(SlideCo(idx, fromRight));
+    }
 
-        panel = new GameObject("CharacterSelectPanel");
-        panel.transform.SetParent(canvas.transform, false);
-        RectTransform panelRect = panel.AddComponent<RectTransform>();
-        panelRect.anchorMin = Vector2.zero; panelRect.anchorMax = Vector2.one;
-        panelRect.offsetMin = Vector2.zero; panelRect.offsetMax = Vector2.zero;
-        panel.AddComponent<CanvasGroup>();
-        Image bg = panel.AddComponent<Image>();
-        bg.color = new Color(0.05f, 0.05f, 0.1f, 0.95f);
-        bg.raycastTarget = false;
-
-        // 3 class cards with pixel-art character sprites
-        string[] classNames = { "战士", "法师", "牧师" };
-        HeroClass[] classes = { HeroClass.Warrior, HeroClass.Mage, HeroClass.Priest };
-
-        for (int i = 0; i < 3; i++)
+    private IEnumerator SlideCo(int idx, bool fromRight)
+    {
+        _sliding = true;
+        var startPos = new Vector2(fromRight ? SlideDist : -SlideDist, 0f);
+        _content.anchoredPosition = startPos;
+        ToggleClass(idx);
+        float t = 0f;
+        while (t < SlideDur)
         {
-            int idx = i;
-            ClassData cd = ClassData.GetClassData(classes[i]);
-
-            // Card background
-            GameObject btnObj = new GameObject("ClassCard_" + classNames[i]);
-            btnObj.transform.SetParent(panel.transform, false);
-            RectTransform btnRect = btnObj.AddComponent<RectTransform>();
-            btnRect.anchorMin = new Vector2(0.5f, 1); btnRect.anchorMax = new Vector2(0.5f, 1);
-            btnRect.pivot = new Vector2(0.5f, 1);
-            btnRect.anchoredPosition = new Vector2(-300 + i * 300, -100);
-            btnRect.sizeDelta = new Vector2(260, 340);
-
-            Image btnImg = btnObj.AddComponent<Image>();
-            btnImg.color = new Color(cd.PrimaryColor.r * 0.2f, cd.PrimaryColor.g * 0.2f, cd.PrimaryColor.b * 0.2f, 0.95f);
-            classCards[i] = btnImg;
-
-            // Card border
-            GameObject borderObj = new GameObject("Border");
-            borderObj.transform.SetParent(btnObj.transform, false);
-            RectTransform bRect = borderObj.AddComponent<RectTransform>();
-            bRect.anchorMin = Vector2.zero; bRect.anchorMax = Vector2.one;
-            bRect.offsetMin = new Vector2(-2, -2); bRect.offsetMax = new Vector2(2, 2);
-            Image borderImg = borderObj.AddComponent<Image>();
-            borderImg.color = cd.PrimaryColor * 0.5f;
-            borderImg.raycastTarget = false;
-
-            // Inner
-            GameObject innerObj = new GameObject("Inner");
-            innerObj.transform.SetParent(borderObj.transform, false);
-            RectTransform iRect = innerObj.AddComponent<RectTransform>();
-            iRect.anchorMin = Vector2.zero; iRect.anchorMax = Vector2.one;
-            iRect.offsetMin = new Vector2(2, 2); iRect.offsetMax = new Vector2(-2, -2);
-            Image innerImg = innerObj.AddComponent<Image>();
-            innerImg.color = new Color(cd.PrimaryColor.r * 0.15f, cd.PrimaryColor.g * 0.15f, cd.PrimaryColor.b * 0.15f, 0.98f);
-            innerImg.raycastTarget = false;
-
-            // Character sprite preview (pixel art generated per class)
-            GameObject iconObj = new GameObject("CharPreview");
-            iconObj.transform.SetParent(btnObj.transform, false);
-            RectTransform iconRect = iconObj.AddComponent<RectTransform>();
-            iconRect.anchorMin = new Vector2(0.5f, 0.7f); iconRect.anchorMax = new Vector2(0.5f, 0.7f);
-            iconRect.pivot = new Vector2(0.5f, 0.5f);
-            iconRect.anchoredPosition = Vector2.zero;
-            iconRect.sizeDelta = new Vector2(120, 120);
-            Image iconImg = iconObj.AddComponent<Image>();
-            iconImg.color = Color.white;
-            iconImg.preserveAspect = true;
-            iconImg.raycastTarget = false;
-            classIcons[i] = iconImg;
-
-            // 异步加载角色预览Sprite (不阻塞UI构建)
-            StartCoroutine(LoadPreviewSprite(classes[i], iconImg));
-
-            // Class name
-            GameObject nameObj = new GameObject("Name");
-            nameObj.transform.SetParent(btnObj.transform, false);
-            RectTransform nameRect = nameObj.AddComponent<RectTransform>();
-            nameRect.anchorMin = new Vector2(0, 0.25f); nameRect.anchorMax = new Vector2(1, 0.35f);
-            nameRect.offsetMin = Vector2.zero; nameRect.offsetMax = Vector2.zero;
-            Text nameText = nameObj.AddComponent<Text>();
-            nameText.text = classNames[i]; nameText.alignment = TextAnchor.MiddleCenter;
-            nameText.fontSize = 28; nameText.color = cd.PrimaryColor; nameText.font = font;
-            nameText.raycastTarget = false;
-
-            // Short description
-            GameObject descObj = new GameObject("ShortDesc");
-            descObj.transform.SetParent(btnObj.transform, false);
-            RectTransform descRect = descObj.AddComponent<RectTransform>();
-            descRect.anchorMin = new Vector2(0, 0.05f); descRect.anchorMax = new Vector2(1, 0.25f);
-            descRect.offsetMin = new Vector2(10, 0); descRect.offsetMax = new Vector2(-10, 0);
-            Text descText = descObj.AddComponent<Text>();
-            descText.text = cd.Description; descText.alignment = TextAnchor.MiddleCenter;
-            descText.fontSize = 16; descText.color = new Color(0.75f, 0.75f, 0.8f); descText.font = font;
-            descText.lineSpacing = 1.2f;
-            descText.raycastTarget = false;
-
-            // Make the entire card clickable
-            Button btn = btnObj.AddComponent<Button>();
-            btn.targetGraphic = btnImg;
-            btn.onClick.AddListener(() => { selectedClass = classes[idx]; UpdateDisplay(); });
-
-            // Hover highlight colors
-            ColorBlock colors = btn.colors;
-            colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1.15f, 1.15f, 1.15f);
-            colors.pressedColor = new Color(0.9f, 0.9f, 0.9f);
-            btn.colors = colors;
+            t += Time.unscaledDeltaTime;
+            if (_content != null)
+                _content.anchoredPosition = Vector2.Lerp(startPos, Vector2.zero, Mathf.Clamp01(t / SlideDur));
+            yield return null;
         }
-
-        // 异步加载角色预览Sprite
-        // 加载完成后释放Asset句柄, 仅保留Sprite实例
-
-        BuildDetailPanel(font);
-        BuildNavButtons(font);
+        if (_content != null) _content.anchoredPosition = Vector2.zero;
+        _sliding = false;
     }
 
-    private IEnumerator LoadPreviewSprite(HeroClass heroClass, Image targetImg)
+    private void RefreshClassVisual()
     {
-        if (targetImg == null) yield break;
-        yield return CharacterSpriteFactory.LoadClassSpriteAsync(heroClass, sprite =>
+        if (_classNameText != null) _classNameText.text = ClassNames[_classIdx];
+        if (_previewImg != null)
         {
-            if (targetImg != null && sprite != null)
-                targetImg.sprite = sprite;
-        });
+            _previewImg.sprite = null;
+            StartCoroutine(LoadPreviewSprite(ClassOrder[_classIdx], _previewImg));
+        }
     }
 
-    private void BuildDetailPanel(Font font)
+    private void OnConfirmBtn()
     {
-        // Detail info panel (bottom)
-        GameObject infoObj = new GameObject("InfoPanel");
-        infoObj.transform.SetParent(panel.transform, false);
-        RectTransform infoRect = infoObj.AddComponent<RectTransform>();
-        infoRect.anchorMin = new Vector2(0.5f, 0); infoRect.anchorMax = new Vector2(0.5f, 0);
-        infoRect.pivot = new Vector2(0.5f, 0);
-        infoRect.anchoredPosition = new Vector2(0, 80); infoRect.sizeDelta = new Vector2(700, 180);
-        Image infoBg = infoObj.AddComponent<Image>();
-        infoBg.color = new Color(0.08f, 0.08f, 0.14f, 0.95f);
-
-        // Border
-        GameObject infoBorderObj = new GameObject("InfoBorder");
-        infoBorderObj.transform.SetParent(infoObj.transform, false);
-        RectTransform ibRect = infoBorderObj.AddComponent<RectTransform>();
-        ibRect.anchorMin = Vector2.zero; ibRect.anchorMax = Vector2.one;
-        ibRect.offsetMin = new Vector2(-2, -2); ibRect.offsetMax = new Vector2(2, 2);
-        Image ibImg = infoBorderObj.AddComponent<Image>();
-        ibImg.color = new Color(0.4f, 0.35f, 0.5f, 0.6f);
-        ibImg.raycastTarget = false;
-
-        GameObject infoInnerObj = new GameObject("InfoInner");
-        infoInnerObj.transform.SetParent(infoBorderObj.transform, false);
-        RectTransform iiRect = infoInnerObj.AddComponent<RectTransform>();
-        iiRect.anchorMin = Vector2.zero; iiRect.anchorMax = Vector2.one;
-        iiRect.offsetMin = new Vector2(2, 2); iiRect.offsetMax = new Vector2(-2, -2);
-        Image iiImg = infoInnerObj.AddComponent<Image>();
-        iiImg.color = new Color(0.08f, 0.08f, 0.14f, 0.98f);
-        iiImg.raycastTarget = false;
-
-        // Class name
-        GameObject cnObj = new GameObject("ClassName");
-        cnObj.transform.SetParent(infoObj.transform, false);
-        RectTransform cnRect = cnObj.AddComponent<RectTransform>();
-        cnRect.anchorMin = new Vector2(0, 1); cnRect.anchorMax = new Vector2(1, 1);
-        cnRect.pivot = new Vector2(0.5f, 1);
-        cnRect.anchoredPosition = new Vector2(0, -10); cnRect.sizeDelta = new Vector2(680, 35);
-        classNameText = cnObj.AddComponent<Text>();
-        classNameText.alignment = TextAnchor.MiddleCenter; classNameText.fontSize = 26;
-        classNameText.color = Color.white; classNameText.font = font;
-
-        // Stats (left half)
-        GameObject statObj = new GameObject("Stats");
-        statObj.transform.SetParent(infoObj.transform, false);
-        RectTransform stRect = statObj.AddComponent<RectTransform>();
-        stRect.anchorMin = new Vector2(0, 0); stRect.anchorMax = new Vector2(0.5f, 1);
-        stRect.pivot = new Vector2(0, 1);
-        stRect.offsetMin = new Vector2(20, 10); stRect.offsetMax = new Vector2(-5, -45);
-        statText = statObj.AddComponent<Text>();
-        statText.alignment = TextAnchor.UpperLeft; statText.fontSize = 16;
-        statText.color = new Color(0.9f, 0.9f, 0.9f); statText.font = font;
-        statText.lineSpacing = 1.3f;
-
-        // Skills (right half)
-        GameObject skillObj = new GameObject("Skills");
-        skillObj.transform.SetParent(infoObj.transform, false);
-        RectTransform skRect = skillObj.AddComponent<RectTransform>();
-        skRect.anchorMin = new Vector2(0.5f, 0); skRect.anchorMax = new Vector2(1, 1);
-        skRect.pivot = new Vector2(0, 1);
-        skRect.offsetMin = new Vector2(5, 10); skRect.offsetMax = new Vector2(-20, -45);
-        skillText = skillObj.AddComponent<Text>();
-        skillText.alignment = TextAnchor.UpperLeft; skillText.fontSize = 16;
-        skillText.color = new Color(0.7f, 0.9f, 1f); skillText.font = font;
-        skillText.lineSpacing = 1.3f;
-
-        // Confirm button
-        GameObject confirmObj = new GameObject("ConfirmBtn");
-        confirmObj.transform.SetParent(panel.transform, false);
-        RectTransform confirmRect = confirmObj.AddComponent<RectTransform>();
-        confirmRect.anchorMin = new Vector2(0.5f, 0); confirmRect.anchorMax = new Vector2(0.5f, 0);
-        confirmRect.pivot = new Vector2(0.5f, 0);
-        confirmRect.anchoredPosition = new Vector2(0, 25); confirmRect.sizeDelta = new Vector2(280, 55);
-
-        // Button border
-        GameObject cBorderObj = new GameObject("ConfirmBorder");
-        cBorderObj.transform.SetParent(confirmObj.transform, false);
-        RectTransform cbRect = cBorderObj.AddComponent<RectTransform>();
-        cbRect.anchorMin = Vector2.zero; cbRect.anchorMax = Vector2.one;
-        cbRect.offsetMin = new Vector2(-2, -2); cbRect.offsetMax = new Vector2(2, 2);
-        Image cbImg = cBorderObj.AddComponent<Image>();
-        cbImg.color = new Color(1f, 0.85f, 0.2f, 0.9f);
-        cbImg.raycastTarget = false;
-
-        GameObject cInnerObj = new GameObject("ConfirmInner");
-        cInnerObj.transform.SetParent(cBorderObj.transform, false);
-        RectTransform ciRect = cInnerObj.AddComponent<RectTransform>();
-        ciRect.anchorMin = Vector2.zero; ciRect.anchorMax = Vector2.one;
-        ciRect.offsetMin = new Vector2(2, 2); ciRect.offsetMax = new Vector2(-2, -2);
-        Image ciImg = cInnerObj.AddComponent<Image>();
-        ciImg.color = new Color(0.2f, 0.55f, 0.2f, 0.95f);
-
-        Button confirmBtn = confirmObj.AddComponent<Button>();
-        confirmBtn.targetGraphic = ciImg;
-        confirmBtn.onClick.AddListener(OnConfirm);
-
-        GameObject confirmLabel = new GameObject("Label");
-        confirmLabel.transform.SetParent(confirmObj.transform, false);
-        RectTransform clRect = confirmLabel.AddComponent<RectTransform>();
-        clRect.anchorMin = Vector2.zero; clRect.anchorMax = Vector2.one;
-        clRect.offsetMin = Vector2.zero; clRect.offsetMax = Vector2.zero;
-        Text clText = confirmLabel.AddComponent<Text>();
-        clText.text = "确认选择"; clText.alignment = TextAnchor.MiddleCenter;
-        clText.fontSize = 26; clText.color = new Color(1f, 0.95f, 0.7f); clText.font = font;
-        clText.raycastTarget = false;
-
-        // 返回按钮 (左上角, 返回选角界面)
-        GameObject backObj = new GameObject("BackBtn");
-        backObj.transform.SetParent(panel.transform, false);
-        RectTransform backRect = backObj.AddComponent<RectTransform>();
-        backRect.anchorMin = new Vector2(0, 1); backRect.anchorMax = new Vector2(0, 1);
-        backRect.pivot = new Vector2(0, 1);
-        backRect.anchoredPosition = new Vector2(15, -15); backRect.sizeDelta = new Vector2(96, 42);
-
-        GameObject backBorderObj = new GameObject("BackBorder");
-        backBorderObj.transform.SetParent(backObj.transform, false);
-        RectTransform backBRect = backBorderObj.AddComponent<RectTransform>();
-        backBRect.anchorMin = Vector2.zero; backBRect.anchorMax = Vector2.one;
-        backBRect.offsetMin = new Vector2(-2, -2); backBRect.offsetMax = new Vector2(2, 2);
-        Image backBImg = backBorderObj.AddComponent<Image>();
-        backBImg.color = new Color(0.55f, 0.55f, 0.65f, 0.8f);
-        backBImg.raycastTarget = false;
-
-        GameObject backInnerObj = new GameObject("BackInner");
-        backInnerObj.transform.SetParent(backBorderObj.transform, false);
-        RectTransform backIRect = backInnerObj.AddComponent<RectTransform>();
-        backIRect.anchorMin = Vector2.zero; backIRect.anchorMax = Vector2.one;
-        backIRect.offsetMin = new Vector2(2, 2); backIRect.offsetMax = new Vector2(-2, -2);
-        Image backIImg = backInnerObj.AddComponent<Image>();
-        backIImg.color = new Color(0.12f, 0.12f, 0.18f, 0.95f);
-
-        Button backBtn = backObj.AddComponent<Button>();
-        backBtn.targetGraphic = backIImg;
-        backBtn.onClick.AddListener(OnBackClicked);
-
-        GameObject backLabel = new GameObject("Label");
-        backLabel.transform.SetParent(backObj.transform, false);
-        RectTransform backLRect = backLabel.AddComponent<RectTransform>();
-        backLRect.anchorMin = Vector2.zero; backLRect.anchorMax = Vector2.one;
-        backLRect.offsetMin = Vector2.zero; backLRect.offsetMax = Vector2.zero;
-        Text backLText = backLabel.AddComponent<Text>();
-        backLText.text = "←"; backLText.alignment = TextAnchor.MiddleCenter;
-        backLText.fontSize = 22; backLText.color = new Color(0.9f, 0.9f, 0.95f); backLText.font = font;
-        backLText.raycastTarget = false;
-
-        panel.SetActive(false);
+        Hide();
+        GameManager.Instance.ShowGenderSelect(ClassOrder[_classIdx]);
     }
 
     private void OnBackClicked()
@@ -328,240 +110,169 @@ public class CharacterSelectUI : MonoBehaviour
         slot.Show();
     }
 
-    private void BuildNavButtons(Font font)
+    private void OnHintClicked()
     {
-        // 导航顶栏 (TopNavBar 单例) — SetupTopBar moved to Show()
+        if (panel == null) return;
+        ClassStatsPopup.Show(panel.transform, ClassOrder[_classIdx]);
     }
 
-    private void UpdateDisplay()
+    private IEnumerator LoadPreviewSprite(HeroClass heroClass, Image targetImg)
     {
-        var data = ClassData.GetClassData(selectedClass);
-        if (data == null) return;
-
-        if (classNameText != null)
+        if (targetImg == null) yield break;
+        // 设计图职业立绘 (性别未选默认男版; 方士无职业立绘用通用图), 缺失回退职业占位sprite
+        var designed = Resources.Load<Sprite>(PortraitPath(heroClass));
+        if (designed != null)
         {
-            classNameText.text = data.ClassName;
-            classNameText.color = data.PrimaryColor;
+            targetImg.sprite = designed;
+            yield break;
         }
-        if (statText != null)
+        yield return CharacterSpriteFactory.LoadClassSpriteAsync(heroClass, sprite =>
         {
-            statText.text = $"生命: {data.BaseHp}  攻击: {data.BaseAttack}\n" +
-                           $"防御: {data.BaseDefense}  速度: {data.BaseMoveSpeed:F1}\n" +
-                           $"暴击: {data.BaseCritChance * 100:F0}%  攻击范围: {data.AutoAttackRange:F1}\n" +
-                           $"每级: +{data.HpPerLevel}HP +{data.AttackPerLevel}ATK";
-        }
-        if (skillText != null)
-        {
-            skillText.text = $"技能:\n[Q] {data.Skill1Name}\n[E] {data.Skill2Name}\n[R] {data.Skill3Name}";
-        }
-
-        // Highlight selected card
-        for (int i = 0; i < 3; i++)
-        {
-            HeroClass cardClass = (HeroClass)i;
-            ClassData cd = ClassData.GetClassData(cardClass);
-            if (classCards[i] != null)
-            {
-                if (cardClass == selectedClass)
-                {
-                    classCards[i].color = new Color(cd.PrimaryColor.r * 0.4f, cd.PrimaryColor.g * 0.4f, cd.PrimaryColor.b * 0.4f, 1f);
-                    // Scale up selected card slightly
-                    classCards[i].transform.localScale = new Vector3(1.05f, 1.05f, 1f);
-                }
-                else
-                {
-                    classCards[i].color = new Color(cd.PrimaryColor.r * 0.15f, cd.PrimaryColor.g * 0.15f, cd.PrimaryColor.b * 0.15f, 0.8f);
-                    classCards[i].transform.localScale = Vector3.one;
-                }
-            }
-        }
+            if (targetImg != null && sprite != null)
+                targetImg.sprite = sprite;
+        });
     }
 
-    private void OnConfirm()
+    /// <summary>设计图职业立绘路径 (与性别页 PortraitPath 同一映射)</summary>
+    private static string PortraitPath(HeroClass heroClass)
     {
-        ShowNamePopup();
+        return heroClass switch
+        {
+            HeroClass.Warrior => ResourcePaths.PortraitWarriorM,
+            HeroClass.Priest => ResourcePaths.PortraitPriestM,
+            _ => ResourcePaths.PortraitGenericM,
+        };
     }
 
-    private void ShowNamePopup()
+    private void BuildUI()
     {
-        if (_namePopup != null) { _namePopup.SetActive(true); return; }
         Font font = GameManager.GetUIFont();
+        Canvas canvas = GameManager.EnsureCanvas();
 
-        // Full-screen dim overlay
-        _namePopup = new GameObject("NamePopup");
-        _namePopup.transform.SetParent(panel.transform, false);
-        RectTransform popupRect = _namePopup.AddComponent<RectTransform>();
-        popupRect.anchorMin = Vector2.zero; popupRect.anchorMax = Vector2.one;
-        popupRect.offsetMin = Vector2.zero; popupRect.offsetMax = Vector2.zero;
-        Image dimImg = _namePopup.AddComponent<Image>();
-        dimImg.color = new Color(0, 0, 0, 0.7f);
+        panel = new GameObject("CharacterSelectPanel");
+        panel.transform.SetParent(canvas.transform, false);
+        var pr = panel.AddComponent<RectTransform>();
+        pr.anchorMin = Vector2.zero; pr.anchorMax = Vector2.one;
+        pr.offsetMin = Vector2.zero; pr.offsetMax = Vector2.zero;
+        panel.AddComponent<CanvasGroup>();
 
-        // Card (centered)
-        GameObject card = new GameObject("PopupCard");
-        card.transform.SetParent(_namePopup.transform, false);
-        RectTransform cardRect = card.AddComponent<RectTransform>();
-        cardRect.anchorMin = new Vector2(0.5f, 0.5f); cardRect.anchorMax = new Vector2(0.5f, 0.5f);
-        cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.anchoredPosition = Vector2.zero; cardRect.sizeDelta = new Vector2(480, 320);
-        Image cardBg = card.AddComponent<Image>();
-        cardBg.color = new Color(0.08f, 0.08f, 0.14f, 0.98f);
+        // 滑动手势挂页面根节点 (任意子元素起拖都会沿层级向上找到它)
+        var swipe = panel.AddComponent<SwipeHandler>();
+        swipe.OnSwipeLeft = () => SlideTo(NextIdx, true);    // 手指左滑 → 下一个(内容从右侧滑入)
+        swipe.OnSwipeRight = () => SlideTo(PrevIdx, false);  // 手指右滑 → 上一个(内容从左侧滑入)
 
-        // Card border
-        GameObject borderObj = new GameObject("CardBorder");
-        borderObj.transform.SetParent(card.transform, false);
-        RectTransform bRect = borderObj.AddComponent<RectTransform>();
-        bRect.anchorMin = Vector2.zero; bRect.anchorMax = Vector2.one;
-        bRect.offsetMin = new Vector2(-2, -2); bRect.offsetMax = new Vector2(2, 2);
-        Image borderImg = borderObj.AddComponent<Image>();
-        borderImg.color = new Color(0.4f, 0.35f, 0.5f, 0.6f);
-        borderImg.raycastTarget = false;
-        borderObj.transform.SetAsFirstSibling();
+        // 全屏设计图背景 (可接收Raycast, 供空白区域起滑)
+        var bgObj = new GameObject("BG");
+        bgObj.transform.SetParent(panel.transform, false);
+        var bgRect = bgObj.AddComponent<RectTransform>();
+        bgRect.anchorMin = Vector2.zero; bgRect.anchorMax = Vector2.one;
+        bgRect.offsetMin = Vector2.zero; bgRect.offsetMax = Vector2.zero;
+        var bgImg = bgObj.AddComponent<Image>();
+        bgImg.sprite = Resources.Load<Sprite>(ResourcePaths.CreateBg);
+        bgImg.raycastTarget = true;
 
-        // Title
-        GameObject titleObj = new GameObject("PopupTitle");
-        titleObj.transform.SetParent(card.transform, false);
-        RectTransform tRect = titleObj.AddComponent<RectTransform>();
-        tRect.anchorMin = new Vector2(0.5f, 1); tRect.anchorMax = new Vector2(0.5f, 1);
-        tRect.pivot = new Vector2(0.5f, 1); tRect.anchoredPosition = new Vector2(0, -20);
-        tRect.sizeDelta = new Vector2(440, 45);
-        Text titleText = titleObj.AddComponent<Text>();
-        titleText.text = "为你的角色起个名字";
-        titleText.alignment = TextAnchor.MiddleCenter;
-        titleText.fontSize = 28; titleText.color = new Color(1f, 0.9f, 0.3f); titleText.font = font;
-        titleText.raycastTarget = false;
+        // 可滑动内容容器 (立绘/提示/确认)
+        var contentObj = new GameObject("Content");
+        contentObj.transform.SetParent(panel.transform, false);
+        _content = contentObj.AddComponent<RectTransform>();
+        _content.anchorMin = Vector2.zero; _content.anchorMax = Vector2.one;
+        _content.offsetMin = Vector2.zero; _content.offsetMax = Vector2.zero;
 
-        // 关闭按钮 (右上角 X, 返回职业选择不创建)
-        GameObject closeObj = new GameObject("PopupCloseBtn");
-        closeObj.transform.SetParent(card.transform, false);
-        RectTransform closeRect = closeObj.AddComponent<RectTransform>();
-        closeRect.anchorMin = new Vector2(1, 1); closeRect.anchorMax = new Vector2(1, 1);
-        closeRect.pivot = new Vector2(1, 1);
-        closeRect.anchoredPosition = new Vector2(-10, -10); closeRect.sizeDelta = new Vector2(40, 40);
-        Image closeBg = closeObj.AddComponent<Image>();
-        closeBg.color = new Color(0.55f, 0.18f, 0.18f, 0.95f);
+        // 中央职业立绘 (点击查看属性)
+        var previewObj = new GameObject("Preview");
+        previewObj.transform.SetParent(contentObj.transform, false);
+        var pvRect = previewObj.AddComponent<RectTransform>();
+        pvRect.anchorMin = new Vector2(0.5f, 0.5f); pvRect.anchorMax = new Vector2(0.5f, 0.5f);
+        pvRect.pivot = new Vector2(0.5f, 0.5f);
+        pvRect.anchoredPosition = new Vector2(0, -40);
+        pvRect.sizeDelta = new Vector2(420, 740);
+        _previewImg = previewObj.AddComponent<Image>();
+        _previewImg.preserveAspect = true;
 
-        GameObject closeLabelObj = new GameObject("Label");
-        closeLabelObj.transform.SetParent(closeObj.transform, false);
-        RectTransform xLabelRect = closeLabelObj.AddComponent<RectTransform>();
-        xLabelRect.anchorMin = Vector2.zero; xLabelRect.anchorMax = Vector2.one;
-        xLabelRect.offsetMin = Vector2.zero; xLabelRect.offsetMax = Vector2.zero;
-        Text closeText = closeLabelObj.AddComponent<Text>();
-        closeText.text = "X"; closeText.alignment = TextAnchor.MiddleCenter;
-        closeText.fontSize = 20; closeText.color = new Color(1f, 0.9f, 0.9f); closeText.font = font;
-        closeText.raycastTarget = false;
+        // 人物头顶职业名 (随滑动内容一起切换)
+        var classNameObj = new GameObject("ClassName");
+        classNameObj.transform.SetParent(contentObj.transform, false);
+        var cnRect = classNameObj.AddComponent<RectTransform>();
+        cnRect.anchorMin = new Vector2(0.5f, 0.5f); cnRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cnRect.pivot = new Vector2(0.5f, 0.5f);
+        cnRect.anchoredPosition = new Vector2(0, 370);
+        cnRect.sizeDelta = new Vector2(400, 60);
+        _classNameText = classNameObj.AddComponent<Text>();
+        _classNameText.alignment = TextAnchor.MiddleCenter;
+        _classNameText.fontSize = 44; _classNameText.color = new Color(0.95f, 0.88f, 0.6f); _classNameText.font = font;
+        _classNameText.raycastTarget = false;
 
-        Button closeBtn = closeObj.AddComponent<Button>();
-        closeBtn.targetGraphic = closeBg;
-        closeBtn.onClick.AddListener(() => _namePopup.SetActive(false));
+        // 底部提示
+        var hintObj = new GameObject("Hint");
+        hintObj.transform.SetParent(contentObj.transform, false);
+        var hintRect = hintObj.AddComponent<RectTransform>();
+        hintRect.anchorMin = new Vector2(0.5f, 0.5f); hintRect.anchorMax = new Vector2(0.5f, 0.5f);
+        hintRect.pivot = new Vector2(0.5f, 0.5f);
+        hintRect.anchoredPosition = new Vector2(-140, -462);
+        hintRect.sizeDelta = new Vector2(340, 30);
+        var hintText = hintObj.AddComponent<Text>();
+        hintText.text = "点击查看属性"; hintText.alignment = TextAnchor.MiddleCenter;
+        hintText.fontSize = 18; hintText.color = new Color(0.78f, 0.78f, 0.88f, 0.85f); hintText.font = font;
+        hintText.raycastTarget = true;
+        // 属性弹窗触发点 (点Hint文字, 立绘区域保持纯滑动)
+        var hintBtn = hintObj.AddComponent<Button>();
+        hintBtn.targetGraphic = hintText;
+        hintBtn.transition = Selectable.Transition.None;
+        UIHelper.SetupButtonFeedback(hintBtn, hintText.color);
+        hintBtn.onClick.AddListener(OnHintClicked);
 
-        // Input field
-        GameObject inputObj = new GameObject("NameInput");
-        inputObj.transform.SetParent(card.transform, false);
-        RectTransform inputRect = inputObj.AddComponent<RectTransform>();
-        inputRect.anchorMin = new Vector2(0.5f, 0.5f); inputRect.anchorMax = new Vector2(0.5f, 0.5f);
-        inputRect.pivot = new Vector2(0.5f, 0.5f);
-        inputRect.anchoredPosition = new Vector2(0, 10); inputRect.sizeDelta = new Vector2(360, 50);
-        Image inputBg = inputObj.AddComponent<Image>();
-        inputBg.color = new Color(0.05f, 0.05f, 0.1f, 0.95f);
+        // 确认按钮 (设计图素材)
+        var confirmObj = new GameObject("ConfirmBtn");
+        confirmObj.transform.SetParent(contentObj.transform, false);
+        var cfRect = confirmObj.AddComponent<RectTransform>();
+        cfRect.anchorMin = new Vector2(0.5f, 0.5f); cfRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cfRect.pivot = new Vector2(0.5f, 0.5f);
+        cfRect.anchoredPosition = new Vector2(160, -460);
+        cfRect.sizeDelta = new Vector2(150, 62);
+        var cfImg = confirmObj.AddComponent<Image>();
+        cfImg.sprite = Resources.Load<Sprite>(ResourcePaths.ConfirmBtn);
+        var cfBtn = confirmObj.AddComponent<Button>();
+        cfBtn.targetGraphic = cfImg;
+        cfBtn.onClick.AddListener(OnConfirmBtn);
+        var cfLblObj = new GameObject("Label");
+        cfLblObj.transform.SetParent(confirmObj.transform, false);
+        var cfLblRect = cfLblObj.AddComponent<RectTransform>();
+        cfLblRect.anchorMin = Vector2.zero; cfLblRect.anchorMax = Vector2.one;
+        cfLblRect.offsetMin = Vector2.zero; cfLblRect.offsetMax = Vector2.zero;
+        var cfLbl = cfLblObj.AddComponent<Text>();
+        cfLbl.text = "确认"; cfLbl.alignment = TextAnchor.MiddleCenter;
+        cfLbl.fontSize = 24; cfLbl.color = new Color(0.95f, 0.98f, 1f); cfLbl.font = font;
+        cfLbl.raycastTarget = false;
 
-        // Input border
-        GameObject inputBorderObj = new GameObject("InputBorder");
-        inputBorderObj.transform.SetParent(inputObj.transform, false);
-        RectTransform ibRect = inputBorderObj.AddComponent<RectTransform>();
-        ibRect.anchorMin = Vector2.zero; ibRect.anchorMax = Vector2.one;
-        ibRect.offsetMin = new Vector2(-1, -1); ibRect.offsetMax = new Vector2(1, 1);
-        Image ibImg = inputBorderObj.AddComponent<Image>();
-        ibImg.color = new Color(0.4f, 0.35f, 0.5f, 0.6f);
-        ibImg.raycastTarget = false;
-        ibImg.transform.SetAsFirstSibling();
+        // 返回按钮 (左上角, 回选角槽位页)
+        var backObj = new GameObject("BackBtn");
+        backObj.transform.SetParent(panel.transform, false);
+        var backRect = backObj.AddComponent<RectTransform>();
+        backRect.anchorMin = new Vector2(0, 1); backRect.anchorMax = new Vector2(0, 1);
+        backRect.pivot = new Vector2(0, 1);
+        backRect.anchoredPosition = new Vector2(16, -14);
+        backRect.sizeDelta = new Vector2(44, 36);
+        var backImg = backObj.AddComponent<Image>();
+        backImg.color = new Color(0.08f, 0.06f, 0.12f, 0.9f);
+        var backBtn = backObj.AddComponent<Button>();
+        backBtn.transition = Selectable.Transition.None;
+        UIHelper.SetupButtonFeedback(backBtn, backImg.color);
+        backBtn.onClick.AddListener(OnBackClicked);
+        var backLblObj = new GameObject("Lbl");
+        backLblObj.transform.SetParent(backObj.transform, false);
+        var backLblRect = backLblObj.AddComponent<RectTransform>();
+        backLblRect.anchorMin = Vector2.zero; backLblRect.anchorMax = Vector2.one;
+        backLblRect.offsetMin = Vector2.zero; backLblRect.offsetMax = Vector2.zero;
+        var backLbl = backLblObj.AddComponent<Text>();
+        backLbl.text = "←"; backLbl.alignment = TextAnchor.MiddleCenter;
+        backLbl.fontSize = 22; backLbl.color = UIHelper.Accent; backLbl.font = font;
+        backLbl.raycastTarget = false;
 
-        // Placeholder
-        GameObject phObj = new GameObject("Placeholder");
-        phObj.transform.SetParent(inputObj.transform, false);
-        RectTransform phRect = phObj.AddComponent<RectTransform>();
-        phRect.anchorMin = Vector2.zero; phRect.anchorMax = Vector2.one;
-        phRect.offsetMin = new Vector2(10, 0); phRect.offsetMax = new Vector2(-10, 0);
-        Text phText = phObj.AddComponent<Text>();
-        phText.text = "输入角色名 (1-12字)";
-        phText.alignment = TextAnchor.MiddleLeft;
-        phText.fontSize = 18; phText.color = new Color(0.4f, 0.4f, 0.45f); phText.font = font;
-        phText.fontStyle = FontStyle.Italic;
-
-        // Input text component
-        GameObject inputTextObj = new GameObject("Text");
-        inputTextObj.transform.SetParent(inputObj.transform, false);
-        RectTransform inputTextRect = inputTextObj.AddComponent<RectTransform>();
-        inputTextRect.anchorMin = Vector2.zero; inputTextRect.anchorMax = Vector2.one;
-        inputTextRect.offsetMin = new Vector2(10, 0); inputTextRect.offsetMax = new Vector2(-10, 0);
-        Text inputText = inputTextObj.AddComponent<Text>();
-        inputText.text = ""; inputText.alignment = TextAnchor.MiddleLeft;
-        inputText.fontSize = 22; inputText.color = Color.white; inputText.font = font;
-
-        InputField nameInput = inputObj.AddComponent<InputField>();
-        nameInput.textComponent = inputText;
-        nameInput.placeholder = phText;
-        nameInput.characterLimit = 12;
-        nameInput.contentType = InputField.ContentType.Standard;
-
-        // Confirm button
-        GameObject confirmObj = new GameObject("PopupConfirmBtn");
-        confirmObj.transform.SetParent(card.transform, false);
-        RectTransform cRect = confirmObj.AddComponent<RectTransform>();
-        cRect.anchorMin = new Vector2(0.5f, 0); cRect.anchorMax = new Vector2(0.5f, 0);
-        cRect.pivot = new Vector2(0.5f, 0);
-        cRect.anchoredPosition = new Vector2(0, 30); cRect.sizeDelta = new Vector2(220, 50);
-
-        GameObject cBorderObj = new GameObject("ConfirmBorder");
-        cBorderObj.transform.SetParent(confirmObj.transform, false);
-        RectTransform cbRect = cBorderObj.AddComponent<RectTransform>();
-        cbRect.anchorMin = Vector2.zero; cbRect.anchorMax = Vector2.one;
-        cbRect.offsetMin = new Vector2(-2, -2); cbRect.offsetMax = new Vector2(2, 2);
-        Image cbImg = cBorderObj.AddComponent<Image>();
-        cbImg.color = new Color(0.2f, 0.55f, 0.2f, 0.9f);
-        cbImg.raycastTarget = false;
-
-        GameObject cInnerObj = new GameObject("ConfirmInner");
-        cInnerObj.transform.SetParent(cBorderObj.transform, false);
-        RectTransform ciRect = cInnerObj.AddComponent<RectTransform>();
-        ciRect.anchorMin = Vector2.zero; ciRect.anchorMax = Vector2.one;
-        ciRect.offsetMin = new Vector2(2, 2); ciRect.offsetMax = new Vector2(-2, -2);
-        Image ciImg = cInnerObj.AddComponent<Image>();
-        ciImg.color = new Color(0.15f, 0.4f, 0.15f, 0.95f);
-
-        Button confirmBtn = confirmObj.AddComponent<Button>();
-        confirmBtn.targetGraphic = ciImg;
-
-        GameObject cLabel = new GameObject("Label");
-        cLabel.transform.SetParent(confirmObj.transform, false);
-        RectTransform clRect = cLabel.AddComponent<RectTransform>();
-        clRect.anchorMin = Vector2.zero; clRect.anchorMax = Vector2.one;
-        clRect.offsetMin = Vector2.zero; clRect.offsetMax = Vector2.zero;
-        Text clText = cLabel.AddComponent<Text>();
-        clText.text = "确认"; clText.alignment = TextAnchor.MiddleCenter;
-        clText.fontSize = 24; clText.color = new Color(1f, 0.95f, 0.7f); clText.font = font;
-        clText.raycastTarget = false;
-
-        confirmBtn.onClick.AddListener(() => ConfirmName(nameInput, ibImg));
-    }
-
-    private void ConfirmName(InputField nameInput, Image inputBorder)
-    {
-        string name = nameInput != null ? nameInput.text.Trim() : "";
-        if (string.IsNullOrEmpty(name))
-        {
-            // Flash the input border red
-            if (inputBorder != null) inputBorder.color = new Color(0.8f, 0.2f, 0.2f, 0.8f);
-            return;
-        }
-        PlayerProgressData.SaveCharacterName(name);
-        confirmed = true;
-        Hide();
-        GameManager.Instance.OnClassSelected(selectedClass);
+        panel.SetActive(false);
     }
 
     private void OnDestroy()
     {
-        if (_namePopup != null) Destroy(_namePopup);
         if (panel != null) Destroy(panel);
         if (Instance == this) Instance = null;
     }

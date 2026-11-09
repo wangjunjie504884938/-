@@ -21,9 +21,9 @@ public class GachaUI : MonoBehaviour
     private Font _font;
 
     private static string ApiBase => (CloudSaveManager.Instance?.ServerUrl ?? "http://localhost:5132") + "/api";
-    private const int NormalCost = 500;
-    private const int PremiumCost = 2000;
-    private const int ClassPoolCost = 1000;
+    private const int NormalCost = 50;    // 位面币
+    private const int PremiumCost = 200;  // 位面币
+    private const int ClassPoolCost = 100; // 位面币
     private const int PityThreshold = 50;
     private const float TenPullDiscount = 0.9f; // 十连9折
 
@@ -164,7 +164,7 @@ public class GachaUI : MonoBehaviour
         nsBtn.targetGraphic = btnNormalSingle.GetComponent<Image>();
         UIHelper.SetupButtonFeedback(nsBtn, new Color(0.04f, 0.08f, 0.06f, 0.92f));
         nsBtn.onClick.AddListener(() => StartCoroutine(DrawGacha(0, 1)));
-        MakeBtnLabel(btnNormalSingle.transform, "单抽", $"◆{NormalCost}", font, new Color(0.3f, 0.7f, 0.3f));
+        MakeBtnLabel(btnNormalSingle.transform, "单抽", $"位面 {NormalCost}", font, new Color(0.3f, 0.7f, 0.3f));
 
         // 普通十连
         var btnNormalTen = UIHelper.MakeGlowCard(panel.transform, "BtnNormalTen",
@@ -178,7 +178,7 @@ public class GachaUI : MonoBehaviour
         ntBtn.targetGraphic = btnNormalTen.GetComponent<Image>();
         UIHelper.SetupButtonFeedback(ntBtn, new Color(0.04f, 0.08f, 0.06f, 0.92f));
         ntBtn.onClick.AddListener(() => StartCoroutine(DrawGacha(0, 10)));
-        MakeBtnLabel(btnNormalTen.transform, "十连", $"◆{Mathf.RoundToInt(NormalCost * 10 * TenPullDiscount)} 9折", font, new Color(0.3f, 0.7f, 0.3f));
+        MakeBtnLabel(btnNormalTen.transform, "十连", $"位面 {Mathf.RoundToInt(NormalCost * 10 * TenPullDiscount)} 9折", font, new Color(0.3f, 0.7f, 0.3f));
 
         // 职业单抽
         var btnClassSingle = UIHelper.MakeGlowCard(panel.transform, "BtnClassSingle",
@@ -192,7 +192,7 @@ public class GachaUI : MonoBehaviour
         csBtn.targetGraphic = btnClassSingle.GetComponent<Image>();
         UIHelper.SetupButtonFeedback(csBtn, new Color(0.04f, 0.06f, 0.10f, 0.92f));
         csBtn.onClick.AddListener(() => StartCoroutine(DrawGacha(2, 1)));
-        MakeBtnLabel(btnClassSingle.transform, "职业单抽", $"◆{ClassPoolCost}", font, new Color(0.3f, 0.6f, 0.9f));
+        MakeBtnLabel(btnClassSingle.transform, "职业单抽", $"位面 {ClassPoolCost}", font, new Color(0.3f, 0.6f, 0.9f));
 
         // Row 2 (y=0.01-0.09)
         // 高级单抽
@@ -207,7 +207,7 @@ public class GachaUI : MonoBehaviour
         psBtn.targetGraphic = btnPremSingle.GetComponent<Image>();
         UIHelper.SetupButtonFeedback(psBtn, new Color(0.06f, 0.04f, 0.08f, 0.92f));
         psBtn.onClick.AddListener(() => StartCoroutine(DrawGacha(1, 1)));
-        MakeBtnLabel(btnPremSingle.transform, "高级单抽", $"◆{PremiumCost}", font, new Color(0.7f, 0.4f, 0.8f));
+        MakeBtnLabel(btnPremSingle.transform, "高级单抽", $"位面 {PremiumCost}", font, new Color(0.7f, 0.4f, 0.8f));
 
         // 高级十连
         var btnPremTen = UIHelper.MakeGlowCard(panel.transform, "BtnPremTen",
@@ -221,7 +221,7 @@ public class GachaUI : MonoBehaviour
         ptBtn.targetGraphic = btnPremTen.GetComponent<Image>();
         UIHelper.SetupButtonFeedback(ptBtn, new Color(0.06f, 0.04f, 0.08f, 0.92f));
         ptBtn.onClick.AddListener(() => StartCoroutine(DrawGacha(1, 10)));
-        MakeBtnLabel(btnPremTen.transform, "高级十连", $"◆{Mathf.RoundToInt(PremiumCost * 10 * TenPullDiscount)} 9折", font, new Color(0.7f, 0.4f, 0.8f));
+        MakeBtnLabel(btnPremTen.transform, "高级十连", $"位面 {Mathf.RoundToInt(PremiumCost * 10 * TenPullDiscount)} 9折", font, new Color(0.7f, 0.4f, 0.8f));
 
         // 职业十连
         var btnClassTen = UIHelper.MakeGlowCard(panel.transform, "BtnClassTen",
@@ -235,7 +235,7 @@ public class GachaUI : MonoBehaviour
         ctBtn.targetGraphic = btnClassTen.GetComponent<Image>();
         UIHelper.SetupButtonFeedback(ctBtn, new Color(0.04f, 0.06f, 0.10f, 0.92f));
         ctBtn.onClick.AddListener(() => StartCoroutine(DrawGacha(2, 10)));
-        MakeBtnLabel(btnClassTen.transform, "职业十连", $"◆{Mathf.RoundToInt(ClassPoolCost * 10 * TenPullDiscount)} 9折", font, new Color(0.3f, 0.6f, 0.9f));
+        MakeBtnLabel(btnClassTen.transform, "职业十连", $"位面 {Mathf.RoundToInt(ClassPoolCost * 10 * TenPullDiscount)} 9折", font, new Color(0.3f, 0.6f, 0.9f));
 
         // 保底计数 (底部小字)
         var pityObj = new GameObject("PityText");
@@ -511,12 +511,12 @@ public class GachaUI : MonoBehaviour
         int totalCost = cost * count;
         if (count >= 10) totalCost = Mathf.RoundToInt(totalCost * TenPullDiscount);
 
-        // Check gold
+        // 经济规范: 抽卡消耗位面币 (客户端钱包)
         var player = GameManager.Instance?.Player;
         if (player == null) yield break;
-        if (player.Stats.Gold < totalCost)
+        if (CurrencyWallet.PlaneCoins < totalCost)
         {
-            ShowErrorText("金币不足!");
+            ShowErrorText("位面币不足!");
             yield break;
         }
 
@@ -558,7 +558,7 @@ public class GachaUI : MonoBehaviour
                         else
                             ShowTenResults(drops);
 
-                        player.Stats.Gold = resp.newGold;
+                        CurrencyWallet.TrySpendPlane(totalCost); // 服务器抽卡成功后扣位面币
                         UpdateInfo();
                         player.Stats.Save();
 
@@ -578,7 +578,7 @@ public class GachaUI : MonoBehaviour
         }
 
         // === LOCAL FALLBACK (仅普通池/职业池，服务器不可用时) ===
-        player.Stats.SpendGold(totalCost);
+        if (!CurrencyWallet.TrySpendPlane(totalCost)) yield break;
 
         float[] rates = gachaType switch
         {
