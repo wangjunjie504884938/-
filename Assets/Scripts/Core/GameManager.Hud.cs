@@ -4,15 +4,15 @@ using System.Collections;
 
 /// <summary>
 /// GameManager partial — HUD building methods extracted from GameManager.cs
-/// Contains: BuildUI, WireSkillButtons, BuildHUDElements, BuildPausePanel, BuildGameOverPanel,
-/// DestroyUIComponent, BuildMobileJoystick, BuildAttackButton
+/// Contains: BuildUI, BuildHUDElements, BuildPausePanel, BuildGameOverPanel, DestroyUIComponent
+/// 旧版HUD元素(JoystickBg/HpBar/LevelText/XpBar/XpText/AttackButton/DashBtn/Skill1-3Btn)已删除 — 由InGameHud全量替代
 /// </summary>
 public partial class GameManager
 {
     /// <summary>HUD幂等自愈 — 供世界等外部流程调用 (Canvas被毁后重建)</summary>
     public void EnsureHud()
     {
-        if (GameUI.Instance == null || GameUI.Instance.HpBar == null)
+        if (GameUI.Instance == null || GameUI.Instance.MapNameText == null)
             BuildUI();
     }
 
@@ -23,93 +23,18 @@ public partial class GameManager
         GameUI gameUI = canvas.GetComponent<GameUI>();
         if (gameUI == null) gameUI = canvas.gameObject.AddComponent<GameUI>();
 
-        if (gameUI.HpBar != null)
-        {
-            WireSkillButtons(canvas.transform, gameUI);
+        if (gameUI.MapNameText != null)
             return;
-        }
 
         BuildHUDElements(canvas.transform, gameUI);
-    }
-
-    private void WireSkillButtons(Transform canvasTransform, GameUI gameUI)
-    {
-        if (Player == null || Player.InputCtrl == null) return;
-
-        ClassData cd = ClassData.GetClassData(selectedClass);
-
-        var s1 = canvasTransform.Find("Skill1Btn");
-        var s2 = canvasTransform.Find("Skill2Btn");
-        var s3 = canvasTransform.Find("Skill3Btn");
-        var dash = canvasTransform.Find("DashBtn");
-        var atkComp = FindObjectOfType<AttackButton>();
-
-        if (s1 != null) { Player.InputCtrl.Skill1BtnObj = s1.gameObject; var lbl = s1.Find("Label")?.GetComponent<Text>(); if (lbl != null) lbl.text = cd.Skill1Name; }
-        if (s2 != null) { Player.InputCtrl.Skill2BtnObj = s2.gameObject; var lbl = s2.Find("Label")?.GetComponent<Text>(); if (lbl != null) lbl.text = cd.Skill2Name; }
-        if (s3 != null) { Player.InputCtrl.Skill3BtnObj = s3.gameObject; var lbl = s3.Find("Label")?.GetComponent<Text>(); if (lbl != null) lbl.text = cd.Skill3Name; }
-        if (dash != null) Player.InputCtrl.DashBtnObj = dash.gameObject;
-        if (atkComp != null) Player.InputCtrl.AttackBtnObj = atkComp.gameObject;
-
-        Player.InputCtrl.WireButtonListeners();
     }
 
     private void BuildHUDElements(Transform canvasTransform, GameUI gameUI)
     {
         Font font = GameManager.GetUIFont();
 
-        GameObject portraitObj = new GameObject("PortraitIcon");
-        portraitObj.transform.SetParent(canvasTransform, false);
-        RectTransform portraitRect = portraitObj.AddComponent<RectTransform>();
-        portraitRect.anchorMin = new Vector2(0, 1); portraitRect.anchorMax = new Vector2(0, 1);
-        portraitRect.pivot = new Vector2(0.5f, 0.5f); portraitRect.anchoredPosition = new Vector2(30, -70);
-        portraitRect.sizeDelta = new Vector2(36, 36);
-        Image portraitImg = portraitObj.AddComponent<Image>();
-        portraitImg.sprite = HudSpriteFactory.CreatePortraitSprite(32);
-        portraitImg.color = Color.white;
-
-        GameObject hpBarObj = new GameObject("HpBar");
-        hpBarObj.transform.SetParent(canvasTransform, false);
-        RectTransform hpBarRect = hpBarObj.AddComponent<RectTransform>();
-        hpBarRect.anchorMin = new Vector2(0, 1); hpBarRect.anchorMax = new Vector2(0, 1);
-        hpBarRect.pivot = new Vector2(0, 0.5f); hpBarRect.anchoredPosition = new Vector2(54, -70);
-        hpBarRect.sizeDelta = new Vector2(300, 24);
-        Image hpBg = hpBarObj.AddComponent<Image>(); hpBg.color = new Color(0.08f, 0.08f, 0.12f, 0.9f);
-
-        GameObject hpBorderObj = new GameObject("Border");
-        hpBorderObj.transform.SetParent(hpBarObj.transform, false);
-        RectTransform hpBorderRect = hpBorderObj.AddComponent<RectTransform>();
-        hpBorderRect.anchorMin = Vector2.zero; hpBorderRect.anchorMax = Vector2.one;
-        hpBorderRect.offsetMin = new Vector2(-1, -1); hpBorderRect.offsetMax = new Vector2(1, 1);
-        Image hpBorderImg = hpBorderObj.AddComponent<Image>();
-        hpBorderImg.color = new Color(0.35f, 0.27f, 0.05f, 0.8f);
-        hpBorderImg.raycastTarget = false;
-        hpBorderObj.transform.SetAsFirstSibling();
-
-        GameObject hpFillObj = new GameObject("Fill");
-        hpFillObj.transform.SetParent(hpBarObj.transform, false);
-        RectTransform hpFillRect = hpFillObj.AddComponent<RectTransform>();
-        hpFillRect.anchorMin = Vector2.zero; hpFillRect.anchorMax = Vector2.one;
-        hpFillRect.offsetMin = Vector2.zero; hpFillRect.offsetMax = Vector2.zero;
-        Image hpFillImg = hpFillObj.AddComponent<Image>(); hpFillImg.color = new Color(0.75f, 0.15f, 0.1f, 1f);
-
-        Slider hpSlider = hpBarObj.AddComponent<Slider>();
-        hpSlider.targetGraphic = hpFillImg; hpSlider.fillRect = hpFillRect;
-        hpSlider.handleRect = null; hpSlider.direction = Slider.Direction.LeftToRight;
-        hpSlider.minValue = 0; hpSlider.maxValue = 100; hpSlider.value = 100; hpSlider.interactable = false;
-        gameUI.HpBar = hpSlider;
-
-        // 血条数值文本 (条内居中)
-        GameObject hpTextObj = new GameObject("HpText");
-        hpTextObj.transform.SetParent(hpBarObj.transform, false);
-        RectTransform hpTextRect = hpTextObj.AddComponent<RectTransform>();
-        hpTextRect.anchorMin = Vector2.zero; hpTextRect.anchorMax = Vector2.one;
-        hpTextRect.offsetMin = Vector2.zero; hpTextRect.offsetMax = Vector2.zero;
-        Text hpText = hpTextObj.AddComponent<Text>();
-        hpText.alignment = TextAnchor.MiddleCenter; hpText.fontSize = 14;
-        hpText.color = Color.white; hpText.font = font;
-        hpText.raycastTarget = false;
-        gameUI.HpText = hpText;
-
+        // 旧版元素(JoystickBg/HpBar/HpText/LevelText/XpBar/XpText/AttackButton/DashBtn/Skill1-3Btn)已删除 — InGameHud全量替代
+        // ShieldBar保留(护盾条, 默认隐藏, 未被InGameHud覆盖)
         GameObject shieldBarObj = new GameObject("ShieldBar");
         shieldBarObj.transform.SetParent(canvasTransform, false);
         RectTransform shieldRect = shieldBarObj.AddComponent<RectTransform>();
@@ -136,31 +61,6 @@ public partial class GameManager
         Image sfImg = shieldFillObj.AddComponent<Image>(); sfImg.color = new Color(0.4f, 0.7f, 1f, 0.9f);
         gameUI.ShieldBar = shieldBarObj;
         shieldBarObj.SetActive(false);
-
-        // 经验条 (蓝条) — 等级角标在其左侧
-        GameObject xpBarObj = new GameObject("XpBar");
-        xpBarObj.transform.SetParent(canvasTransform, false);
-        RectTransform xpBarRect = xpBarObj.AddComponent<RectTransform>();
-        xpBarRect.anchorMin = new Vector2(0, 1); xpBarRect.anchorMax = new Vector2(0, 1);
-        xpBarRect.pivot = new Vector2(0, 0.5f); xpBarRect.anchoredPosition = new Vector2(54, -104);
-        xpBarRect.sizeDelta = new Vector2(300, 10);
-        Image xpBg = xpBarObj.AddComponent<Image>(); xpBg.color = new Color(0.06f, 0.06f, 0.1f, 0.9f);
-        GameObject xpFillObj = new GameObject("Fill");
-        xpFillObj.transform.SetParent(xpBarObj.transform, false);
-        RectTransform xpFillRect = xpFillObj.AddComponent<RectTransform>();
-        xpFillRect.anchorMin = Vector2.zero; xpFillRect.anchorMax = Vector2.one;
-        xpFillRect.offsetMin = Vector2.zero; xpFillRect.offsetMax = Vector2.zero;
-        Image xpFillImg = xpFillObj.AddComponent<Image>(); xpFillImg.color = new Color(0.3f, 0.55f, 1f, 1f);
-        Slider xpSlider = xpBarObj.AddComponent<Slider>();
-        xpSlider.targetGraphic = xpFillImg; xpSlider.fillRect = xpFillRect;
-        xpSlider.handleRect = null; xpSlider.direction = Slider.Direction.LeftToRight;
-        xpSlider.minValue = 0; xpSlider.maxValue = 1; xpSlider.value = 0; xpSlider.interactable = false;
-        gameUI.XpBar = xpSlider;
-
-        var levelBadge = gameUI.LevelText = HudSpriteFactory.CreateText(canvasTransform, "LevelText", new Vector2(5, -90), new Vector2(45, 25), 18, new Color(1f, 0.85f, 0.3f));
-        levelBadge.alignment = TextAnchor.MiddleRight;
-        levelBadge.raycastTarget = false;
-        gameUI.XpText = HudSpriteFactory.CreateText(canvasTransform, "XpText", new Vector2(360, -96), new Vector2(150, 22), 13, new Color(0.75f, 0.85f, 1f));
 
         // 层数 (顶部居中, 地图名下方)
         gameUI.DungeonLevelText = HudSpriteFactory.CreateText(canvasTransform, "DungeonLevelText", new Vector2(0, -60), new Vector2(300, 30), 17, Color.yellow);
@@ -229,34 +129,7 @@ public partial class GameManager
 
         gameUI.BindBossHealthPanel(canvasTransform.GetComponentInParent<Canvas>());
 
-        BuildMobileJoystick(canvasTransform);
-        BuildAttackButton(canvasTransform, font);
-
-        var joyComp = FindObjectOfType<VirtualJoystick>();
-        if (joyComp != null) gameUI.JoystickObj = joyComp.gameObject;
-        var atkComp = FindObjectOfType<AttackButton>();
-        if (atkComp != null) gameUI.AttackButtonObj = atkComp.gameObject;
-
-        ClassData cd = ClassData.GetClassData(selectedClass);
-        SkillButton s1Btn, s2Btn, s3Btn, dashBtn;
-        HudSpriteFactory.CreateSkillButton(canvasTransform, gameUI, "DashBtn", "闪避", new Vector2(-300, 72.5f),
-            new Color(0.25f, 0.25f, 0.3f), new Color(0.6f, 0.6f, 0.75f, 0.9f), out gameUI.DashCooldownOverlay, out gameUI.DashCooldownText, out dashBtn);
-        HudSpriteFactory.CreateSkillButton(canvasTransform, gameUI, "Skill1Btn", cd.Skill1Name, new Vector2(-300, 183),
-            new Color(0.15f, 0.3f, 0.6f), new Color(0.4f, 0.65f, 1f, 0.9f), out gameUI.Skill1CooldownOverlay, out gameUI.Skill1CooldownText, out s1Btn);
-        HudSpriteFactory.CreateSkillButton(canvasTransform, gameUI, "Skill2Btn", cd.Skill2Name, new Vector2(-182, 237.5f),
-            new Color(0.5f, 0.2f, 0.05f), new Color(1f, 0.6f, 0.2f, 0.9f), out gameUI.Skill2CooldownOverlay, out gameUI.Skill2CooldownText, out s2Btn);
-        HudSpriteFactory.CreateSkillButton(canvasTransform, gameUI, "Skill3Btn", cd.Skill3Name, new Vector2(-62.5f, 237.5f),
-            new Color(0.08f, 0.4f, 0.15f), new Color(0.3f, 1f, 0.5f, 0.9f), out gameUI.Skill3CooldownOverlay, out gameUI.Skill3CooldownText, out s3Btn);
-
-        if (Player != null && Player.InputCtrl != null)
-        {
-            Player.InputCtrl.Skill1BtnObj = s1Btn.gameObject;
-            Player.InputCtrl.Skill2BtnObj = s2Btn.gameObject;
-            Player.InputCtrl.Skill3BtnObj = s3Btn.gameObject;
-            Player.InputCtrl.DashBtnObj = dashBtn.gameObject;
-            Player.InputCtrl.AttackBtnObj = atkComp.gameObject;
-            Player.InputCtrl.WireButtonListeners();
-        }
+        // 旧版摇杆/攻击按钮/技能键已删除 — InGameHud全量替代
 
         BuildPausePanel(canvasTransform, gameUI, font);
 
@@ -389,7 +262,7 @@ public partial class GameManager
         gameUI.GameOverPanel = gameOverPanel;
         gameUI.GameOverStatsText = goStatsTextComp;
 
-        UIHelper.MakeButton(gameOverPanel.transform, "RestartButton", "←", font,
+        UIHelper.MakeButton(gameOverPanel.transform, "BackButton", "返回", font,
             new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-100, 75), new Vector2(100, 125),
             new Color(0.2f, 0.6f, 1f, 0.9f), 24, () => { if (GameUI.Instance?.GameOverPanel != null) GameUI.Instance.GameOverPanel.SetActive(false); ReturnToHubExitingWorld(); });
 
@@ -405,6 +278,10 @@ public partial class GameManager
                 }
                 else RetryStage();
             });
+
+        UIHelper.MakeButton(gameOverPanel.transform, "ReviveButton", "原地复活 50位面", font,
+            new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-100, 210), new Vector2(100, 260),
+            new Color(0.55f, 0.35f, 0.9f, 0.9f), 20, ReviveInPlace);
     }
 
     private void DestroyUIComponent<T>() where T : Component
@@ -426,71 +303,5 @@ public partial class GameManager
                 break;
             }
         }
-    }
-
-    private void BuildMobileJoystick(Transform canvasTransform)
-    {
-        GameObject joystickBg = new GameObject("JoystickBg");
-        joystickBg.transform.SetParent(canvasTransform, false);
-        RectTransform joystickBgRect = joystickBg.AddComponent<RectTransform>();
-        joystickBgRect.anchorMin = new Vector2(0, 0); joystickBgRect.anchorMax = new Vector2(0, 0);
-        joystickBgRect.pivot = new Vector2(0.5f, 0.5f); joystickBgRect.anchoredPosition = new Vector2(170, 170);
-        joystickBgRect.sizeDelta = new Vector2(220, 220);
-
-        Image joystickBgImg = joystickBg.AddComponent<Image>();
-        joystickBgImg.sprite = HudSpriteFactory.CreateJoystickRingSprite(64);
-        joystickBgImg.color = Color.white;
-
-        GameObject joystickHandle = new GameObject("Handle");
-        joystickHandle.transform.SetParent(joystickBg.transform, false);
-        RectTransform handleRect = joystickHandle.AddComponent<RectTransform>();
-        handleRect.anchorMin = new Vector2(0.5f, 0.5f); handleRect.anchorMax = new Vector2(0.5f, 0.5f);
-        handleRect.pivot = new Vector2(0.5f, 0.5f); handleRect.sizeDelta = new Vector2(80, 80);
-        Image handleImg = joystickHandle.AddComponent<Image>();
-        handleImg.sprite = HudSpriteFactory.CreateJoystickHandleSprite(64);
-        handleImg.color = Color.white;
-
-        joystickBg.AddComponent<VirtualJoystick>();
-    }
-
-    private void BuildAttackButton(Transform canvasTransform, Font font)
-    {
-        GameObject atkBtnObj = new GameObject("AttackButton");
-        atkBtnObj.transform.SetParent(canvasTransform, false);
-        RectTransform atkBtnRect = atkBtnObj.AddComponent<RectTransform>();
-        atkBtnRect.anchorMin = new Vector2(1, 0); atkBtnRect.anchorMax = new Vector2(1, 0);
-        atkBtnRect.pivot = new Vector2(0.5f, 0.5f); atkBtnRect.anchoredPosition = new Vector2(-140, 100);
-        atkBtnRect.sizeDelta = new Vector2(140, 140);
-
-        Image atkRingImg = atkBtnObj.AddComponent<Image>();
-        atkRingImg.sprite = HudSpriteFactory.CreateOrnateRingSprite(64);
-        atkRingImg.color = Color.white;
-
-        GameObject atkInner = new GameObject("InnerFill");
-        atkInner.transform.SetParent(atkBtnObj.transform, false);
-        RectTransform atkInnerRect = atkInner.AddComponent<RectTransform>();
-        atkInnerRect.anchorMin = new Vector2(0.5f, 0.5f); atkInnerRect.anchorMax = new Vector2(0.5f, 0.5f);
-        atkInnerRect.pivot = new Vector2(0.5f, 0.5f); atkInnerRect.sizeDelta = new Vector2(120, 120);
-        Image atkInnerImg = atkInner.AddComponent<Image>();
-        atkInnerImg.sprite = HudSpriteFactory.CreateDarkFillSprite(64, new Color(0.5f, 0.08f, 0.08f));
-        atkInnerImg.color = Color.white;
-
-        GameObject atkLabel = new GameObject("Label");
-        atkLabel.transform.SetParent(atkBtnObj.transform, false);
-        RectTransform atkLabelRect = atkLabel.AddComponent<RectTransform>();
-        atkLabelRect.anchorMin = Vector2.zero; atkLabelRect.anchorMax = Vector2.one;
-        atkLabelRect.offsetMin = Vector2.zero; atkLabelRect.offsetMax = Vector2.zero;
-        Text atkText = atkLabel.AddComponent<Text>();
-        atkText.text = ""; atkText.alignment = TextAnchor.MiddleCenter;
-        atkText.fontSize = 52; atkText.color = new Color(1f, 0.92f, 0.5f); atkText.font = font;
-
-        AttackButton atkBtn = atkBtnObj.AddComponent<AttackButton>();
-        var trigger = atkBtnObj.AddComponent<UnityEngine.EventSystems.EventTrigger>();
-        var pointerDown = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerDown };
-        pointerDown.callback.AddListener((data) => atkBtn.OnPointerDown((UnityEngine.EventSystems.BaseEventData)data));
-        trigger.triggers.Add(pointerDown);
-        var pointerUp = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerUp };
-        pointerUp.callback.AddListener((data) => atkBtn.OnPointerUp((UnityEngine.EventSystems.BaseEventData)data));
-        trigger.triggers.Add(pointerUp);
     }
 }
