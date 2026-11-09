@@ -145,6 +145,7 @@ public class PlayerProgressData
         PlayerPrefs.SetFloat(KeyPrefix + "BaseHpRegen", BaseHpRegen);
         SaveSkills();
         SavePassiveTree();
+        CharacterSystemData.Save(KeyPrefix);
         SaveHp();
         PlayerPrefs.Save();
         // 云端上传由 Stats.Save() 统一处理, 这里不重复上传
@@ -159,6 +160,18 @@ public class PlayerProgressData
     public static string GetSavedCharacterName()
     {
         return PlayerPrefs.GetString(KeyPrefix + "CharacterName", "");
+    }
+
+    /// <summary>角色性别 (0=男, 1=女) — 纯展示数据, 不影响职业机制</summary>
+    public static void SaveCharacterGender(int gender)
+    {
+        PlayerPrefs.SetInt(KeyPrefix + "Gender", Mathf.Clamp(gender, 0, 1));
+        PlayerPrefs.Save();
+    }
+
+    public static int GetSavedGender()
+    {
+        return PlayerPrefs.GetInt(KeyPrefix + "Gender", 0);
     }
 
     private void SaveHp()
@@ -269,6 +282,7 @@ public class PlayerProgressData
         // HighestStage 不再从 PlayerPrefs 读取 — 由 RuntimePlayerData/服务器提供
         XpToNextLevel = CalculateXpNeeded(Level);
         LoadPassiveTree();
+        CharacterSystemData.Load(KeyPrefix);
         // Restore base combat stats if saved; otherwise recalculate from class data + level
         if (PlayerPrefs.HasKey(KeyPrefix + "BaseMaxHp"))
         {
@@ -321,7 +335,8 @@ public class PlayerProgressData
             "BaseMaxHp", "BaseAttack", "BaseDefense",
             "BaseMoveSpeed", "BaseCritChance", "BaseAttackRange",
             "BaseAttackCooldown", "BaseHpRegen",
-            "CharacterName", "PassiveTree", "DismantleFragments",
+            "CharacterName", "Gender", "PassiveTree", "DismantleFragments",
+            "SysPts", "SysLock", "SysYin", "SysYang",
         };
         foreach (var key in knownKeys)
             PlayerPrefs.DeleteKey(prefix + key);

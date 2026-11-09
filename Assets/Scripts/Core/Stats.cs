@@ -159,6 +159,7 @@ public class Stats
             var allocatedSet = new HashSet<int>(Progress.PassiveNodeIds);
             PassiveTree.ApplyEffects(Progress, Runtime, allocatedSet);
         }
+        CharacterSystemData.ApplyEffects(Runtime);
     }
 
     // --- Save/Load delegates ---
@@ -265,6 +266,7 @@ public class Stats
             var allocatedSet = new HashSet<int>(Progress.PassiveNodeIds);
             PassiveTree.ApplyEffects(Progress, Runtime, allocatedSet);
         }
+        CharacterSystemData.ApplyEffects(Runtime);
     }
 
     public static void ClearSave() => PlayerProgressData.ClearSave();

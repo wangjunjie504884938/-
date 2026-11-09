@@ -430,6 +430,10 @@ public class DungeonVisuals : MonoBehaviour
 
     // ======================== OBSTACLES ========================
 
+    // 小地图建筑标记 — 地图生成完毕时遍历一次地图障碍数据得出, 由MistSystem以Canvas+Image实例化绘制
+    public struct BuildingMark { public Vector2 Pos; public float Size; public Color Color; }
+    public static readonly List<BuildingMark> BuildingMarks = new List<BuildingMark>();
+
     private void CreateObstacles()
     {
         if (obstacleContainer != null) Destroy(obstacleContainer);
@@ -471,6 +475,25 @@ public class DungeonVisuals : MonoBehaviour
                 lavaCracks.Add(new LavaData { renderer = sr, phase = Random.Range(0f, Mathf.PI * 2f) });
             }
         }
+
+        // 地图生成完毕: 遍历一次地图障碍数据, 生成小地图建筑标记
+        BuildingMarks.Clear();
+        foreach (var obs in currentMap.obstacles)
+        {
+            Color c;
+            float size;
+            switch (obs.type)
+            {
+                case DungeonMapData.ObstacleType.Pillar: c = new Color(0.78f, 0.72f, 0.60f, 0.95f); size = 9f; break;
+                case DungeonMapData.ObstacleType.Tree: c = new Color(0.30f, 0.62f, 0.34f, 0.95f); size = 8f; break;
+                case DungeonMapData.ObstacleType.IceSpike: c = new Color(0.62f, 0.85f, 1f, 0.95f); size = 8f; break;
+                case DungeonMapData.ObstacleType.LavaPool: c = new Color(1f, 0.45f, 0.15f, 0.9f); size = 11f; break;
+                case DungeonMapData.ObstacleType.Tombstone: c = new Color(0.62f, 0.62f, 0.66f, 0.95f); size = 7f; break;
+                default: c = new Color(0.55f, 0.55f, 0.58f, 0.95f); size = 8f; break;   // Rock
+            }
+            BuildingMarks.Add(new BuildingMark { Pos = obs.position, Size = size, Color = c });
+        }
+        MistSystem.Instance?.DrawBuildings();
     }
 
     private Sprite CreateObstacleSprite(DungeonMapData.ObstacleType type, out bool ruinsSourced)

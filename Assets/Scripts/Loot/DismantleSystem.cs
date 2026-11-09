@@ -29,14 +29,23 @@ public static class DismantleSystem
         return baseYield + item.UpgradeLevel;
     }
 
+    /// <summary>寿元币产出: 分解史诗+1 / 传说+3 (经济规范: 分解特定装备产出寿元)</summary>
+    public static int GetLifeYield(EquipmentItem item)
+    {
+        if (item == null) return 0;
+        return (int)item.Rarity switch { 3 => 3, 2 => 1, _ => 0 };
+    }
+
     /// <summary>Dismantle a single item from backpack. Returns fragments gained.</summary>
     public static int DismantleFromBackpack(EquipmentInventory inv, int index)
     {
         if (inv == null || index < 0 || index >= inv.Backpack.Count) return 0;
         var item = inv.Backpack[index];
         int yield = GetFragmentYield(item);
+        int life = GetLifeYield(item);
         inv.Backpack.RemoveAt(index);
         Fragments += yield;
+        if (life > 0) CurrencyWallet.AddLifeOrPlane("Life", life);
         inv.RecalculateStats();
         return yield;
     }
@@ -50,13 +59,16 @@ public static class DismantleSystem
         var sorted = new System.Collections.Generic.List<int>(unique);
         sorted.Sort((a, b) => b.CompareTo(a));
         int total = 0;
+        int totalLife = 0;
         foreach (var idx in sorted)
         {
             if (idx < 0 || idx >= inv.Backpack.Count) continue;
             total += GetFragmentYield(inv.Backpack[idx]);
+            totalLife += GetLifeYield(inv.Backpack[idx]);
             inv.Backpack.RemoveAt(idx);
         }
         Fragments += total;
+        if (totalLife > 0) CurrencyWallet.AddLifeOrPlane("Life", totalLife);
         inv.RecalculateStats();
         return total;
     }

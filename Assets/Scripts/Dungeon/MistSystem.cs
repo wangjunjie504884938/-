@@ -545,14 +545,33 @@ public class MistSystem : MonoBehaviour
         var font = GameManager.GetUIFont();
 
         _mmPanel = new GameObject("MistMinimap");
-        _mmPanel.transform.SetParent(canvas.transform, false);
         var pr = _mmPanel.AddComponent<RectTransform>();
-        pr.anchorMin = new Vector2(1f, 1f); pr.anchorMax = new Vector2(1f, 1f);
-        pr.pivot = new Vector2(1f, 1f);
-        pr.anchoredPosition = new Vector2(-12f, -60f);
-        pr.sizeDelta = new Vector2(232f, 172f);
+        // 优先嵌入InGameHud小地图占位框; HUD未显示时回退右上角独立面板
+        RectTransform host = InGameHud.GetMinimapHost();
+        bool embedded = host != null;
+        if (embedded)
+        {
+            _mmPanel.transform.SetParent(host, false);
+            pr.anchorMin = new Vector2(0.5f, 0.5f); pr.anchorMax = new Vector2(0.5f, 0.5f);
+            pr.pivot = new Vector2(0.5f, 0.5f);
+            pr.anchoredPosition = Vector2.zero;
+            pr.sizeDelta = new Vector2(328f, 328f);
+        }
+        else
+        {
+            _mmPanel.transform.SetParent(canvas.transform, false);
+            pr.anchorMin = new Vector2(1f, 1f); pr.anchorMax = new Vector2(1f, 1f);
+            pr.pivot = new Vector2(1f, 1f);
+            pr.anchoredPosition = new Vector2(-12f, -60f);
+            pr.sizeDelta = new Vector2(232f, 172f);
+        }
         var bg = _mmPanel.AddComponent<Image>();
         bg.color = new Color(0.03f, 0.04f, 0.07f, 0.72f);
+
+        // 点击小地图打开地图 (WaypointUI 世界地图)
+        var openBtn = _mmPanel.AddComponent<Button>();
+        openBtn.transition = Selectable.Transition.None;
+        openBtn.onClick.AddListener(() => WaypointUI.Show());
 
         var titleGo = new GameObject("Title");
         titleGo.transform.SetParent(_mmPanel.transform, false);
@@ -563,7 +582,7 @@ public class MistSystem : MonoBehaviour
         var tt = titleGo.AddComponent<Text>();
         tt.text = _worldMode ? "世界地图" : $"秘境地图 · 第{GameManager.Instance.RiftLayer}层";
         tt.alignment = TextAnchor.MiddleCenter;
-        tt.fontSize = 14;
+        tt.fontSize = embedded ? 18 : 14;
         tt.color = new Color(0.85f, 0.82f, 0.6f);
         tt.font = font;
         tt.raycastTarget = false;
@@ -580,15 +599,15 @@ public class MistSystem : MonoBehaviour
         var rawGo = new GameObject("Map");
         rawGo.transform.SetParent(_mmPanel.transform, false);
         var rr = rawGo.AddComponent<RectTransform>();
-        rr.anchorMin = new Vector2(0.5f, 0f); rr.anchorMax = new Vector2(0.5f, 0f);
+        rr.anchorMin = new Vector2(0.5f, embedded ? 0.5f : 0f); rr.anchorMax = new Vector2(0.5f, embedded ? 0.5f : 0f);
         rr.pivot = new Vector2(0.5f, 0.5f);
         // 保持世界宽高比
-        float boxW = 215f, boxH = 145f;
+        float boxW = embedded ? 308f : 215f, boxH = embedded ? 282f : 145f;
         float worldAspect = (_halfW * 2f) / Mathf.Max(0.01f, _halfH * 2f);
         float w, h;
         if (boxW / boxH > worldAspect) { h = boxH; w = h * worldAspect; }
         else { w = boxW; h = w / worldAspect; }
-        rr.anchoredPosition = new Vector2(0f, 80f);
+        rr.anchoredPosition = new Vector2(0f, embedded ? -22f : 80f);
         rr.sizeDelta = new Vector2(w, h);
         var raw = rawGo.AddComponent<RawImage>();
         raw.texture = _mmTex;
@@ -643,7 +662,33 @@ public class MistSystem : MonoBehaviour
         dOl.effectDistance = new Vector2(1.5f, -1.5f);
         _playerDot = dr;
 
+        DrawBuildings();   // 地图建筑 (Canvas+Image, DungeonVisuals生成时遍历地图数据得出)
         _mmDirty = true;
+    }
+
+    /// <summary>在小地图上以Canvas+Image实例化建筑标记 (DungeonVisuals生成完毕后调用; 重复调用先清后画)</summary>
+    public void DrawBuildings()
+    {
+        if (_worldMode || _mmMapRect == null || _mmPanel == null) return;
+        for (int i = _mmMapRect.childCount - 1; i >= 0; i--)
+            if (_mmMapRect.GetChild(i).name.StartsWith("Building_"))
+                Destroy(_mmMapRect.GetChild(i).gameObject);
+
+        var marks = DungeonVisuals.BuildingMarks;
+        for (int i = 0; i < marks.Count; i++)
+        {
+            var m = marks[i];
+            var bGo = new GameObject("Building_" + i);
+            bGo.transform.SetParent(_mmMapRect, false);
+            var br = bGo.AddComponent<RectTransform>();
+            br.sizeDelta = new Vector2(m.Size, m.Size);
+            var bImg = bGo.AddComponent<Image>();
+            bImg.color = m.Color;
+            bImg.raycastTarget = false;
+            float nx = Mathf.Clamp01((m.Pos.x + _halfW) / (_halfW * 2f));
+            float ny = Mathf.Clamp01((m.Pos.y + _halfH) / (_halfH * 2f));
+            br.anchoredPosition = new Vector2((nx - 0.5f) * _mmMapRect.sizeDelta.x, (ny - 0.5f) * _mmMapRect.sizeDelta.y);
+        }
     }
 
     private void UpdateMinimap(Vector3 p)

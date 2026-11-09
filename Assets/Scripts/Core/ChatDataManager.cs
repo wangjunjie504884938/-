@@ -64,6 +64,132 @@ public class ChatDataManager : MonoBehaviour
             StartCoroutine(UploadMessageToServer(friendName, message, time));
     }
 
+    // ====== 频道聊天 (世界/组队/系统/当前) ======
+
+    private Dictionary<string, List<string>> _channelHistory = new Dictionary<string, List<string>>();
+
+    /// <summary>获取频道聊天记录（优先内存，其次PlayerPrefs）</summary>
+    public List<string> GetChannelHistory(string channel)
+    {
+        if (_channelHistory.TryGetValue(channel, out var cached))
+            return new List<string>(cached);
+
+        var list = new List<string>();
+        string json = PlayerPrefs.GetString($"ARPG_ChatChannel_{channel}", "");
+        if (!string.IsNullOrEmpty(json))
+        {
+            list = new List<string>(json.Split('\n'));
+            if (list.Count == 1 && string.IsNullOrEmpty(list[0]))
+                list.Clear();
+        }
+        _channelHistory[channel] = list;
+        return new List<string>(list);
+    }
+
+    /// <summary>发送频道消息（本地记录，暂无服务器同步）</summary>
+    public void SendChannelMessage(string channel, string message)
+    {
+        if (string.IsNullOrEmpty(message)) return;
+        string time = System.DateTime.Now.ToString("HH:mm");
+        AppendChannelLine(channel, $"[{time}] 我: {message}");
+    }
+
+    /// <summary>追加原始频道行（种子/系统提示用，不加"我:"前缀）</summary>
+    public void AppendChannelLine(string channel, string line)
+    {
+        if (string.IsNullOrEmpty(line)) return;
+        var history = GetChannelHistory(channel);
+        history.Add(line);
+        if (history.Count > 100)
+            history.RemoveRange(0, history.Count - 100);
+        _channelHistory[channel] = history;
+        PlayerPrefs.SetString($"ARPG_ChatChannel_{channel}", string.Join("\n", history));
+        PlayerPrefs.Save();
+    }
+
+    // ====== 语音消息 (本地录音WAV存取) ======
+
+    public const int VoiceFrequency = 16000;
+    private const string VoiceDirName = "chat_voice";
+
+    private static string VoiceDir => System.IO.Path.Combine(Application.persistentDataPath, VoiceDirName);
+
+    /// <summary>保存录音为16bit PCM单声道WAV, 返回文件名</summary>
+    public static string SaveVoiceWav(float[] samples, int frequency)
+    {
+        System.IO.Directory.CreateDirectory(VoiceDir);
+        string name = $"voice_{System.DateTime.Now:yyyyMMdd_HHmmss_fff}.wav";
+        int dataLen = samples.Length * 2;
+        using (var bw = new System.IO.BinaryWriter(System.IO.File.Create(System.IO.Path.Combine(VoiceDir, name))))
+        {
+            bw.Write(0x46464952);          // RIFF
+            bw.Write(36 + dataLen);
+            bw.Write(0x45564157);          // WAVE
+            bw.Write(0x20746D66);          // "fmt "
+            bw.Write(16);
+            bw.Write((short)1);            // PCM
+            bw.Write((short)1);            // mono
+            bw.Write(frequency);
+            bw.Write(frequency * 2);       // byte rate
+            bw.Write((short)2);            // block align
+            bw.Write((short)16);           // bits
+            bw.Write(0x61746164);          // "data"
+            bw.Write(dataLen);
+            foreach (var s in samples)
+            {
+                short v = (short)Mathf.Clamp(Mathf.RoundToInt(Mathf.Clamp(s, -1f, 1f) * 32767f), short.MinValue, short.MaxValue);
+                bw.Write(v);
+            }
+        }
+        PruneVoiceFiles();
+        return name;
+    }
+
+    /// <summary>加载语音WAV为AudioClip (解析自己写入的16bit PCM单声道格式)</summary>
+    public static AudioClip LoadVoiceClip(string filename)
+    {
+        if (string.IsNullOrEmpty(filename)) return null;
+        string path = System.IO.Path.Combine(VoiceDir, filename);
+        if (!System.IO.File.Exists(path)) return null;
+        try
+        {
+            byte[] bytes = System.IO.File.ReadAllBytes(path);
+            int pos = 12;   // 跳过 RIFF/WAVE 头, 遍历子块找 data
+            while (pos + 8 <= bytes.Length)
+            {
+                string id = System.Text.Encoding.ASCII.GetString(bytes, pos, 4);
+                int size = System.BitConverter.ToInt32(bytes, pos + 4);
+                if (id == "data")
+                {
+                    int count = size / 2;
+                    var samples = new float[count];
+                    for (int i = 0; i < count; i++)
+                        samples[i] = System.BitConverter.ToInt16(bytes, pos + 8 + i * 2) / 32768f;
+                    var clip = AudioClip.Create(filename, count, 1, VoiceFrequency, false);
+                    clip.SetData(samples, 0);
+                    return clip;
+                }
+                pos += 8 + size + (size & 1);
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    /// <summary>语音文件超过上限时删除最旧的 (文件名含时间戳可排序)</summary>
+    private static void PruneVoiceFiles(int keep = 100)
+    {
+        try
+        {
+            var files = System.IO.Directory.GetFiles(VoiceDir, "voice_*.wav");
+            if (files.Length <= keep) return;
+            System.Array.Sort(files);
+            for (int i = 0; i < files.Length - keep; i++)
+                System.IO.File.Delete(files[i]);
+        }
+        catch { }
+    }
+
     /// <summary>清除聊天记录</summary>
     public void ClearHistory(string friendName)
     {

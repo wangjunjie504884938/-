@@ -31,6 +31,25 @@ public static class ResourcePaths
     public const string TitleLogo = "Sprites/Title/TitleLogo";
     public const string TitleEnterBtn = "Sprites/Title/EnterBtn";
 
+    // 创建角色页 (性别选择+职业选择)
+    public const string CreateBg = "Sprites/Create/CreateBg";
+    public const string GenderMale = "Sprites/Create/GenderMale";
+    public const string GenderFemale = "Sprites/Create/GenderFemale";
+    public const string ClassFrameOn = "Sprites/Create/ClassFrameOn";
+    public const string ClassFrameOff = "Sprites/Create/ClassFrameOff";
+    public const string StatsPanelBg = "Sprites/Create/StatsPanelBg";
+    public const string ConfirmBtn = "Sprites/Create/ConfirmBtn";
+    public const string CloseBtn = "Sprites/Create/CloseBtn";
+    public const string NameBox = "Sprites/Create/NameBox";
+
+    // 创建角色页职业/性别立绘 (设计图: 勇士男/勇士女/祝由男/祝由女 + 通用男/女)
+    public const string PortraitWarriorM = "Sprites/Create/Portraits/WarriorM";
+    public const string PortraitWarriorF = "Sprites/Create/Portraits/WarriorF";
+    public const string PortraitPriestM = "Sprites/Create/Portraits/PriestM";
+    public const string PortraitPriestF = "Sprites/Create/Portraits/PriestF";
+    public const string PortraitGenericM = "Sprites/Create/Portraits/GenericM";
+    public const string PortraitGenericF = "Sprites/Create/Portraits/GenericF";
+
     // 敌人
     public const string EnemyBase = "Sprites/Enemy/";
     public const string MeleeGoblin = "Sprites/Enemy/Melee_Goblin";

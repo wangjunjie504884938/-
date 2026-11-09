@@ -438,10 +438,17 @@ public class EquipmentInventory
     };
     public List<EquipmentItem> Backpack = new List<EquipmentItem>();
     public const int MaxBackpackSizeDefault = 50;
+
+    /// <summary>背包扩展格数 (位面币购买, 每次+10, 上限+50) — 经济规范: 位面币消耗/仓库扩展</summary>
+    public static int BagExpandBonus => UnityEngine.PlayerPrefs.GetInt("ARPG_BagExpand", 0) * 10;
+    public const int BagExpandStep = 10;
+    public const int BagExpandMaxTimes = 5;
+    public const int BagExpandPrice = 80; // 位面币/次
+
     public static int MaxBackpackSize =>
-        GameConfigManager.Instance != null && GameConfigManager.Instance.IsLoaded
+        (GameConfigManager.Instance != null && GameConfigManager.Instance.IsLoaded
             ? Mathf.Max(50, GameConfigManager.Instance.GetGlobalInt("MaxBackpackSize", 50))
-            : 50;
+            : 50) + BagExpandBonus;
 
     /// <summary>Direct index lookup for equipped slots (0=Weapon, 1=Armor, 2=Accessory).</summary>
     private EquipmentSlot GetEquippedSlot(EquipSlotType type) => Equipped[(int)type];

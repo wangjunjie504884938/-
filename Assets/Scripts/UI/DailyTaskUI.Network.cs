@@ -12,7 +12,13 @@ public partial class DailyTaskUI
     private IEnumerator LoadData()
     {
         string token = GetToken();
-        if (string.IsNullOrEmpty(token)) yield break;
+        // 规划: 无token走本地任务兜底 (任务栏静默启动也调用本方法, 不再直接yield break)
+        if (string.IsNullOrEmpty(token))
+        {
+            taskList = GenerateLocalTasks();
+            RefreshUI();
+            yield break;
+        }
 
         bool taskDone = false, signInDone = false;
 

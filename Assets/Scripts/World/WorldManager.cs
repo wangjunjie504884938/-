@@ -27,7 +27,6 @@ public class WorldManager : MonoBehaviour
     private static float _eventEndAt;
     private static float _nextEventAt = 60f; // 首次魔潮: 进入世界60秒后
     private const float EventDuration = 90f;
-    private GameObject _hudBtn;
     private Coroutine _spawnerRoutine;
 
     private void Awake()
@@ -74,7 +73,8 @@ public class WorldManager : MonoBehaviour
         DestroyPanel<HubUI>(); DestroyPanel<StageSelectUI>(); DestroyPanel<ShopUI>();
         DestroyPanel<SkillTreeUI>(); DestroyPanel<EquipUI>(); DestroyPanel<TitleScreen>();
         DestroyPanel<CharacterSlotUI>();
-        if (TopNavBar.Instance != null) TopNavBar.Instance.HideBar();
+        // 世界页面导航栏: 返回(回大本营)+设置+四货币 (用户要求世界页也有返回和设置)
+        UIHelper.SetupTopBar("世界", () => ExitWorld());
         GameManager.Instance?.EnsureHud(); // HUD幂等自愈 (Canvas被毁场景)
         if (GameUI.Instance != null)
         {
@@ -151,7 +151,6 @@ public class WorldManager : MonoBehaviour
 
         _zoneEnemies.Clear();
         _zoneRespawnAt.Clear();
-        CreateHudButton();
         _spawnerRoutine = StartCoroutine(SpawnerLoop());
 
         LoadingScreen.SetProgress(1f);
@@ -183,7 +182,6 @@ public class WorldManager : MonoBehaviour
                 Instance.StopCoroutine(Instance._spawnerRoutine);
                 Instance._spawnerRoutine = null;
             }
-            if (Instance._hudBtn != null) Destroy(Instance._hudBtn);
             _zoneEnemies.Clear();
             _zoneRespawnAt.Clear();
             HidePrompt();
@@ -459,40 +457,6 @@ public class WorldManager : MonoBehaviour
             return p;
         }
         return Vector3.zero;
-    }
-
-    // ===== HUD按钮: 世界地图 + 回家 =====
-    private void CreateHudButton()
-    {
-        var canvas = GameManager.EnsureCanvas();
-        _hudBtn = new GameObject("WorldHudBtns");
-        _hudBtn.transform.SetParent(canvas.transform, false);
-        var root = _hudBtn.AddComponent<RectTransform>();
-        root.anchorMin = new Vector2(1, 1); root.anchorMax = new Vector2(1, 1);
-        root.pivot = new Vector2(1, 1);
-        root.anchoredPosition = new Vector2(-14, -14);
-        root.sizeDelta = new Vector2(240, 40);
-        CreateHudSub(root.transform, "MapBtn", "🗺 世界地图", -5, () => WaypointUI.Toggle());
-        CreateHudSub(root.transform, "HomeBtn", "🏠 回家", -125, () => ExitWorld());
-    }
-
-    private static void CreateHudSub(Transform parent, string name, string label, float xOffset, System.Action onClick)
-    {
-        var btnObj = new GameObject(name); btnObj.transform.SetParent(parent, false);
-        var r = btnObj.AddComponent<RectTransform>();
-        r.anchorMin = new Vector2(1, 1); r.anchorMax = new Vector2(1, 1);
-        r.pivot = new Vector2(1, 1);
-        r.anchoredPosition = new Vector2(xOffset, 0);
-        r.sizeDelta = new Vector2(110, 40);
-        var img = btnObj.AddComponent<Image>();
-        img.color = new Color(0.1f, 0.1f, 0.18f, 0.9f);
-        var btn = btnObj.AddComponent<Button>();
-        btn.transition = Selectable.Transition.None;
-        UIHelper.SetupButtonFeedback(btn, img.color);
-        btn.onClick.AddListener(() => onClick());
-        var lbl = new GameObject("Lbl"); lbl.transform.SetParent(btnObj.transform, false);
-        var lblR = lbl.AddComponent<RectTransform>(); lblR.anchorMin = Vector2.zero; lblR.anchorMax = Vector2.one; lblR.offsetMin = Vector2.zero; lblR.offsetMax = Vector2.zero;
-        var txt = lbl.AddComponent<Text>(); txt.text = label; txt.alignment = TextAnchor.MiddleCenter; txt.fontSize = 15; txt.color = UIHelper.TextPrimary; txt.font = GameManager.GetUIFont(); txt.raycastTarget = false;
     }
 
     private static void DestroyPanel<T>() where T : MonoBehaviour

@@ -52,7 +52,7 @@ public class LootPickup : MonoBehaviour
         if (player != null)
         {
             float dist = Vector2.Distance(transform.position, player.transform.position);
-            float pickupRange = GameSettings.AutoLoot ? 3.5f : 2.0f;
+            float pickupRange = Privileges.AutoLoot ? 8f : GameSettings.AutoLoot ? 3.5f : 2.0f;
             if (dist <= pickupRange)
                 TryPickup(player);
         }

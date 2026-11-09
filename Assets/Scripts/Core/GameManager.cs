@@ -67,7 +67,7 @@ public partial class GameManager : MonoBehaviour
     /// <summary>秘境绝对层数(1-based无上限) — CurrentStageIndex仅作地图主题循环(%8), 缩放/结算/排行用本值</summary>
     public int RiftLayer { get; private set; }
 
-    /// <summary>秘境层数 → 地图主题索引(11图循环, 22层每图两次)</summary>
+    /// <summary>秘境层数 → 地图主题索引 — 秘境共11层, 每张地图一层, 不循环</summary>
     public static int RiftLayerToTheme(int stageIndex) => ((stageIndex % DungeonMapData.TotalMaps) + DungeonMapData.TotalMaps) % DungeonMapData.TotalMaps;
 
     /// <summary>秘境层数金币奖励 — 前8层用主题表, 之后每层+500</summary>
@@ -375,48 +375,83 @@ public partial class GameManager : MonoBehaviour
     {
         if (Stats.HasSaveData())
         {
-            HeroClass savedClass = Stats.GetSavedClass();
-            selectedClass = savedClass;
-            CreatePlayer(savedClass);
-            // LoadSaved 必须在 CreatePlayer 之后立即调用
-            // CreatePlayer 中 InitializeClass 会创建空的 Inventory
-            // LoadSaved 会从 PlayerPrefs 恢复装备到这个空 Inventory
-            Player.Stats.LoadSaved();
-
-            // 验证装备是否正确加载
-                        GameLog.Log($"[OnSlotLoaded] Backpack: {Player.Inventory.Backpack.Count}, Equipped: {Player.Inventory.Equipped.Count}");
-            // Clean up legacy free pet + load pet data for this slot
-            PetDataManager.CleanupLegacyFreePet();
-            ActivePetType = PetDataManager.GetActivePet();
-
-            // 使用DataSyncService从服务器同步
-            if (DataSyncService.Instance != null)
-            {
-                StartCoroutine(DataSyncService.Instance.SyncFromServerOrCache((success, msg) =>
-                {
-                    if (!success && !string.IsNullOrEmpty(msg))
-                        GameLog.LogWarning($"[Boot] {msg}");
-                    LoadingScreen.SetProgress(1f);
-                    LoadingScreen.Hide(); // 选角加载遮罩收尾 (未显示时为安全no-op)
-                    BuildUI();
-                    CreateDungeonVisuals();
-                    ShowHub();
-                }));
-            }
-            else
-            {
-                // fallback: 离线模式
-                RuntimePlayerData.Instance?.RefreshFromCache(LocalSettingsManager.GetCachedStage());
-                LoadingScreen.SetProgress(1f);
-                LoadingScreen.Hide();
-                BuildUI();
-                CreateDungeonVisuals();
-                ShowHub();
-            }
+            LoadIntoGame();
+        }
+        else if (CloudSaveManager.Instance != null && CloudSaveManager.Instance.IsLoggedIn)
+        {
+            // 本地无档但已登录 — 槽位列表显示占用时服务器可能有档(本地档可能被清缓存/换设备)。
+            // 直接转创建页会无视服务器角色 → 先拉服务器存档, 拉完仍无档才进创建页
+            StartCoroutine(DownloadSaveThenRoute());
         }
         else
         {
             ShowCharacterSelect();
+        }
+    }
+
+    /// <summary>本地无档时先从服务器拉取当前槽位存档, 再按结果路由 (加载→大厅 / 创建页)</summary>
+    private IEnumerator DownloadSaveThenRoute()
+    {
+        var csm = CloudSaveManager.Instance;
+        bool done = false;
+        csm.DownloadSave(csm.ActiveSlot, success =>
+        {
+            if (!success) GameLog.LogWarning("[OnSlotLoaded] 服务器存档拉取失败, 按本地状态路由");
+            done = true;
+        });
+        LoadingScreen.SetProgress(0.6f);
+        float ws = Time.realtimeSinceStartup;
+        while (!done && Time.realtimeSinceStartup - ws < 15f) yield return null;
+
+        if (Stats.HasSaveData())
+        {
+            LoadIntoGame();
+        }
+        else
+        {
+            ShowCharacterSelect();
+        }
+    }
+
+    private void LoadIntoGame()
+    {
+        HeroClass savedClass = Stats.GetSavedClass();
+        selectedClass = savedClass;
+        CreatePlayer(savedClass);
+        // LoadSaved 必须在 CreatePlayer 之后立即调用
+        // CreatePlayer 中 InitializeClass 会创建空的 Inventory
+        // LoadSaved 会从 PlayerPrefs 恢复装备到这个空 Inventory
+        Player.Stats.LoadSaved();
+
+        // 验证装备是否正确加载
+                    GameLog.Log($"[OnSlotLoaded] Backpack: {Player.Inventory.Backpack.Count}, Equipped: {Player.Inventory.Equipped.Count}");
+        // Clean up legacy free pet + load pet data for this slot
+        PetDataManager.CleanupLegacyFreePet();
+        ActivePetType = PetDataManager.GetActivePet();
+
+        // 使用DataSyncService从服务器同步
+        if (DataSyncService.Instance != null)
+        {
+            StartCoroutine(DataSyncService.Instance.SyncFromServerOrCache((success, msg) =>
+            {
+                if (!success && !string.IsNullOrEmpty(msg))
+                    GameLog.LogWarning($"[Boot] {msg}");
+                LoadingScreen.SetProgress(1f);
+                LoadingScreen.Hide(); // 选角加载遮罩收尾 (未显示时为安全no-op)
+                BuildUI();
+                CreateDungeonVisuals();
+                ShowHub();
+            }));
+        }
+        else
+        {
+            // fallback: 离线模式
+            RuntimePlayerData.Instance?.RefreshFromCache(LocalSettingsManager.GetCachedStage());
+            LoadingScreen.SetProgress(1f);
+            LoadingScreen.Hide();
+            BuildUI();
+            CreateDungeonVisuals();
+            ShowHub();
         }
     }
 
@@ -490,10 +525,39 @@ public partial class GameManager : MonoBehaviour
         // Clean up old UI
         DestroyUIComponent<HubUI>();
 
-        var oldCharSelect = GetComponent<CharacterSelectUI>();
-        if (oldCharSelect != null) Destroy(oldCharSelect);
-
         ShowCharacterSelect();
+    }
+
+    /// <summary>
+    /// 显示性别+起名选择页 (创建新角色第二步, heroClass为职业选择页确认的职业)
+    /// 职业选择页仅隐藏不销毁 — 返回时可保留已选职业索引
+    /// </summary>
+    public void ShowGenderSelect(HeroClass heroClass)
+    {
+        selectedClass = heroClass;
+        CurrentState = GameState.CharacterSelect;
+
+        // Only destroy player if we are NOT coming from Hub
+        if (!charSelectCameFromHub)
+        {
+            if (Player != null) Destroy(Player.gameObject);
+            Player = null;
+        }
+
+        // Clean up old UI components (职业选择页保留, 仅隐藏)
+        DestroyUIComponent<HubUI>();
+        DestroyUIComponent<TitleScreen>();
+        var oldCharSelect = GetComponent<CharacterSelectUI>();
+        if (oldCharSelect != null) oldCharSelect.Hide();
+
+        // Hide gameplay HUD on full-screen pages
+        if (GameUI.Instance != null) GameUI.Instance.SetHUDVisible(false);
+
+        // 复用已有性别页组件 — 同帧 Destroy+AddComponent 会让新实例在Awake中误判重复
+        // 而执行 Destroy(gameObject), 连坐销毁挂载对象(GameManager)
+        var genderUI = GetComponent<GenderSelectUI>();
+        if (genderUI == null) genderUI = gameObject.AddComponent<GenderSelectUI>();
+        genderUI.Show(heroClass);
     }
 
     public void ShowCharacterSelect()
@@ -508,16 +572,18 @@ public partial class GameManager : MonoBehaviour
             Player = null;
         }
 
-        // Clean up old UI components
-        DestroyUIComponent<CharacterSelectUI>();
+        // Clean up other full-screen pages (不重建, 延迟销毁安全)
         DestroyUIComponent<HubUI>();
         DestroyUIComponent<TitleScreen>();
+        DestroyUIComponent<GenderSelectUI>();
 
         // Hide gameplay HUD on full-screen pages
         if (GameUI.Instance != null) GameUI.Instance.SetHUDVisible(false);
 
-        // Show character select
-        var charSelect = gameObject.AddComponent<CharacterSelectUI>();
+        // 复用已有职业选择页 — 同帧 Destroy+AddComponent 会让新实例在Awake中误判重复
+        // 而执行 Destroy(gameObject), 连坐销毁挂载对象(GameManager, 返回再重进即黑屏)
+        var charSelect = GetComponent<CharacterSelectUI>();
+        if (charSelect == null) charSelect = gameObject.AddComponent<CharacterSelectUI>();
         charSelect.Show();
     }
 
@@ -525,6 +591,7 @@ public partial class GameManager : MonoBehaviour
     {
         selectedClass = heroClass;
         Destroy(GetComponent<CharacterSelectUI>());
+        Destroy(GetComponent<GenderSelectUI>());
 
         // If re-selecting from Hub, clear old save and destroy old player
         if (charSelectCameFromHub)
@@ -650,6 +717,14 @@ public partial class GameManager : MonoBehaviour
 
     public void StartDungeon(int stageIndex)
     {
+        // 秘境独立进度逐层解锁: 只能进入 已通关最高层+1 (打一关解锁一关, 不能提前进入)
+        int riftCleared = RiftProgress.HighestCleared;
+        if (!RiftProgress.CanEnter(stageIndex))
+        {
+            GameLog.LogWarning($"[StartDungeon] 第{stageIndex + 1}层未解锁(秘境最高通关{riftCleared + 1}层)");
+            GameUI.Instance?.ShowItemPickupToast("层未解锁", $"请先通过第{riftCleared + 2}层");
+            return;
+        }
         // 同步先置状态(调用方/GameOverPanel三重判断依赖), 重活分帧由协程完成
         RiftLayer = stageIndex + 1;                        // 秘境绝对层数(无上限)
         CurrentStageIndex = RiftLayerToTheme(stageIndex);  // 地图/主题按11图循环(22层每图两次)
@@ -805,6 +880,11 @@ public partial class GameManager : MonoBehaviour
     {
         CurrentState = GameState.Hub;
 
+        // 经济规范: 通关秘境产出寿元币 (2+层数)
+        int lifeGain = 2 + Mathf.Max(1, RiftLayer);
+        CurrencyWallet.AddLifeOrPlane("Life", lifeGain);
+        GameUI.Instance?.ShowItemPickupToast("秘境结算", $"通关产出寿元币 +{lifeGain}");
+
         if (Player != null && Player.Combat != null)
             Player.Combat.IsAutoBattle = false;
 
@@ -859,6 +939,8 @@ public partial class GameManager : MonoBehaviour
 
         if (Player != null)
             LeaderboardUI.SubmitScore(RiftLayer, (int)Player.HeroClass, Player.Stats.Level);
+
+        RiftProgress.MarkCleared(RiftLayer - 1);   // 秘境独立进度: 通关记录(只增不减)
 
         StartCoroutine(RewardFlow.CompleteDungeonFlow(timeUsed, hpRemaining, hpMax, enemiesKilled, RiftLayer - 1));
     }
@@ -942,10 +1024,54 @@ public partial class GameManager : MonoBehaviour
         DailyTaskUI.ReportProgress(0, 1);
     }
 
+    /// <summary>原地复活: 消耗位面币, 满血复活在当前位置 (仅副本死亡, 世界死亡走重进世界)</summary>
+    public void ReviveInPlace()
+    {
+        if (CurrentState != GameState.GameOver) return;
+        if (DiedInWorld)
+        {
+            GameUI.Instance?.ShowItemPickupToast("原地复活", "世界内暂不支持, 请重进世界");
+            return;
+        }
+        if (!CurrencyWallet.TrySpendPlane(50))
+        {
+            GameUI.Instance?.ShowItemPickupToast("原地复活", "位面币不足 (需要50)");
+            return;
+        }
+
+        CurrentState = GameState.Dungeon;
+        Time.timeScale = 1f;
+        if (Player != null)
+        {
+            Player.IsDead = false;
+            Player.Stats.Hp = Player.Stats.TotalMaxHp;
+            Player.Stats.Runtime.Potions = PlayerRuntimeStats.MaxPotions;
+            Player.StateMachine.Reset();
+            Player.CharSprite?.ResetDeath();
+            Player.CharSprite?.ResetCharacterSprite();
+            Player.gameObject.SetActive(true);
+            if (Player.Combat != null) Player.Combat.IsAutoBattle = false;
+        }
+        if (GameUI.Instance?.GameOverPanel != null) GameUI.Instance.GameOverPanel.SetActive(false);
+        CombatDirector.Instance?.StartCombat(Mathf.Max(1, DungeonLevel));
+        InGameHud.SetVisibleFromFlow(true);
+        GameUI.Instance?.ShowItemPickupToast("原地复活", "位面币 -50 满血复活");
+        GameLog.Log("[Revive] 原地复活: 位面币-50");
+    }
+
     public void OnPlayerDeath()
     {
         CurrentState = GameState.GameOver;
         Time.timeScale = 0f;
+
+        // 经济规范: 死亡掉落10%游戏币 (上限1000)
+        if (Player != null)
+        {
+            int lose = Mathf.Min(Player.Stats.Gold / 10, 1000);
+            if (lose > 0 && Player.Stats.SpendGold(lose))
+                GameUI.Instance?.ShowItemPickupToast("死亡惩罚", $"掉落游戏币 {lose}");
+        }
+
         GameLog.Log($"[OnPlayerDeath] State={CurrentState} Player={(Player != null ? "exists" : "NULL")} active={(Player != null && Player.gameObject.activeSelf)}");
         AudioManager.Instance?.PlayBGM(AudioManager.BGMType.GameOver);
         if (CombatDirector.Instance != null)

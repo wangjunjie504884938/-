@@ -82,6 +82,11 @@ public class PlayerInputController : MonoBehaviour
         if (_joystick == null && Time.frameCount % 30 == 0)
             _joystick = FindObjectOfType<VirtualJoystick>();
 
+        // 新局内HUD摇杆(InGameHud); 优先级: 键盘 > 新HUD摇杆 > 旧VirtualJoystick(隐藏后不再生效)
+        Vector2 hudJoy = InGameHud.Instance != null ? InGameHud.Instance.JoystickMove : Vector2.zero;
+        bool hudJoyActive = hudJoy.sqrMagnitude > 0.01f;
+        bool legacyJoyActive = _joystick != null && _joystick.gameObject.activeInHierarchy;
+
         if (_useKeyboard)
         {
             Vector2 keyboard = new Vector2(
@@ -90,12 +95,18 @@ public class PlayerInputController : MonoBehaviour
             );
             if (keyboard.sqrMagnitude > 0.01f)
                 MoveInput = keyboard.normalized;
-            else if (_joystick != null)
+            else if (hudJoyActive)
+                MoveInput = hudJoy;
+            else if (legacyJoyActive)
                 MoveInput = _joystick.InputVector;
             else
                 MoveInput = Vector2.zero;
         }
-        else if (_joystick != null)
+        else if (hudJoyActive)
+        {
+            MoveInput = hudJoy;
+        }
+        else if (legacyJoyActive)
         {
             MoveInput = _joystick.InputVector;
         }
@@ -120,10 +131,11 @@ public class PlayerInputController : MonoBehaviour
         if (Input.GetKeyDown(InputMapping.Potion))
             PotionPressed = true;
 
-        // Attack: keyboard uses GetKey, touch uses AttackButton.Instance.IsPressed
+        // Attack: keyboard GetKey / touch AttackButton.IsPressed / 新HUD普攻按住
         bool keyboardAttack = Input.GetKey(InputMapping.Attack) || Input.GetKey(InputMapping.AltAttack);
         bool touchAttack = AttackButton.Instance != null && AttackButton.Instance.IsPressed;
-        AttackPressed = keyboardAttack || touchAttack;
+        bool hudAttack = InGameHud.Instance != null && InGameHud.Instance.AttackHeld;
+        AttackPressed = keyboardAttack || touchAttack || hudAttack;
     }
 
     // Touch button callbacks (called from SkillButton.OnPressedCallback)
