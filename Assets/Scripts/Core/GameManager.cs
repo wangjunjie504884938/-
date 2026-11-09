@@ -762,7 +762,7 @@ public partial class GameManager : MonoBehaviour
 
         // Re-enable gameplay HUD for dungeon
         // 自愈：Canvas/GameUI/HUD可能已被意外销毁（如断线重连、异常流程），进副本前确保存在
-        bool hudRebuilt = GameUI.Instance == null || GameUI.Instance.HpBar == null;
+        bool hudRebuilt = GameUI.Instance == null || GameUI.Instance.ShieldBar == null;
         if (hudRebuilt) BuildUI();
         if (GameUI.Instance != null)
         {
@@ -1149,7 +1149,7 @@ public partial class GameManager : MonoBehaviour
 
         // 关闭面板
         // 自愈：Canvas/GameUI/HUD可能已被意外销毁，重试前确保存在
-        bool hudRebuilt = GameUI.Instance == null || GameUI.Instance.HpBar == null;
+        bool hudRebuilt = GameUI.Instance == null || GameUI.Instance.ShieldBar == null;
         if (hudRebuilt) BuildUI();
         if (GameUI.Instance != null)
         {

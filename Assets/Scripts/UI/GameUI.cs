@@ -13,12 +13,7 @@ public partial class GameUI : MonoBehaviour
     public Text LevelText;
     public Text XpText;
     public Slider XpBar;
-    public Text DungeonLevelText;
-    public Text GoldText;
     public GameObject ShieldBar;
-    public GameObject HudSettingsBtn;
-    public GameObject HudPauseBtn;
-    public Text MapNameText;
 
     [Header("Game Over")]
     public GameObject GameOverPanel;
@@ -75,8 +70,7 @@ public partial class GameUI : MonoBehaviour
     private string currentBossName;
 
     // Cached frame-level values to skip redundant .text assignments
-    private int _lastHp, _lastMaxHp, _lastLevel, _lastXp, _lastXpToNext, _lastGold, _lastAlive, _lastWave;
-    private int _lastDungeonLevel;
+    private int _lastHp, _lastMaxHp, _lastLevel, _lastXp, _lastXpToNext, _lastAlive;
     private bool _lastInWorldHud;
 
     // Detailed stats toggle panel
@@ -315,44 +309,15 @@ public partial class GameUI : MonoBehaviour
             _lastXp = xp; _lastXpToNext = xpNext;
         }
 
-        // 开放世界模式隐藏副本HUD（楼层/波次/剩余计数），离开世界时恢复
+        // 开放世界模式隐藏副本HUD（剩余计数），离开世界时恢复
         bool inWorld = GameManager.Instance != null && GameManager.Instance.InWorld;
         if (inWorld != _lastInWorldHud)
         {
             _lastInWorldHud = inWorld;
-            if (DungeonLevelText != null) DungeonLevelText.gameObject.SetActive(!inWorld);
-            if (MapNameText != null) MapNameText.gameObject.SetActive(!inWorld);
             if (EnemyCountText != null) EnemyCountText.gameObject.SetActive(!inWorld);
         }
 
-        int dl = GameManager.Instance.DungeonLevel;
-        int wave = CombatDirector.Instance?.CurrentStageWave ?? 0;
-        if (!inWorld && DungeonLevelText != null && (dl != _lastDungeonLevel || wave != _lastWave))
-        {
-            DungeonLevelText.text = UIStringBuilderPool.FormatDungeonInfo(dl, wave, GameManager.WavesPerStage);
-            _lastDungeonLevel = dl; _lastWave = wave;
-        }
-
-        // 显示当前地图名称
-        if (!inWorld && MapNameText != null && GameManager.Instance != null)
-        {
-            int stageIdx = GameManager.Instance.CurrentStageIndex;
-            string mapName = stageIdx switch
-            {
-                0 => "石墓深渊", 1 => "幽暗森林", 2 => "冰霜洞窟", 3 => "烈焰熔岩",
-                4 => "暗影领域", 5 => "龙巢", 6 => "虚空裂隙", 7 => "魔王殿",
-                _ => $"第{stageIdx + 1}关"
-            };
-            string mode = GameManager.Instance.IsEndlessMode ? " [无尽]" : "";
-            MapNameText.text = $"{mapName}  {dl}F  波{wave}/{GameManager.WavesPerStage}{mode}";
-        }
-
-        int gold = player.Stats.Gold;
-        if (GoldText != null && gold != _lastGold)
-        {
-            GoldText.text = UIStringBuilderPool.FormatGold(gold);
-            _lastGold = gold;
-        }
+        // 楼层/波次/地图名/金币显示已由InGameHud全量替代 (旧版元素已删除)
 
         int alive = CombatDirector.Instance?.AliveEnemies ?? 0;
         if (!inWorld && EnemyCountText != null && alive != _lastAlive)
@@ -525,11 +490,7 @@ public partial class GameUI : MonoBehaviour
         if (LevelText != null) LevelText.gameObject.SetActive(visible);
         if (XpText != null) XpText.gameObject.SetActive(visible);
         if (XpBar != null) XpBar.gameObject.SetActive(visible);
-        if (DungeonLevelText != null) DungeonLevelText.gameObject.SetActive(visible);
         if (EnemyCountText != null) EnemyCountText.gameObject.SetActive(visible);
-        if (GoldText != null) GoldText.gameObject.SetActive(visible);
-        if (HudSettingsBtn != null) HudSettingsBtn.SetActive(visible);
-        if (HudPauseBtn != null) HudPauseBtn.SetActive(visible);
         if (_statsPanel != null && !visible) { _statsPanel.SetActive(false); _statsPanelVisible = false; }
         if (ShieldBar != null) ShieldBar.SetActive(false);
         if (!visible && BossHealthPanel != null) BossHealthPanel.SetActive(false);

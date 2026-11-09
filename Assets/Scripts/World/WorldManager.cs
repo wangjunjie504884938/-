@@ -73,8 +73,8 @@ public class WorldManager : MonoBehaviour
         DestroyPanel<HubUI>(); DestroyPanel<StageSelectUI>(); DestroyPanel<ShopUI>();
         DestroyPanel<SkillTreeUI>(); DestroyPanel<EquipUI>(); DestroyPanel<TitleScreen>();
         DestroyPanel<CharacterSlotUI>();
-        // 世界页面导航栏: 返回(回大本营)+设置+四货币 (用户要求世界页也有返回和设置)
-        UIHelper.SetupTopBar("世界", () => ExitWorld());
+        // 世界与副本同一套导航: 隐藏顶部导航栏, 左上返回/设置由InGameHud提供 (返回=暂停面板→返回大厅)
+        TopNavBar.Instance?.HideBar();
         GameManager.Instance?.EnsureHud(); // HUD幂等自愈 (Canvas被毁场景)
         if (GameUI.Instance != null)
         {

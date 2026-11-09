@@ -30,7 +30,7 @@ public partial class GameManager
 
         // Re-enable gameplay HUD
         // 自愈：Canvas/GameUI/HUD可能已被意外销毁，确保存在
-        if (GameUI.Instance == null || GameUI.Instance.HpBar == null) BuildUI();
+        if (GameUI.Instance == null || GameUI.Instance.ShieldBar == null) BuildUI();
         if (GameUI.Instance != null)
         {
             GameUI.Instance.ShowHubMode(false);

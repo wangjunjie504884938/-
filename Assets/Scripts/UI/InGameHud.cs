@@ -440,7 +440,7 @@ public class InGameHud : MonoBehaviour
     {
         var root = NewChild("Currencies", panel.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0, 0), new Vector2(820, 60));
-        // 大厅/世界的货币显示在导航栏上, HUD货币槽仅副本/无尽显示 (SyncHudNavButtons驱动)
+        // HUD货币槽与返回/设置同规则: 副本/无尽/世界显示, 大厅由导航栏负责 (SyncHudNavButtons驱动)
         root.gameObject.SetActive(false);
         _currenciesRow = root;
 
@@ -549,7 +549,7 @@ public class InGameHud : MonoBehaviour
         if (on) _redDots[idx].transform.SetAsLastSibling();
     }
 
-    // =================== 左上返回/设置 (仅副本/无尽显示, 世界与大厅由导航栏提供) ===================
+    // =================== 左上返回/设置 (副本/无尽/世界显示, 与副本同一套导航; 大厅由导航栏提供) ===================
 
     /// <summary>HudNavBtns — ← 返回(暂停面板) 与 齿轮(设置), 战斗中左上角入口</summary>
     private void BuildHudNavButtons(Font font)
@@ -570,16 +570,16 @@ public class InGameHud : MonoBehaviour
         }, gear: true);
     }
 
-    /// <summary>每帧同步返回/设置显隐 (副本/无尽显示; 世界复用Dungeon状态但InWorld=true, 交给导航栏; 大厅同)</summary>
+    /// <summary>每帧同步返回/设置显隐 (副本/无尽/世界显示 — 世界复用Dungeon状态, 与副本同一套导航; 大厅交给导航栏)</summary>
     private void SyncHudNavButtons()
     {
         if (_hudNavBtns == null) return;
         var gm = GameManager.Instance;
-        bool show = gm != null && !gm.InWorld
+        bool show = gm != null
                     && (gm.CurrentState == GameState.Dungeon || gm.CurrentState == GameState.Endless);
         if (_hudNavBtns.gameObject.activeSelf != show)
             _hudNavBtns.gameObject.SetActive(show);
-        // HUD货币槽与返回/设置同规则: 副本/无尽显示, 大厅/世界由导航栏货币槽负责
+        // HUD货币槽与返回/设置同规则: 副本/无尽/世界显示, 大厅由导航栏货币槽负责
         if (_currenciesRow != null && _currenciesRow.gameObject.activeSelf != show)
             _currenciesRow.gameObject.SetActive(show);
     }

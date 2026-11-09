@@ -305,7 +305,7 @@ public static class UIHelper
         EnsureTopNavBar().Setup(title, onBack);
     }
 
-    /// <summary>面板返回按钮统一路由: 大厅流程回Hub; 世界内恢复世界导航条; 副本/无尽仅收起导航栏(HUD world无导航), 不打断战斗</summary>
+    /// <summary>面板返回按钮统一路由: 大厅流程回Hub; 副本/无尽/世界收起导航栏(InGameHud左上返回/设置常显), 不打断战斗</summary>
     public static void ReturnFromPanel()
     {
         var gm = GameManager.Instance;
@@ -314,15 +314,8 @@ public static class UIHelper
                                        || gm.InWorld);
         if (inCombat)
         {
-            if (WorldManager.Active)
-            {
-                // 世界视图有自己的导航条(返回=退出世界) — 弹窗关闭后必须恢复, 否则导航被吞 (用户反馈: 世界点其他弹窗再点X导航消失)
-                SetupTopBar("世界", () => WorldManager.ExitWorld());
-            }
-            else
-            {
-                TopNavBar.Instance?.HideBar();
-            }
+            // 世界与副本同一套导航: 弹窗关闭后统一收起导航栏 (InGameHud的返回/设置在世界内常显, 无需恢复)
+            TopNavBar.Instance?.HideBar();
         }
         else
         {
